@@ -118,4 +118,7 @@
     <string name="usb_use_tethering">USB tethering</string>
     <string name="usb_use_MIDI">MIDI</string>
     <string name="usb_use">Use USB for</string>
+    <!-- Notification counter -->
+    <string name="status_bar_notification_info_overflow" translatable="false">\u221E</string>
+
 </resources>

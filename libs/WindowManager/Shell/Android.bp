@@ -173,6 +173,7 @@ android_library {
         "lottie",
         "mechanics",
         "perfetto_trace_java_protos",
+        "org.lineageos.platform.internal",
     ],
     libs: [
         // Soong fails to automatically add this dependency because all the

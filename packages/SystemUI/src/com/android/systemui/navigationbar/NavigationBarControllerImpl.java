@@ -28,6 +28,7 @@ import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.Trace;
+import android.os.UserHandle;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -68,6 +69,8 @@ import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.pip.Pip;
 
 import dalvik.annotation.optimization.NeverCompile;
+
+import lineageos.providers.LineageSettings;
 
 import kotlinx.coroutines.CoroutineDispatcher;
 
@@ -230,6 +233,15 @@ public class NavigationBarControllerImpl implements
      */
     @Override
     public boolean canCreateNavBarOrTaskBar(int displayId) {
+        if (displayId == mDisplayTracker.getDefaultDisplayId()
+                && LineageSettings.System.getIntForUser(
+                        mContext.getContentResolver(),
+                        LineageSettings.System.FORCE_SHOW_NAVBAR, 0,
+                        UserHandle.USER_CURRENT) == 1) {
+            mHasNavBarOrTaskbar.put(displayId, true);
+            return true;
+        }
+
         if (mHasNavBarOrTaskbar.indexOfKey(displayId) > -1) {
             return mHasNavBarOrTaskbar.get(displayId);
         }
@@ -242,6 +254,15 @@ public class NavigationBarControllerImpl implements
      * {@link IWindowManager#hasNavigationBar(int)}.
      */
     private boolean updateHasNavBarForDisplay(int displayId) {
+        if (displayId == mDisplayTracker.getDefaultDisplayId()
+                && LineageSettings.System.getIntForUser(
+                        mContext.getContentResolver(),
+                        LineageSettings.System.FORCE_SHOW_NAVBAR, 0,
+                        UserHandle.USER_CURRENT) == 1) {
+            mHasNavBarOrTaskbar.put(displayId, true);
+            return true;
+        }
+
         final IWindowManager wms = WindowManagerGlobal.getWindowManagerService();
 
         try {
@@ -541,6 +562,18 @@ public class NavigationBarControllerImpl implements
     @Nullable
     public NavigationBar getDefaultNavigationBar() {
         return mNavigationBars.get(mDisplayTracker.getDefaultDisplayId());
+    }
+
+    @Override
+    public void onDisplayReady(int displayId) {
+        mHasNavBarOrTaskbar.delete(displayId);
+        mDisplayDecorationListener.onDisplayAddSystemDecorations(displayId);
+    }
+
+    @Override
+    public void onDisplayRemoved(int displayId) {
+        mHasNavBarOrTaskbar.delete(displayId);
+        mDisplayDecorationListener.onDisplayRemoveSystemDecorations(displayId);
     }
 
     @NeverCompile

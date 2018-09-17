@@ -79,4 +79,8 @@ public interface NavigationBarController {
 
     /** Returns whether Navbar (or Taskbar) is allowed to be created on the given display. */
     boolean canCreateNavBarOrTaskBar(int displayId);
+
+    /** Aliased to internal CommandQueue callbacks. */
+    void onDisplayReady(int displayId);
+    void onDisplayRemoved(int displayId);
 }

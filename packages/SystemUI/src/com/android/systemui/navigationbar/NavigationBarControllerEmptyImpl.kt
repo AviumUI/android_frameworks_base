@@ -58,4 +58,8 @@ class NavigationBarControllerEmptyImpl @Inject constructor() : NavigationBarCont
     override fun getNavigationBar(displayId: Int): NavigationBar? = null
 
     override fun canCreateNavBarOrTaskBar(displayId: Int): Boolean = false
+
+    override fun onDisplayReady(displayId: Int) {}
+
+    override fun onDisplayRemoved(displayId: Int) {}
 }

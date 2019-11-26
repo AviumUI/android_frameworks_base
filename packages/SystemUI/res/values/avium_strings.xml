@@ -86,4 +86,11 @@
     <!-- Statusbar Icons -->
     <string name="status_bar_nfc">NFC</string>
 
+<<<<<<< PATCH SET (2916b9d85ebc27d792adbb4563fc6a3ce6693057 SystemUI: Introduce DataSwitchTile)
+    <!-- DataSwitch Tile -->
+    <string name="qs_data_switch_label">Switch data card</string>
+
 </resources>
+=======
+</resources>
+>>>>>>> BASE      (0e7c7ea03fff326e4d3e000bb775ccf0ecd1697d SystemUI: Introduce 5G toggle in internet connectivity dialo)

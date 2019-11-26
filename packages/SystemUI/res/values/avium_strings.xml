@@ -86,8 +86,13 @@
     <!-- Statusbar Icons -->
     <string name="status_bar_nfc">NFC</string>
 
+<<<<<<< PATCH SET (522f7e3340cde4fdd7684c8f49446fc9c88a0714 SystemUI: Introduce DataSwitchTile)
+    <!-- DataSwitch Tile -->
+    <string name="qs_data_switch_label">Switch data card</string>
+=======
     <!-- Avium Chip Notifs -->
     <string name="avium_chip_notification_title">Next</string>
     <string name="avium_chip_notification_dismiss_hint">Click to dismiss</string>
+>>>>>>> BASE      (6ef0e04483f166e1a8bea63c374fa90d93b23b76 fixup! webkit: SystemImpl: Filter out unavailable providers)
 
 </resources>

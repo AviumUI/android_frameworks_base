@@ -86,4 +86,7 @@
     <!-- Statusbar Icons -->
     <string name="status_bar_nfc">NFC</string>
 
+    <!-- DataSwitch Tile -->
+    <string name="qs_data_switch_label">Switch data card</string>
+
 </resources>

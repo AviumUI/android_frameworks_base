@@ -120,7 +120,11 @@
 
     <!-- Tiles native to System UI. Order should match "quick_settings_tiles_default" -->
     <string name="quick_settings_tiles_stock" translatable="false">
+<<<<<<< PATCH SET (c78bd51aee0b7e6dec7aa552d92aaaf32316b529 SystemUI: Introduce DataSwitchTile)
+        internet,bt,flashlight,dnd,modes_dnd,alarm,airplane,nfc,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,location,hotspot,inversion,saver,dark,work,night,reverse,reduce_brightness,qr_code_scanner,onehanded,color_correction,dream,font_scaling,record_issue,hearing_devices,notes,desktopeffects,ambient_display,aod,caffeine,compass,cpuinfo,dataswitch,heads_up,powershare,profiles,reading_mode,sync,usb_tether,vpn
+=======
         internet,wifi,cell,bt,flashlight,dnd,modes_dnd,alarm,airplane,nfc,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,location,hotspot,inversion,saver,dark,work,night,reverse,reduce_brightness,qr_code_scanner,onehanded,color_correction,dream,font_scaling,record_issue,hearing_devices,notes,desktopeffects,ambient_display,aod,caffeine,heads_up,powershare,profiles,reading_mode,sync,usb_tether,vpn
+>>>>>>> BASE      (968138bedb9cf9c451b10280db5ab96839061444 Support volume up/down to mute)
     </string>
 
     <!-- The tiles to display in QuickSettings -->

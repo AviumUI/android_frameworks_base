@@ -77,4 +77,13 @@
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
 
+<<<<<<< PATCH SET (60a83ac5f31c32ce54b4021476a7579e211f1faa SystemUI: Introduce DataSwitchTile)
+    <!-- 5G toggle in Internet Dialog -->
+    <string name="enable_fiveg">Enable 5G</string>
+
+    <!-- DataSwitch Tile -->
+    <string name="qs_data_switch_label">Switch data card</string>
+
+=======
+>>>>>>> BASE      (7686aa44d6fb32d4ba7ed248aef74697d9151644 Merge "PWM: Support horizontal screen gestures" into avium-1)
 </resources>

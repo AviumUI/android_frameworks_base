@@ -7,4 +7,16 @@
 
     <!-- Component name of the activity that allows choosing the usb function when a usb device is plugged in. -->
     <string name="config_usbFunctionActivity" translatable="false">com.android.systemui/com.android.systemui.usb.UsbFunctionActivity</string>
+
+    <!-- Defines the sysfs attribute path used by the device
+         to enable/disable DC dimming. -->
+    <string name="config_deviceDcDimmingSysfsNode"></string>
+
+    <!-- Defines the value used by the device sysfs node
+         to enable DC dimming -->
+    <string name="config_deviceDcDimmingEnableValue">1</string>
+
+    <!-- Defines the value used by the device sysfs node
+         to disable DC dimming -->
+    <string name="config_deviceDcDimmingDisableValue">0</string>
 </resources>

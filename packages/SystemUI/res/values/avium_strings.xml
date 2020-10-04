@@ -83,4 +83,9 @@
     <!-- Face unlock -->
     <string name="face_unlock_recognizing">Recognizing face...</string>
 
+<<<<<<< PATCH SET (b13ab6eaf0e6a18278344c5bce0c927ac9c150d5 SystemUI: Add statusbar NFC icon)
+    <!-- Statusbar Icons -->
+    <string name="status_bar_nfc">NFC</string>
+=======
+>>>>>>> BASE      (89578f5f6630a706d214411513b31664c57c989d SystemUI: Introduce 5G toggle in internet connectivity dialo)
 </resources>

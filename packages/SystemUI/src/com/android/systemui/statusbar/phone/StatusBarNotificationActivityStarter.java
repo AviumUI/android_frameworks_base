@@ -79,6 +79,9 @@ import com.android.systemui.statusbar.notification.emptyshade.shared.ModesEmptyS
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRowDragController;
 import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback;
+import com.android.systemui.statusbar.phone.dagger.CentralSurfacesComponent;
+import com.android.systemui.statusbar.policy.GameSpaceManager;
+import com.android.systemui.statusbar.policy.HeadsUpUtil;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpUtil;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
@@ -680,6 +683,10 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
 
     @VisibleForTesting
     void launchFullScreenIntent(NotificationEntry entry) {
+        GameSpaceManager gameSpace = mStatusBar.getGameSpaceManager();
+        if (gameSpace != null && gameSpace.shouldSuppressFullScreenIntent()) {
+            return;
+        }
         // Skip if device is in VR mode.
         if (mPresenter.isDeviceInVrMode()) {
             mLogger.logFullScreenIntentSuppressedByVR(entry);

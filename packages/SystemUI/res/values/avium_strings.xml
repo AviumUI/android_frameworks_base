@@ -77,7 +77,14 @@
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
 
+<<<<<<< PATCH SET (316d15d2ee13faad919e02e9561687630f1c320e SystemUI: Introduce 5G toggle in internet connectivity dialo)
+    <!-- 5G toggle in Internet Dialog -->
+    <string name="enable_fiveg">Enable 5G</string>
+
+</resources>
+=======
     <!-- Face unlock -->
     <string name="face_unlock_recognizing">Recognizing face...</string>
 
 </resources>
+>>>>>>> BASE      (1d6d61f67cae8def5a32effbae6910fc4797f823 SystemUI: Implement face unlock recognition text)

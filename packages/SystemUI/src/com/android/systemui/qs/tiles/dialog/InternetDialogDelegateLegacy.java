@@ -47,6 +47,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Switch;
 import android.widget.TextView;
+import com.android.settingslib.Utils;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
@@ -146,6 +147,12 @@ public class InternetDialogDelegateLegacy implements
     private TextView mAirplaneModeSummaryText;
     private Switch mMobileDataToggle;
     private View mMobileToggleDivider;
+    private LinearLayout mFivegLayout;
+    private ImageView mFivegIcon;
+    private TextView mFivegTitleText;
+    private Switch mFivegToggle;
+    private View mFivegToggleDivider;
+    private Switch mHotspotToggle;
     private Switch mWiFiToggle;
     private Button mDoneButton;
 
@@ -182,6 +189,9 @@ public class InternetDialogDelegateLegacy implements
     LifecycleOwner mLifecycleOwner;
     @VisibleForTesting
     MutableLiveData<InternetContent> mDataInternetContent = new MutableLiveData<>();
+
+    // 5g toggle
+    private final boolean mShouldShowFivegToggle;
 
     @AssistedFactory
     public interface Factory {
@@ -236,6 +246,7 @@ public class InternetDialogDelegateLegacy implements
         mUiEventLogger = uiEventLogger;
         mDialogTransitionAnimator = dialogTransitionAnimator;
         mAdapter = new InternetAdapter(mInternetDetailsContentController, coroutineScope);
+        mShouldShowFivegToggle = mInternetDetailsContentController.isFivegSupported();
     }
 
     @Override
@@ -309,6 +320,11 @@ public class InternetDialogDelegateLegacy implements
         mAirplaneModeSummaryText = mDialogView.requireViewById(R.id.airplane_mode_summary);
         mMobileToggleDivider = mDialogView.requireViewById(R.id.mobile_toggle_divider);
         mMobileDataToggle = mDialogView.requireViewById(R.id.mobile_toggle);
+        mFivegLayout = mDialogView.requireViewById(R.id.fiveg_layout);
+        mFivegIcon = mDialogView.requireViewById(R.id.fiveg_icon);
+        mFivegTitleText = mDialogView.requireViewById(R.id.fiveg_title);
+        mFivegToggleDivider = mDialogView.requireViewById(R.id.fiveg_toggle_divider);
+        mFivegToggle = mDialogView.requireViewById(R.id.fiveg_toggle);
         mWiFiToggle = mDialogView.requireViewById(R.id.wifi_toggle);
         mBackgroundOn = context.getDrawable(R.drawable.settingslib_switch_bar_bg_on);
         mInternetDialogTitle.setText(getDialogTitleText());
@@ -357,6 +373,8 @@ public class InternetDialogDelegateLegacy implements
         mLifecycleRegistry.setCurrentState(Lifecycle.State.DESTROYED);
         mMobileNetworkLayout.setOnClickListener(null);
         mMobileNetworkLayout.setOnLongClickListener(null);
+        mFivegToggle.setOnCheckedChangeListener(null);
+        mMobileDataToggle.setOnClickListener(null);
         mConnectedWifListLayout.setOnClickListener(null);
         if (mSecondaryMobileNetworkLayout != null) {
             mSecondaryMobileNetworkLayout.setOnClickListener(null);
@@ -480,6 +498,9 @@ public class InternetDialogDelegateLegacy implements
                 mInternetDetailsContentController.setMobileDataEnabled(
                         dialog.getContext(), mDefaultDataSubId, isChecked, false);
             }
+        });
+        mFivegToggle.setOnClickListener(v -> {
+            mInternetDetailsContentController.setFivegEnabled(mFivegToggle.isChecked());
         });
         mConnectedWifListLayout.setOnClickListener(this::onClickConnectedWifi);
         mSeeAllLayout.setOnClickListener(this::onClickSeeMoreButton);
@@ -634,22 +655,28 @@ public class InternetDialogDelegateLegacy implements
                 mSecondaryMobileSettingsIcon.setVisibility(mCanConfigMobileData ?
                         View.VISIBLE : View.INVISIBLE);
 
-                // set secondary visual for default data sub
-                mMobileNetworkLayout.setBackground(mBackgroundOff);
-                mMobileTitleText.setTextAppearance(R.style.TextAppearance_InternetDialog);
-                mMobileSummaryText.setTextAppearance(
-                        R.style.TextAppearance_InternetDialog_Secondary);
-                mSignalIcon.setColorFilter(
-                        dialog.getContext().getColor(R.color.connected_network_secondary_color));
-            } else {
-                mMobileNetworkLayout.setBackground(
-                        isNetworkConnected ? mBackgroundOn : mBackgroundOff);
-                mMobileTitleText.setTextAppearance(isNetworkConnected
-                        ?
-                        R.style.TextAppearance_InternetDialog_Active
-                        : R.style.TextAppearance_InternetDialog);
-                mMobileSummaryText.setTextAppearance(secondaryRes);
-            }
+                    // set secondary visual for default data sub
+                    mMobileNetworkLayout.setBackground(mBackgroundOff);
+                    mMobileTitleText.setTextAppearance(R.style.TextAppearance_InternetDialog);
+                    mMobileSummaryText.setTextAppearance(
+                            R.style.TextAppearance_InternetDialog_Secondary);
+                    mSignalIcon.setColorFilter(
+                            dialog.getContext().getColor(R.color.connected_network_secondary_color));
+                } else {
+                    mMobileNetworkLayout.setBackground(
+                            isNetworkConnected ? mBackgroundOn : mBackgroundOff);
+                    mMobileTitleText.setTextAppearance(isNetworkConnected
+                            ?
+                            R.style.TextAppearance_InternetDialog_Active
+                            : R.style.TextAppearance_InternetDialog);
+                    mMobileSummaryText.setTextAppearance(secondaryRes);
+                    mFivegIcon.getDrawable().setTint(
+                            isNetworkConnected ? dialog.getContext().getColor(R.color.connected_network_primary_color)
+                            : Utils.getColorAttrDefaultColor(dialog.getContext(), android.R.attr.textColorTertiary));
+                     mFivegTitleText.setTextAppearance(isNetworkConnected ?
+                            R.style.TextAppearance_InternetDialog_Active
+                            : R.style.TextAppearance_InternetDialog);
+                }
 
             if (mSecondaryMobileNetworkLayout != null) {
                 mSecondaryMobileNetworkLayout.setVisibility(nonDdsVisibility);

@@ -60,5 +60,7 @@
     <string name="media_blur_clock_title">音乐模糊时钟</string>
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
-
+    
+    <!-- 5G toggle in Internet Dialog -->
+    <string name="enable_fiveg">Enable 5G</string>
 </resources>

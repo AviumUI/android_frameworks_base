@@ -76,6 +76,8 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
     public static final int CONTENT_FADE_DURATION = 110;
     public static final int CONTENT_FADE_DELAY = 100;
 
+    private LyricViewController mLyricViewController;
+
     private static final SourceType HEADS_UP = SourceType.from("HeadsUp");
     private static final SourceType PULSING = SourceType.from("Pulsing");
     private final HeadsUpManager mHeadsUpManager;
@@ -289,6 +291,9 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
                     hide(mClockView, View.INVISIBLE);
                 }
                 mOperatorNameViewOptional.ifPresent(view -> hide(view, View.INVISIBLE));
+                if (mLyricViewController != null) {
+                    mLyricViewController.hideLyricView(mAnimationsEnabled);
+                }
             } else {
                 if (!StatusBarRootModernization.isEnabled()) {
                     show(mClockView);
@@ -297,6 +302,9 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
                 hide(mView, View.GONE, () -> {
                     updateParentClipping(true /* shouldClip */);
                 });
+                if (mLyricViewController != null) {
+                    mLyricViewController.showLyricView(mAnimationsEnabled);
+                }
             }
             // Show the status bar icons when the view gets shown / hidden
             if (mStatusBarStateController.getState() != StatusBarState.SHADE) {
@@ -323,6 +331,10 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
      */
     private void hide(View view, int endState) {
         hide(view, endState, null);
+    }
+
+    public void setLyricViewController(LyricViewController controller) {
+        mLyricViewController = controller;
     }
 
     /**

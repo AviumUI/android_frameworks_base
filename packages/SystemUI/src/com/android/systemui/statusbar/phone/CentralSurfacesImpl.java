@@ -2989,6 +2989,11 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
         return mGutsManager;
     }
 
+    @Override
+    public GameSpaceManager getGameSpaceManager() {
+        return mGameSpaceManager;
+    }
+
     boolean isTransientShown() {
         return mStatusBarModeRepository.getDefaultDisplay().isTransientShown().getValue();
     }

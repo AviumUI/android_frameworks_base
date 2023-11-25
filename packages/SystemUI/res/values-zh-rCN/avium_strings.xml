@@ -105,4 +105,7 @@
     <string name="keyguard_mistouch_exit_desciption">按音量上键退出</string>
     <string name="keyguard_mistouch_title">防止误触</string>
 
+    <!-- Face unlock -->
+    <string name="face_unlock_recognizing">识别人脸中...</string>
+
 </resources>

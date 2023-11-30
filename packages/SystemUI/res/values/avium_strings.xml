@@ -77,4 +77,11 @@
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
 
+<<<<<<< PATCH SET (1b4d24b4dd5fa7d7a377f69eed126688980b6efe SystemUI: Implement face unlock recognition text)
+    <!-- Face unlock -->
+    <string name="face_unlock_recognizing">Recognizing face...</string>
+  
 </resources>
+=======
+</resources>
+>>>>>>> BASE      (7686aa44d6fb32d4ba7ed248aef74697d9151644 Merge "PWM: Support horizontal screen gestures" into avium-1)

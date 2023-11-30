@@ -75,4 +75,8 @@
     <string name="media_blur_clock_title">音乐模糊时钟</string>
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
+
+    <!-- Face unlock -->
+    <string name="face_unlock_recognizing">识别人脸中...</string>
+
 </resources>

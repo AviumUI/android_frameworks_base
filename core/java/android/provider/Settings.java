@@ -7227,6 +7227,12 @@ public final class Settings {
         public static final String WIFI_WATCHDOG_PING_DELAY_MS = Secure.WIFI_WATCHDOG_PING_DELAY_MS;
 
         /**
+         * @hide
+         */
+        @Readable
+        public static final String EDGE_SCROLLING_HAPTICS_INTENSITY = "edge_scrolling_haptics_intensity";
+
+        /**
          * @deprecated Use {@link android.provider.Settings.Secure#WIFI_WATCHDOG_PING_TIMEOUT_MS}
          * instead
          */

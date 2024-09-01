@@ -158,6 +158,8 @@ import static com.android.window.flags.Flags.enablePresentationForConnectedDispl
 import static com.android.window.flags.Flags.multiCrop;
 import static com.android.window.flags.Flags.setScPropertiesInClient;
 
+import static org.sun.os.DebugConstants.DEBUG_POP_UP;
+
 import android.Manifest;
 import android.Manifest.permission;
 import android.animation.ValueAnimator;
@@ -1027,11 +1029,7 @@ public class WindowManagerService extends IWindowManager.Stub
         }
 
         void updateForceResizableTasks() {
-            ContentResolver resolver = mContext.getContentResolver();
-            final boolean forceResizable = Settings.Global.getInt(resolver,
-                    DEVELOPMENT_FORCE_RESIZABLE_ACTIVITIES, 0) != 0;
-
-            mAtmService.mForceResizableActivities = forceResizable;
+            mAtmService.mForceResizableActivities = true;
         }
 
         void updateDevelopmentOverrideDesktopExperience() {
@@ -3405,6 +3403,9 @@ public class WindowManagerService extends IWindowManager.Stub
     @Override
     public void onPowerKeyDown(boolean isScreenOn) {
         mRoot.forAllDisplayPolicies(p -> p.onPowerKeyDown(isScreenOn));
+        if (isScreenOn) {
+            mTaskPositioningController.cancelWindowPositionerInputEvent();
+        }
     }
 
     @Override
@@ -3412,6 +3413,7 @@ public class WindowManagerService extends IWindowManager.Stub
         synchronized (mGlobalLock) {
             // force a re-application of focused window sysui visibility on each display.
             mRoot.forAllDisplayPolicies(DisplayPolicy::resetSystemBarAttributes);
+            PopUpWindowController.getInstance().onUserSwitched();
         }
     }
 

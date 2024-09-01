@@ -1208,6 +1208,9 @@ public final class ViewRootImpl implements ViewParent,
 
     private final boolean mDisableDrawWakeLock;
 
+    /** @hide */
+    private final ViewRootImplExt mImplExt = new ViewRootImplExt(this);
+
     private String mTag = TAG;
     private String mFpsTraceName;
     private String mLargestViewTraceName;
@@ -2277,6 +2280,7 @@ public final class ViewRootImpl implements ViewParent,
                 mAppVisibilityChanged = true;
                 scheduleTraversals();
             }
+            mImplExt.handleAppVisibility(visible);
             // Only enable if the window is not already removed (via earlier call to doDie())
             if (!mRemoved || !mAppVisible) {
                 AnimationHandler.requestAnimatorsEnabled(mAppVisible, this);
@@ -6712,6 +6716,8 @@ public final class ViewRootImpl implements ViewParent,
             updateConfiguration(newDisplayId);
         }
         mForceNextConfigUpdate = false;
+
+        mImplExt.performConfigurationChange(overrideConfig);
     }
 
     /**
@@ -10653,6 +10659,9 @@ public final class ViewRootImpl implements ViewParent,
         @Override
         public void onInputEvent(InputEvent event) {
             processRawInputEvent(event);
+            if (event instanceof MotionEvent) {
+                mImplExt.onMotionEvent((MotionEvent) event);
+            }
         }
 
         @Override

@@ -114,4 +114,13 @@
     <!-- DataSwitch Tile -->
     <string name="qs_data_switch_label">切换数据卡</string>
 
+    <!-- USB function dialog - copied from Settings -->
+    <string name="usb_use_charging_only">不用于数据传输</string>
+    <string name="usb_use_file_transfers">数据传输</string>
+    <string name="usb_use_photo_transfers">PTP</string>
+    <string name="usb_use_uvc_webcam">网络摄像头</string>
+    <string name="usb_use_tethering">USB 网络共享</string>
+    <string name="usb_use_MIDI">MIDI</string>
+    <string name="usb_use">将 USB 用于</string>
+
 </resources>

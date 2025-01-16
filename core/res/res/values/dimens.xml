@@ -1306,4 +1306,8 @@
 
     <!-- Default height of taskbar for Launcher.   -->
     <dimen name="taskbar_stashed_size">24dp</dimen>
+
+    <!-- Blur radius used by SystemUI -->
+    <dimen name="min_window_blur_radius">1px</dimen>
+    <dimen name="max_window_blur_radius">17.5dp</dimen>
 </resources>

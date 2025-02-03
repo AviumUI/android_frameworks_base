@@ -2871,7 +2871,7 @@ public final class PowerManagerService extends SystemService
                             mNotifier.onWiredChargingDisconnected(mUserId);
                         }
                     } else if (dockedOnWirelessCharger) {
-                        mNotifier.onWirelessChargingStarted(mBatteryLevel, mUserId);
+                        mNotifier.onWiredChargingStarted(mUserId);
                     }
                 }
             }

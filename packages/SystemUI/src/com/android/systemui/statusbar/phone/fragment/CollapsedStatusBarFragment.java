@@ -408,7 +408,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         initOperatorName();
         initNotificationIconArea();
         mLyricController = new LyricController(getContext(), mStatusBar);
-        mStatusBarFragmentComponent.getHeadsUpAppearanceController().setLyricViewController(mLyricController);
+        mHomeStatusBarComponent.getHeadsUpAppearanceController().setLyricViewController(mLyricController);
         Dependency.get(TunerService.class).addTunable(this, Settings.Secure.STATUS_BAR_SHOW_LYRIC);
         mSystemEventAnimator =
                 new StatusBarSystemEventAnimator(mEndSideContent, getResources());

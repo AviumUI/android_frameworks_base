@@ -2956,6 +2956,10 @@ public final class SystemServer implements Dumpable {
             t.traceBegin("StartSliceManagerService");
             mSystemServiceManager.startService(SliceManagerService.Lifecycle.class);
             t.traceEnd();
+
+            t.traceBegin("GameSpaceManagerService");
+            mSystemServiceManager.startService(GameSpaceManagerService.class);
+            t.traceEnd();
         }
 
         if (RoSystemFeatures.hasFeatureEmbedded(context)) {

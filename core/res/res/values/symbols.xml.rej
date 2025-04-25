@@ -1,0 +1,9 @@
+--- core/res/res/values/symbols.xml
++++ core/res/res/values/symbols.xml
+@@ -6351,4 +6351,6 @@
+   <java-symbol type="string" name="config_avium_hide_sysapp_notifs_default" />
+   <java-symbol type="string" name="config_avium_disable_sensor_apps_default" />
+ 
++  <!-- GameSpace -->
++  <java-symbol type="string" name="gamespace_new_game_added" />
+ </resources>

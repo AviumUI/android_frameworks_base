@@ -363,4 +363,6 @@ public interface CentralSurfaces extends Dumpable, LifecycleOwner, CoreStartable
             ExpandableNotificationRow associatedView);
 
     void toggleCameraFlash();
+    
+    default void unlockedScreenOffAnimationCancel() {}
 }

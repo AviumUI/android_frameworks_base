@@ -3081,6 +3081,18 @@ public final class PowerManagerService extends SystemService
     }
 
     /**
+     * Ext add :
+     * Send the broadcast when User timeout not to sleep
+     */
+    private void sendTimeoutBroadcast(){
+        Intent extTimeoutIntent = new Intent();
+        extTimeoutIntent.setAction("org.exthm.action.SCREEN_NEED_RELIGHT");
+        extTimeoutIntent.putExtra("state",1);
+        mContext.sendBroadcast(extTimeoutIntent);
+   //     Slog.d(TAG, "Test Send the broadcast when User timeout not to sleep");
+    }
+
+    /**
      * Updates the value of mUserActivitySummary to summarize the user requested
      * state of the system such as whether the screen should be bright or dim.
      * Note that user activity is ignored when the system is asleep.
@@ -3280,7 +3292,15 @@ public final class PowerManagerService extends SystemService
                 }
             }
 
+            //ext add timeout not to sleep
+            final int oldSummary = powerGroup.getUserActivitySummaryLocked();
             powerGroup.setUserActivitySummaryLocked(groupUserActivitySummary);
+
+            if (oldSummary == USER_ACTIVITY_SCREEN_DIM &&
+                    groupUserActivitySummary == USER_ACTIVITY_SCREEN_BRIGHT) {
+                sendTimeoutBroadcast();
+            }
+
 
             if (DEBUG_SPEW) {
                 Slog.d(TAG, "updateUserActivitySummaryLocked: groupId=" + powerGroup.getGroupId()

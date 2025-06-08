@@ -70,6 +70,12 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
     private final Runnable mDispatchRankingUpdateRunnable = this::dispatchRankingUpdate;
     private long mSkippingRankingUpdatesSince = -1;
 
+    /*
+     * Ext add
+     * streamline notifications
+    */
+    private static final String EXTHM_USEFUL_PACKAGE = "org.exthm.exthmuseful";
+
     /**
      * Injected constructor. See {@link CentralSurfacesModule}.
      */
@@ -136,6 +142,15 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
     public void onNotificationPosted(final StatusBarNotification sbn,
             final RankingMap rankingMap) {
         if (DEBUG) Log.d(TAG, "onNotificationPosted: " + sbn);
+
+        /*
+         * Ext add
+         * streamline notifications
+         */
+        if (sbn != null && EXTHM_USEFUL_PACKAGE.equals(sbn.getPackageName())) {
+            return; 
+        }
+
         if (sbn != null && !onPluginNotificationPosted(sbn, rankingMap)) {
             mMainExecutor.execute(() -> {
                 for (NotificationHandler handler : mNotificationHandlers) {

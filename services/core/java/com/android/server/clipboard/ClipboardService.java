@@ -168,6 +168,12 @@ public class ClipboardService extends SystemService {
 
     private final Object mLock = new Object();
 
+    /*
+     * Ext add
+     * Add exthmuseful allow to read clipboard
+     */
+    private static final String EXTHM_USEFUL_PACKAGE = "org.exthm.exthmuseful";
+
     /**
      * Instantiates the clipboard.
      */
@@ -1332,6 +1338,17 @@ public class ClipboardService extends SystemService {
             Slog.w(TAG, "Clipboard access denied to " + uid + "/" + callingPackage
                     + " due to invalid device id");
             return false;
+        }
+
+        /*
+         * Ext add 
+         * Add exthmuseful allow to read clipboard
+         */
+        if(EXTHM_USEFUL_PACKAGE.equals(callingPackage)){
+            if(op == AppOpsManager.OP_READ_CLIPBOARD){
+//                Slog.i(TAG, "Allow exthmuseful to read clipboard");
+                return true;
+            }
         }
 
         // Shell can access the clipboard for testing purposes.

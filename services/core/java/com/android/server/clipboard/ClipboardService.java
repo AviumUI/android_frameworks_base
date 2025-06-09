@@ -1342,10 +1342,10 @@ public class ClipboardService extends SystemService {
 
         /*
          * Ext add 
-         * Add exthmuseful allow to read clipboard
+         * Add exthmuseful allow to read and write clipboard
          */
         if(EXTHM_USEFUL_PACKAGE.equals(callingPackage)){
-            if(op == AppOpsManager.OP_READ_CLIPBOARD){
+            if(op == AppOpsManager.OP_READ_CLIPBOARD || op == AppOpsManager.OP_WRITE_CLIPBOARD){
 //                Slog.i(TAG, "Allow exthmuseful to read clipboard");
                 return true;
             }

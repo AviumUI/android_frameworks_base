@@ -104,6 +104,12 @@ import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
+/*
+ * Ext add
+ * 
+ */
+import android.os.SystemProperties;
+
 /**
  * Controls both the scrim behind the notifications and in front of the notifications (when a
  * security method gets shown). Unused when the scene_container flag is enabled.
@@ -1043,6 +1049,11 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         mInFrontAlpha = mState.getFrontAlpha();
         mBehindAlpha = mState.getBehindAlpha();
         mNotificationsAlpha = mState.getNotifAlpha();
+        /*
+         * Ext add
+         * disable to view scrim
+         */
+        boolean isViewScrim = SystemProperties.getBoolean("persist.exthm.lockscreendim", false);
 
         assertAlphasValid();
 
@@ -1114,7 +1125,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
              * Ext add
              * Remove the scrimView on lock screen
              */
-            if (mState == ScrimState.KEYGUARD) {
+            if (mState == ScrimState.KEYGUARD && isViewScrim) {
                 behindAlpha = 0.0f;
                 behindTint = Color.TRANSPARENT; 
             }

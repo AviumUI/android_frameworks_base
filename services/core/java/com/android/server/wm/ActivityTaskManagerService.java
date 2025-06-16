@@ -336,6 +336,16 @@ import java.util.function.Supplier;
  * System service for managing activities and their containers (task, displays,... ).
  */
 public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
+
+    /*
+     * Ext add
+     * disable sensor when opening app
+     */
+    private static final String EXTHM_SENSOR_APP = "persist.exthm.disablesensor.apps";
+    private static final String EXTHM_DISABLE_CAST = "org.exthm.action.ISAPPOPENING";
+    private String mLastCheckedPackageName = "";
+    private static final String TAG2 = "DISABLESENSOR";
+
     private static final String TAG = TAG_WITH_CLASS_NAME ? "ActivityTaskManagerService" : TAG_ATM;
     static final String TAG_ROOT_TASK = TAG + POSTFIX_ROOT_TASK;
     static final String TAG_SWITCH = TAG + POSTFIX_SWITCH;
@@ -8152,5 +8162,29 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
 
     public boolean shouldForceLongScreen(String packageName) {
         return mLineageActivityManager.shouldForceLongScreen(packageName);
+    }
+
+    /*
+     * Ext add
+     * Disable sensor when open app
+     */
+    public void checkAppIsOpening(String packageName) {
+        if (packageName == null || packageName.equals(mLastCheckedPackageName)) {
+            return;
+        }
+        mLastCheckedPackageName = packageName;
+        String appsToDisable = SystemProperties.get(EXTHM_SENSOR_APP, "");
+        Set<String> appSet = new HashSet<>(Arrays.asList(appsToDisable.split(",")));
+        boolean shouldDisable = appSet.contains(packageName);
+        if (shouldDisable) {
+            sendSensorDisable();
+        } 
+    }
+
+    private void sendSensorDisable() {
+        Intent intent = new Intent(EXTHM_DISABLE_CAST);
+        intent.putExtra("state", 1);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+        Log.d(TAG2, "isappopening");
     }
 }

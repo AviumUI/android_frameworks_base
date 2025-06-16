@@ -2559,6 +2559,14 @@ class RootWindowContainer extends WindowContainer<DisplayContent>
                 }
             }
         }
+        /*
+         * Ext add
+         * Disable sensor when app opening
+         */
+        final ActivityRecord next = getTopResumedActivity();
+        if (next != null) {
+            mService.checkAppIsOpening(next.packageName);
+        }
 
         return result;
     }

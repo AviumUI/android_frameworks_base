@@ -75,6 +75,8 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
+import android.app.ActivityManager.RunningServiceInfo;
+import android.app.ActivityManager.RunningTaskInfo;
 import android.app.ActivityManagerInternal;
 import android.app.ActivityOptions;
 import android.app.ActivityTaskManager;
@@ -144,6 +146,7 @@ import com.android.server.LocalServices;
 import com.android.server.SystemConfig;
 import com.android.server.SystemService;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.sensorprivacy.SensorPrivacyService.SensorPrivacyServiceImpl;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -152,6 +155,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+/*
+ * Ext add
+ * Disable sensor when app opening
+ */
+import android.os.SystemProperties;
+import android.util.Log;
 
 /** @hide */
 public final class SensorPrivacyService extends SystemService {
@@ -263,6 +272,39 @@ public final class SensorPrivacyService extends SystemService {
         private final SensorPrivacyHandler mHandler;
         private final Object mLock = new Object();
 
+        /*
+         * Ext add 
+         * Disable sensor when appopening
+         */
+        private static final String TAG = "DisableSensor";
+        private Handler mDisableHandler; 
+        private static final String EXTHM_APP_OPENING = "org.exthm.action.ISAPPOPENING";
+        private static final long DISABLE_MS = 6000;
+        private final BroadcastReceiver mAppOpeningReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                boolean isDisableSensor = SystemProperties.getBoolean("persist.exthm.disablesensor", false);
+                if (intent == null || !EXTHM_APP_OPENING.equals(intent.getAction())) {
+                    return;
+                }
+                final int state = intent.getIntExtra("state", -1);
+                if (state == 1 && isDisableSensor) {
+                    Log.i(TAG, "Disable sensor 6s.");
+                    //disable sensor
+                    setSensorPrivacy(true);
+                    mDisableHandler.removeCallbacks(mEnableSensorsRunnable); 
+                    mDisableHandler.postDelayed(mEnableSensorsRunnable, DISABLE_MS);
+                }
+            }
+        };
+        private final Runnable mEnableSensorsRunnable = new Runnable() {
+            @Override
+            public void run() {
+                Log.i(TAG, "enable sensor");
+                setSensorPrivacy(false);
+            }
+        };
+
         private SensorPrivacyStateController mSensorPrivacyStateController;
 
         /**
@@ -307,6 +349,15 @@ public final class SensorPrivacyService extends SystemService {
         SensorPrivacyServiceImpl() {
             mHandler = new SensorPrivacyHandler(FgThread.get().getLooper(), mContext);
             mSensorPrivacyStateController = SensorPrivacyStateController.getInstance();
+
+            /*
+             * Ext add
+             * Disable sensor when appopening
+             */
+            mDisableHandler = new Handler();
+            IntentFilter filter = new IntentFilter(EXTHM_APP_OPENING);
+            mContext.registerReceiverAsUser(mAppOpeningReceiver, UserHandle.ALL, filter, null, null);
+            Log.i(TAG, "Registered success");
 
             correctStateIfNeeded();
 

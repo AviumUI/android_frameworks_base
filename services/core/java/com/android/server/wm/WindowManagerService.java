@@ -158,7 +158,7 @@ import static com.android.window.flags.Flags.enablePresentationForConnectedDispl
 import static com.android.window.flags.Flags.multiCrop;
 import static com.android.window.flags.Flags.setScPropertiesInClient;
 
-import static org.sun.os.DebugConstants.DEBUG_POP_UP;
+import static org.rising.DebugConstants.DEBUG_POP_UP;
 
 import android.Manifest;
 import android.Manifest.permission;
@@ -1473,6 +1473,8 @@ public class WindowManagerService extends IWindowManager.Stub
         mContext.registerReceiverAsUser(mBroadcastReceiver, UserHandle.ALL, filter, null, null);
 
         mLatencyTracker = LatencyTracker.getInstance(context);
+
+        WindowManagerServiceExt.getInstance().init(this);
 
         mSettingsObserver = new SettingsObserver();
 
@@ -3403,13 +3405,11 @@ public class WindowManagerService extends IWindowManager.Stub
     @Override
     public void onPowerKeyDown(boolean isScreenOn) {
         mRoot.forAllDisplayPolicies(p -> p.onPowerKeyDown(isScreenOn));
-        if (isScreenOn) {
-            mTaskPositioningController.cancelWindowPositionerInputEvent();
-        }
     }
 
     @Override
     public void onUserSwitched() {
+        WindowManagerServiceExt.getInstance().onUserSwitched();
         synchronized (mGlobalLock) {
             // force a re-application of focused window sysui visibility on each display.
             mRoot.forAllDisplayPolicies(DisplayPolicy::resetSystemBarAttributes);
@@ -3872,7 +3872,8 @@ public class WindowManagerService extends IWindowManager.Stub
             if (mDisplayReady) {
                 final int forcedDensity = getForcedDisplayDensityForUserLocked(newUserId);
                 final int targetDensity = forcedDensity != 0
-                        ? forcedDensity : displayContent.getInitialDisplayDensity();
+                        ? forcedDensity : WindowManagerServiceExt.getInstance()
+                                .getDensityWithScale(displayContent.getInitialDisplayDensity());
                 displayContent.setForcedDensity(targetDensity, UserHandle.USER_CURRENT);
             }
         }
@@ -5676,6 +5677,8 @@ public class WindowManagerService extends IWindowManager.Stub
                 // Ignore, we cannot do anything if we failed to register VR mode listener
             }
         }
+
+        WindowManagerServiceExt.getInstance().systemReady();
     }
 
 
@@ -6228,7 +6231,8 @@ public class WindowManagerService extends IWindowManager.Stub
         synchronized (mGlobalLock) {
             final DisplayContent displayContent = mRoot.getDisplayContent(displayId);
             if (displayContent != null && displayContent.hasAccess(Binder.getCallingUid())) {
-                return displayContent.getInitialDisplayDensity();
+                return WindowManagerServiceExt.getInstance()
+                        .getDensityWithScale(displayContent.getInitialDisplayDensity());
             }
 
             DisplayInfo info = mDisplayManagerInternal.getDisplayInfo(displayId);
@@ -6319,8 +6323,9 @@ public class WindowManagerService extends IWindowManager.Stub
                 // Clear forced display density
                 final DisplayContent displayContent = mRoot.getDisplayContent(displayId);
                 if (displayContent != null) {
-                    displayContent.setForcedDensity(displayContent.getInitialDisplayDensity(),
-                            callingUserId);
+                    displayContent.setForcedDensity(WindowManagerServiceExt.getInstance()
+                            .getDensityWithScale(displayContent.getInitialDisplayDensity()),
+                                    callingUserId);
                     return;
                 }
 

@@ -6350,4 +6350,7 @@
 
   <java-symbol type="string" name="config_avium_hide_sysapp_notifs_default" />
   <java-symbol type="string" name="config_avium_disable_sensor_apps_default" />
+
+  <!-- Build properties from a GMS certified device against current platform SPL level -->
+  <java-symbol type="array" name="config_certifiedBuildProperties" />
 </resources>

@@ -465,4 +465,8 @@ public class NativeApplicationThreadWrapper extends IApplicationThread.Stub {
 
     @Override
     public void requestHandoffActivityData(IBinder requestToken, List<IBinder> activityTokens) {}
+
+    //Ext add
+    @Override
+    public void scheduleCaptureViewImages(IBinder activityToken, int requestId) {}
 }

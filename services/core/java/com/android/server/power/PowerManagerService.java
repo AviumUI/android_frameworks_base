@@ -148,6 +148,8 @@ import com.android.server.power.batterysaver.BatterySaverPolicy;
 import com.android.server.power.batterysaver.BatterySaverStateMachine;
 import com.android.server.power.batterysaver.BatterySavingStats;
 import com.android.server.power.feature.PowerManagerFlags;
+//Ext add
+import android.os.HandlerThread;
 
 import dalvik.annotation.optimization.NeverCompile;
 
@@ -1207,6 +1209,10 @@ public final class PowerManagerService extends SystemService
     private SensorEventListener mProximityListener;
     private PowerManager.WakeLock mProximityWakeLock;
 
+    //Ext add
+    private final HandlerThread mBroadcastThread;
+    private final Handler mBroadcastHandler;
+
     public PowerManagerService(Context context) {
         this(context, new Injector());
     }
@@ -1328,6 +1334,11 @@ public final class PowerManagerService extends SystemService
             mNativeWrapper.nativeSetPowerMode(Mode.INTERACTIVE, true);
             mNativeWrapper.nativeSetPowerMode(Mode.DOUBLE_TAP_TO_WAKE, false);
             mInjector.invalidateIsInteractiveCaches();
+
+            //Ext add
+            mBroadcastThread = new HandlerThread("ScreenBroadcastThread");
+            mBroadcastThread.start(); 
+            mBroadcastHandler = new Handler(mBroadcastThread.getLooper());
         }
     }
 
@@ -3084,12 +3095,17 @@ public final class PowerManagerService extends SystemService
      * Ext add :
      * Send the broadcast when User timeout not to sleep
      */
-    private final Handler mBroadcastHandler = new Handler(FgThread.get().getLooper());
 
     private void sendTimeoutBroadcast() {
-        Intent extTimeoutIntent = new Intent("org.exthm.action.SCREEN_NEED_RELIGHT");
-        extTimeoutIntent.putExtra("state", 1);
-        mBroadcastHandler.post(() -> mContext.sendBroadcast(extTimeoutIntent));
+        mBroadcastHandler.post(() -> {
+            try {
+                Intent extTimeoutIntent = new Intent("org.exthm.action.SCREEN_NEED_RELIGHT");
+                extTimeoutIntent.putExtra("state", 1);
+                mContext.sendBroadcast(extTimeoutIntent);
+            } catch (Exception e) {
+                Slog.e(TAG, "Failed to send SCREEN_NEED_RELIGHT broadcast", e);
+            }
+        });
     }
 
     /**

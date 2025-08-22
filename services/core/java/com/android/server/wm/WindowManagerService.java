@@ -392,9 +392,23 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+// Ext add
+import android.graphics.Canvas;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.view.IViewCaptureCallback;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import com.android.server.wm.ActivityRecord;
+
 /** {@hide} */
 public class WindowManagerService extends IWindowManager.Stub
         implements Watchdog.Monitor, WindowManagerPolicy.WindowManagerFuncs {
+    //Ext add
+    private static final String TAG_AVIUM = "AviumFrameworkDebug";
+
     private static final String TAG = TAG_WITH_CLASS_NAME ? "WindowManagerService" : TAG_WM;
     private static final int TRACE_MAX_SECTION_NAME_LENGTH = 127;
 
@@ -526,6 +540,51 @@ public class WindowManagerService extends IWindowManager.Stub
         }
     };
     final WindowSurfacePlacer mWindowPlacerLocked;
+
+    //Ext add
+    private final ExecutorService mViewCaptureExecutor = Executors.newSingleThreadExecutor();
+    private volatile IViewCaptureCallback mPendingViewCaptureCallback;
+    private final java.util.concurrent.atomic.AtomicInteger mCaptureRequestId =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+    private final android.util.SparseArray<List<Bitmap>> mCapturedImageResults =
+            new android.util.SparseArray<>();
+
+    @Override
+    public void captureFocusedWindowDrawables(int requestId) {
+        synchronized(mGlobalLock) {
+            final WindowState focusedWindow = getFocusedWindowLocked();
+            final ActivityRecord activityRecord = (focusedWindow != null) ? focusedWindow.getActivityRecord() : null;
+
+            if (activityRecord == null || activityRecord.app == null || activityRecord.app.getThread() == null) {
+                mCapturedImageResults.put(requestId, new ArrayList<>());
+                return;
+            }
+
+            try {
+                activityRecord.app.getThread().scheduleCaptureViewImages(activityRecord.token, requestId);
+            } catch (RemoteException e) {
+                mCapturedImageResults.put(requestId, new ArrayList<>());
+            }
+        }
+    }
+
+    @Override
+    public void reportCapturedImages(int requestId, List<Bitmap> bitmaps) {
+        synchronized(mGlobalLock) {
+            mCapturedImageResults.put(requestId, bitmaps);
+        }
+    }
+    
+    @Override
+    public List<Bitmap> checkCaptureResult(int requestId) {
+        synchronized(mGlobalLock) {
+            List<Bitmap> result = mCapturedImageResults.get(requestId);
+            if (result != null) {
+                mCapturedImageResults.remove(requestId);
+            }
+            return result;
+        }
+    }
 
     private final PriorityDump.PriorityDumper mPriorityDumper = new PriorityDump.PriorityDumper() {
         @Override

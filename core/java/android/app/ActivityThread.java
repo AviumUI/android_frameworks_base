@@ -291,6 +291,12 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
+//Ext add
+import android.view.IViewCaptureCallback;
+import android.graphics.drawable.Drawable;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import android.graphics.drawable.BitmapDrawable;
 /**
  * This manages the execution of the main thread in an
  * application process, scheduling and executing activities,
@@ -1143,6 +1149,15 @@ public final class ActivityThread extends ClientTransactionHandler
             r.info = info;
             sendMessage(H.RECEIVER, r);
         }
+
+        //Ext add
+    @Override
+    public void scheduleCaptureViewImages(IBinder activityToken, int requestId) {
+        SomeArgs args = SomeArgs.obtain();
+        args.arg1 = activityToken;
+        args.argi1 = requestId;
+        sendMessage(H.CAPTURE_VIEW_IMAGES, args);
+    }
 
         public final void scheduleReceiverList(List<ReceiverInfo> info) throws RemoteException {
             for (int i = 0; i < info.size(); i++) {
@@ -2427,6 +2442,9 @@ public final class ActivityThread extends ClientTransactionHandler
 
         public static final int TIMEOUT_SERVICE_FOR_TYPE = 172;
 
+        //Ext add
+        public static final int CAPTURE_VIEW_IMAGES = 173;
+
         String codeToString(int code) {
             if (DEBUG_MESSAGES) {
                 switch (code) {
@@ -2799,6 +2817,13 @@ public final class ActivityThread extends ClientTransactionHandler
                 case FINISH_INSTRUMENTATION_WITHOUT_RESTART:
                     handleFinishInstrumentationWithoutRestart();
                     break;
+                //Ext add
+                case CAPTURE_VIEW_IMAGES: {
+                    SomeArgs captureArgs = (SomeArgs) msg.obj;
+                    IBinder token = (IBinder) captureArgs.arg1;
+                    int requestId = captureArgs.argi1;
+                    handleCaptureViewImages(token, requestId);
+                } break;
             }
             long messageElapsedTimeMs = SystemClock.uptimeMillis() - messageStartUptimeMs;
             Object obj = msg.obj;
@@ -9036,4 +9061,98 @@ public final class ActivityThread extends ClientTransactionHandler
     // ------------------ Regular JNI ------------------------
     private native void nPurgePendingResources();
     private native void nInitZygoteChildHeapProfiling();
+
+    private static final String TAG_AVIUM = "AviumFrameworkDebug";
+    private static final int MIN_IMAGE_DIMENSION_PX = 100;
+
+    //Ext add
+    private void handleCaptureViewImages(IBinder token, int requestId) {
+        final List<Bitmap> bitmaps = new ArrayList<>();
+        final ActivityClientRecord r = mActivities.get(token);
+        
+        if (r != null && r.activity != null) {
+            final View decorView = r.activity.getWindow().getDecorView();
+            if (decorView != null) {
+                extractImageViewBitmaps(decorView, bitmaps);
+            }
+        }
+        
+        try {
+            android.view.IWindowManager wms = android.view.WindowManagerGlobal.getWindowManagerService();
+            wms.reportCapturedImages(requestId, bitmaps);
+        } catch (RemoteException e) { /* ... */ }
+    }
+
+    private static void extractImageViewBitmaps(View view, List<Bitmap> bitmaps) {
+        if (view == null || view.getVisibility() != View.VISIBLE) {
+            return; 
+        }
+
+        if (view instanceof android.widget.ImageView) {
+            Drawable drawable = ((android.widget.ImageView) view).getDrawable();
+            addDrawableFromViewIfLargeEnough(view, drawable, bitmaps);
+        }
+   
+        if (view instanceof TextView) {
+            for (Drawable drawable : ((TextView) view).getCompoundDrawables()) {
+                addDrawableFromViewIfLargeEnough(view, drawable, bitmaps);
+            }
+        }
+        Drawable background = view.getBackground();
+        addDrawableFromViewIfLargeEnough(view, background, bitmaps);
+
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                extractImageViewBitmaps(group.getChildAt(i), bitmaps);
+            }
+        }
+    }
+
+    private static void addDrawableFromViewIfLargeEnough(View view, Drawable drawable, List<Bitmap> bitmaps) {
+        if (drawable == null) {
+            return;
+        }
+
+        int viewWidth = view.getWidth();
+        int viewHeight = view.getHeight();
+    
+        if (viewWidth >= MIN_IMAGE_DIMENSION_PX && viewHeight >= MIN_IMAGE_DIMENSION_PX) {
+            Bitmap bitmap = drawableToBitmap(drawable, viewWidth, viewHeight);
+            
+            if (bitmap != null && !bitmap.isRecycled()) {
+                if (!isBitmapAlreadyInList(bitmap, bitmaps)) {
+                    bitmaps.add(bitmap);
+                }
+            }
+        }
+    }
+
+    private static boolean isBitmapAlreadyInList(Bitmap newBitmap, List<Bitmap> existingBitmaps) {
+        for (Bitmap existing : existingBitmaps) {
+            if (newBitmap.sameAs(existing)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private static Bitmap drawableToBitmap(Drawable drawable, int width, int height) {
+        if (drawable instanceof android.graphics.drawable.BitmapDrawable) {
+            BitmapDrawable bitmapDrawable = (android.graphics.drawable.BitmapDrawable) drawable;
+            if (bitmapDrawable.getBitmap() != null) {
+                return bitmapDrawable.getBitmap();
+            }
+        }
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        return bitmap;
+    }
 }

@@ -3084,12 +3084,12 @@ public final class PowerManagerService extends SystemService
      * Ext add :
      * Send the broadcast when User timeout not to sleep
      */
-    private void sendTimeoutBroadcast(){
-        Intent extTimeoutIntent = new Intent();
-        extTimeoutIntent.setAction("org.exthm.action.SCREEN_NEED_RELIGHT");
-        extTimeoutIntent.putExtra("state",1);
-        mContext.sendBroadcast(extTimeoutIntent);
-   //     Slog.d(TAG, "Test Send the broadcast when User timeout not to sleep");
+    private final Handler mBroadcastHandler = new Handler(FgThread.get().getLooper());
+
+    private void sendTimeoutBroadcast() {
+        Intent extTimeoutIntent = new Intent("org.exthm.action.SCREEN_NEED_RELIGHT");
+        extTimeoutIntent.putExtra("state", 1);
+        mBroadcastHandler.post(() -> mContext.sendBroadcast(extTimeoutIntent));
     }
 
     /**

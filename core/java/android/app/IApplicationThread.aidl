@@ -56,6 +56,8 @@ import android.window.TaskFragmentTransaction;
 
 import com.android.internal.app.IVoiceInteractor;
 import com.android.internal.content.ReferrerIntent;
+//Ext add
+import android.view.IViewCaptureCallback;
 
 import java.util.List;
 import java.util.Map;
@@ -187,4 +189,6 @@ oneway interface IApplicationThread {
     void schedulePing(in RemoteCallback pong);
     void getExecutableMethodFileOffsets(in MethodDescriptor methodDescriptor,
             in IOffsetCallback resultCallback);
+    //Ext add
+    void scheduleCaptureViewImages(in IBinder activityToken, int requestId);
 }

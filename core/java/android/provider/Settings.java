@@ -13861,7 +13861,7 @@ public final class Settings {
          * @hide
          */
         @Readable
-        public static final String CPU_PERFORMANCE_MODE = "cpu_performance_mode";
+        public static final String CONTEXTUAL_SEARCH_PACKAGE = "contextual_search_package";
 
         /**
          * Show lyric in status bar when playing music
@@ -13874,8 +13874,6 @@ public final class Settings {
          */
         @Readable
         public static final String STATUS_BAR_SHOW_LYRIC = "status_bar_show_lyric";
-        
-        public static final String CONTEXTUAL_SEARCH_PACKAGE = "contextual_search_package";
 
         /**
          * Integer property which determines whether advanced protection is on or not.

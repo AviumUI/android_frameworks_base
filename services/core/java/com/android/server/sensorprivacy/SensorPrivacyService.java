@@ -356,7 +356,7 @@ public final class SensorPrivacyService extends SystemService {
              */
             mDisableHandler = new Handler();
             IntentFilter filter = new IntentFilter(EXTHM_APP_OPENING);
-            mContext.registerReceiverAsUser(mAppOpeningReceiver, UserHandle.ALL, filter, null, null);
+            mContext.registerReceiverAsUser(mAppOpeningReceiver, UserHandle.ALL, filter, null, null, Context.RECEIVER_NOT_EXPORTED);
             Log.i(TAG, "Registered success");
 
             correctStateIfNeeded();

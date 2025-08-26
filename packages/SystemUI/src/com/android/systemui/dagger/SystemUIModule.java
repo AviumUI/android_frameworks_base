@@ -189,6 +189,10 @@ import com.android.systemui.util.settings.SettingsUtilModule;
 import com.android.systemui.wallet.dagger.WalletModule;
 import com.android.systemui.wmshell.BubblesManager;
 import com.android.wm.shell.bubbles.Bubbles;
+//Ext add
+import org.avium.systemui.keyguard.AviumMusicLockscreenController;
+import dagger.Lazy;
+import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager;
 
 import dagger.Binds;
 import dagger.BindsOptionalOf;
@@ -517,5 +521,14 @@ public abstract class SystemUIModule {
     @Provides
     static SettingsProxy.CurrentUserIdProvider provideCurrentUserId(UserTracker userTracker) {
         return userTracker::getUserId;
+    }
+
+    //Ext add
+    @Provides
+    @SysUISingleton 
+    static AviumMusicLockscreenController provideAviumMusicLockscreenController(
+            Context context,
+            Lazy<StatusBarKeyguardViewManager> statusBarKeyguardViewManagerProvider) {
+        return new AviumMusicLockscreenController(context, statusBarKeyguardViewManagerProvider);
     }
 }

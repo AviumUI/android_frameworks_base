@@ -936,7 +936,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
          * Ext add
          * disable to view scrim
          */
-        boolean isViewScrim = SystemProperties.getBoolean("persist.exthm.lockscreendim", false);
+        boolean isViewScrim = SystemProperties.getBoolean("persist.vendor.avium.lockscreendim", false);
 
         assertAlphasValid();
 

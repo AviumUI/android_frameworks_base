@@ -620,12 +620,12 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
 
     private void checkAviumSystemProperty() {
         //这里可能未来新增音乐锁屏样式，所以用123不用true or false
-        String prop = SystemProperties.get("persist.avium.lockscreen.music", "0");
+        String prop = SystemProperties.get("persist.vendor.avium.lockscreen.music", "0");
         mIsAviumMusicLockscreenEnabled = "1".equals(prop);
     }
 
     private void checkStayAwakeProperty() {
-        mIsStayAwakeEnabled = SystemProperties.getBoolean("persist.avium.lockscreen.music.unlock", false);
+        mIsStayAwakeEnabled = SystemProperties.getBoolean("persist.vendor.avium.lockscreen.music.unlock", false);
     }
 
     private void showAviumMusicLockscreen(boolean show) {

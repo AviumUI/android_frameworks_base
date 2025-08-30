@@ -283,7 +283,7 @@ public final class SensorPrivacyService extends SystemService {
         private final BroadcastReceiver mAppOpeningReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                boolean isDisableSensor = SystemProperties.getBoolean("persist.exthm.disablesensor", false);
+                boolean isDisableSensor = SystemProperties.getBoolean("persist.avium.disablesensor", false);
                 if (intent == null || !EXTHM_APP_OPENING.equals(intent.getAction())) {
                     return;
                 }

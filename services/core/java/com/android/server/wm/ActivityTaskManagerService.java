@@ -341,7 +341,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
      * Ext add
      * disable sensor when opening app
      */
-    private static final String EXTHM_SENSOR_APP = "persist.exthm.disablesensor.apps";
+    private static final String EXTHM_SENSOR_APP = "persist.avium.disablesensor.apps";
     private static final String EXTHM_DISABLE_CAST = "org.exthm.action.ISAPPOPENING";
     private String mLastCheckedPackageName = "";
     private static final String TAG2 = "DISABLESENSOR";

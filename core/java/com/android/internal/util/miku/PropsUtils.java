@@ -2,6 +2,8 @@
  * Copyright (C) 2020 The Pixel Experience Project
  *
  * Copyright (C) 2021-2022 Miku UI
+ * 
+ * Copyright (C) 2025-2026 The AviumUI Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,10 +46,11 @@ public class PropsUtils {
     private static final String[] meizuPropToChange = {
             "com.netease.cloudmusic",
             "com.tencent.qqmusic",
-	    "com.kugou.android",
-	    "cmccwm.mobilemusic",
-	    "cn.kuwo.player",
-	    "com.meizu.media.music"
+            "com.kugou.android",
+            "com.kugou.android.lite",
+            "cmccwm.mobilemusic",
+            "cn.kuwo.player",
+            "com.meizu.media.music"
     };
 
     static {
@@ -60,13 +63,15 @@ public class PropsUtils {
         propsToChange.put("PRODUCT", "raven");
         propsToChange.put("MODEL", "Pixel 6 Pro");
         propsToChange.put("FINGERPRINT", "google/redfin/redfin:12/SP2A.220305.012/8177914:user/release-keys");
-	propsToChangeMeizu = new HashMap<>();
-	propsToChangeMeizu.put("BRAND", "meizu");
-	propsToChangeMeizu.put("MANUFACTURER", "meizu");
-	propsToChangeMeizu.put("DEVICE", "meizu18");
-	propsToChangeMeizu.put("PRODUCT", "meizu_18_CN");
-	propsToChangeMeizu.put("MODEL", "MEIZU 18");
-	propsToChangeMeizu.put("FINGERPRINT", "meizu/meizu_18_CN/meizu18:11/RKQ1.201105.002/1607588916:user/release-keys");
+        propsToChangeMeizu = new HashMap<>();
+        propsToChangeMeizu.put("BRAND", "meizu");
+        propsToChangeMeizu.put("MANUFACTURER", "Meizu");
+        propsToChangeMeizu.put("DEVICE", "m1892");
+        propsToChangeMeizu.put("DISPLAY", "Flyme");
+        propsToChangeMeizu.put("PRODUCT", "meizu_16thPlus_CN");
+        propsToChangeMeizu.put("MODEL", "meizu 16th Plus");
+        propsToChangeMeizu.put("FINGERPRINT", "meizu/qssi/qssi:10/QKQ1.191222.002/1595524937:user/release-keys");
+        propsToChangeMeizu.put("TYPE", "user");
     }
 
     public static void setProps(String packageName) {
@@ -91,15 +96,15 @@ public class PropsUtils {
             }
         }
 	// Set Props for StatusBar Lyric
-	if(Arrays.asList(meizuPropToChange).contains(packageName)){
-	    if (DEBUG) Log.d(TAG, "Defining props for: " + packageName);
-	    for (Map.Entry<String, Object> prop : propsToChangeMeizu.entrySet()) {
-		String key = prop.getKey();
-		Object value = prop.getValue();
-		if (DEBUG) Log.d(TAG, "Defining " + key + " prop for: " + packageName);
-		setPropValue(key, value);
-	    }
-	}
+        if(Arrays.asList(meizuPropToChange).contains(packageName)){
+            if (DEBUG) Log.d(TAG, "Defining props for: " + packageName);
+            for (Map.Entry<String, Object> prop : propsToChangeMeizu.entrySet()) {
+                String key = prop.getKey();
+                Object value = prop.getValue();
+                if (DEBUG) Log.d(TAG, "Defining " + key + " prop for: " + packageName);
+                setPropValue(key, value);
+            }
+        }
         // Set proper indexing fingerprint
         /*
         if (packageName.equals("com.google.android.settings.intelligence")){

@@ -594,7 +594,10 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
         MediaMetadata metadata = (mMediaController != null) ? mMediaController.getMetadata() : null;
         boolean isPlaying = playbackState != null && playbackState.getState() == PlaybackState.STATE_PLAYING;
 
-        boolean shouldShow = mKeyguardStateController.isShowing()
+        final int statusBarState = mStatusBarStateController.getState();
+        final boolean onKeyguard = (statusBarState == StatusBarState.KEYGUARD);
+
+        boolean shouldShow = onKeyguard
                 && !mMusicLockscreenDismissed
                 && mIsAviumMusicLockscreenEnabled
                 && isPlaying; 
@@ -605,8 +608,12 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
             mAviumMusicController.updateMetadata(metadata);
             mAviumMusicController.updatePlaybackState(playbackState);
         } else if (mIsAviumMusicLockscreenShowing) {
-            mDelayedHideRunnable = () -> showAviumMusicLockscreen(false);
-            mHandler.postDelayed(mDelayedHideRunnable, 5000);//这里给5s是因为切歌会闪，0.5s不够，2s大部分场景够但网络缓冲也要闪
+            if (!mIsAviumMusicLockscreenEnabled) {
+                showAviumMusicLockscreen(false);
+            } else {
+                mDelayedHideRunnable = () -> showAviumMusicLockscreen(false);
+                mHandler.postDelayed(mDelayedHideRunnable, 3000);//这里给5s是因为切歌会闪，0.5s不够，2s大部分场景够但网络缓冲也要闪
+            }
         }
     }
 

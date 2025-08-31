@@ -71,6 +71,7 @@ class AviumMusicLockscreenController @Inject constructor(
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                v.parent?.requestDisallowInterceptTouchEvent(true)
                 initialX = event.x
                 initialY = event.y
                 activePointerId = event.getPointerId(0)
@@ -92,6 +93,7 @@ class AviumMusicLockscreenController @Inject constructor(
                 if (!isDragging && (abs(dx) > touchSlop || abs(dy) > touchSlop.toFloat())) {
                     isDragging = true
                     isVerticalDrag = abs(dy) > abs(dx)
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
                 }
 
                 if (isDragging) {

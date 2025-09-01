@@ -436,8 +436,6 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
 
     protected GameSpaceManager mGameSpaceManager;
 
-    protected GameSpaceManager mGameSpaceManager;
-
     /** Controller for the Shade. */
     private final ShadeSurface mShadeSurface;
     private final ShadeLogger mShadeLogger;
@@ -839,9 +837,6 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
         mActivityIntentHelper = new ActivityIntentHelper(mContext);
         mActivityTransitionAnimator = activityTransitionAnimator;
         mGameSpaceManager = new GameSpaceManager(mContext, mKeyguardStateController);
-
-        // The status bar background may need updating when the ongoing call status changes.
-        mOngoingCallController.addCallback((animate) -> maybeUpdateBarMode());
 
         // TODO(b/190746471): Find a better home for this.
         DateTimeView.setReceiverHandler(timeTickHandler);
@@ -2983,8 +2978,6 @@ public class CentralSurfacesImpl implements CoreStartable, CentralSurfaces {
     }
 
     // End Extra BaseStatusBarMethods.
-
-    @Override
     public NotificationGutsManager getGutsManager() {
         return mGutsManager;
     }

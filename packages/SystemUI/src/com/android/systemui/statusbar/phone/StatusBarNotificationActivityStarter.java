@@ -83,13 +83,12 @@ import com.android.systemui.statusbar.notification.headsup.HeadsUpUtil;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRowDragController;
 import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback;
-import com.android.systemui.statusbar.phone.dagger.CentralSurfacesComponent;
 import com.android.systemui.statusbar.policy.GameSpaceManager;
-import com.android.systemui.statusbar.policy.HeadsUpUtil;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpUtil;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.wmshell.BubblesManager;
+import com.android.systemui.statusbar.phone.CentralSurfaces;
 
 import dagger.Lazy;
 
@@ -159,12 +158,14 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
     private final OnUserInteractionCallback mOnUserInteractionCallback;
 
     private boolean mIsCollapsingToShowActivityOverLockscreen;
+    private final CentralSurfaces mCentralSurfaces;
 
     @Inject
     StatusBarNotificationActivityStarter(
             @ShadeDisplayAware Context context,
             ShadeDialogContextInteractor contextInteractor,
             @Main Handler mainThreadHandler,
+            CentralSurfaces centralSurfaces,
             @Background Executor uiBgExecutor,
             NotificationVisibilityProvider visibilityProvider,
             HeadsUpManager headsUpManager,
@@ -227,6 +228,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
         mNotificationAnimationProvider = notificationAnimationProvider;
         mPowerInteractor = powerInteractor;
         mUserTracker = userTracker;
+        mCentralSurfaces = centralSurfaces;
 
         launchFullScreenIntentProvider.registerListener(entry -> launchFullScreenIntent(entry));
     }

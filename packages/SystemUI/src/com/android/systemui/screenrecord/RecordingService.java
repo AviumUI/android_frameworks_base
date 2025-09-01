@@ -295,7 +295,7 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
                 break;
             case ACTION_SHOW_DIALOG:
                 if (mController != null) {
-                    mController.createScreenRecordDialog(this, null).show();
+                    mController.createScreenRecordDialog(null).show();
                 }
                 break;
         }
@@ -684,67 +684,6 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
         }
     }
 
-    private class RecordingServiceBinder extends IRemoteRecording.Stub
-            implements RecordingController.RecordingStateChangeCallback {
-
-        private ArrayList<IRecordingCallback> mCallbackList = new ArrayList<>();
-
-        @Override
-        public void startRecording() throws RemoteException {
-            Intent intent = new Intent(RecordingService.this, RecordingService.class);
-            intent.setAction(ACTION_SHOW_DIALOG);
-            RecordingService.this.startService(intent);
-        }
-
-        @Override
-        public void stopRecording() throws RemoteException {
-            Intent intent = new Intent(RecordingService.this, RecordingService.class);
-            intent.setAction(ACTION_STOP_NOTIF);
-            RecordingService.this.startService(intent);
-        }
-
-        @Override
-        public boolean isRecording() throws RemoteException {
-            return mController.isRecording();
-        }
-
-        @Override
-        public boolean isStarting() throws RemoteException {
-            return mController.isStarting();
-        }
-
-        public void addRecordingCallback(IRecordingCallback callback) throws RemoteException {
-            if (!mCallbackList.contains(callback)) {
-                mCallbackList.add(callback);
-            }
-        }
-
-        public void removeRecordingCallback(IRecordingCallback callback) throws RemoteException {
-            mCallbackList.remove(callback);
-        }
-
-        @Override
-        public void onRecordingStart() {
-            for (IRecordingCallback callback : mCallbackList) {
-                try {
-                    callback.onRecordingStart();
-                } catch (RemoteException e) {
-                    // do nothing
-                }
-            }
-        }
-
-        @Override
-        public void onRecordingEnd() {
-            for (IRecordingCallback callback : mCallbackList) {
-                try {
-                    callback.onRecordingEnd();
-                } catch (RemoteException e) {
-                    // do nothing
-                }
-            }
-        }
-    }
 
     private class RecordingServiceBinder extends IRemoteRecording.Stub
             implements RecordingController.RecordingStateChangeCallback {

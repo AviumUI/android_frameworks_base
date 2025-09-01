@@ -54,6 +54,7 @@ import com.android.systemui.statusbar.phone.PhoneStatusBarViewController;
 import com.android.systemui.statusbar.policy.Clock;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.ViewController;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Optional;
@@ -264,6 +265,7 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
                 }
                 mOperatorNameViewOptional.ifPresent(view -> hide(view, View.INVISIBLE));
                 if (mLyricViewController != null) {
+                    Log.d("AviumLyric", "setPinnedStatus: 头部通知隐藏，显示歌词视图（animationsEnabled=" + mAnimationsEnabled + "）");
                     mLyricViewController.hideLyricView(mAnimationsEnabled);
                 }
             } else {
@@ -275,6 +277,7 @@ public class HeadsUpAppearanceController extends ViewController<HeadsUpStatusBar
                     updateParentClipping(true /* shouldClip */);
                 });
                 if (mLyricViewController != null) {
+                    Log.d("AviumLyric", "setPinnedStatus: 头部通知显示，隐藏歌词视图（animationsEnabled=" + mAnimationsEnabled + "）");
                     mLyricViewController.showLyricView(mAnimationsEnabled);
                 }
             }

@@ -33,6 +33,8 @@ import android.widget.ImageSwitcher;
 import android.widget.ImageView;
 import android.widget.TextSwitcher;
 import android.widget.TextView;
+import android.util.Log;
+import android.os.Bundle;
 
 import com.android.internal.statusbar.StatusBarIcon;
 import com.android.internal.util.ContrastColorUtil;
@@ -99,8 +101,10 @@ public abstract class LyricViewController implements
     }
 
     public void setEnabled(boolean enabled) {
+        Log.d("AviumLyric", "setEnabled: 歌词功能开关变更，旧值=" + mEnabled + ", 新值=" + enabled);
         mEnabled = enabled;
         if (!mEnabled && mStarted) {
+            Log.d("AviumLyric", "setEnabled: 功能关闭且歌词运行中，停止歌词");
             stopLyric();
         }
     }
@@ -111,37 +115,87 @@ public abstract class LyricViewController implements
 
     @Override
     public void onNotificationPosted(StatusBarNotification sbn, RankingMap rankingMap) {
-        if (!mEnabled) return;
+        Log.d("AviumLyric", "onNotificationPosted: =================== 新通知 ===================");
+        Log.d("AviumLyric", "onNotificationPosted: 接收通知，包名=" + sbn.getPackageName() +
+                ", 通知ID=" + sbn.getId() + ", 用户=" + sbn.getUser() +
+                ", PostTime=" + sbn.getPostTime());
+
+        if (!mEnabled) {
+            Log.d("AviumLyric", "onNotificationPosted: 歌词功能未启用（mEnabled=false），跳过处理");
+            return;
+        }
 
         Notification notification = sbn.getNotification();
+        if (notification == null) {
+            Log.e("AviumLyric", "onNotificationPosted: 获取到的 Notification 对象为空！");
+            return;
+        }
+
+        Log.d("AviumLyric", "onNotificationPosted: --- 开始打印通知详细内容 ---");
+        Log.d("AviumLyric", "tickerText: " + notification.tickerText);
+        Log.d("AviumLyric", "通知 flags=0x" + Integer.toHexString(notification.flags) +
+                ", FLAG_ALWAYS_SHOW_TICKER=" + ((notification.flags & Notification.FLAG_ALWAYS_SHOW_TICKER) != 0) +
+                ", FLAG_ONLY_UPDATE_TICKER=" + ((notification.flags & Notification.FLAG_ONLY_UPDATE_TICKER) != 0));
+        Bundle extras = notification.extras;
+        if (extras != null) {
+            Log.d("AviumLyric", "Extras Bundle 内容如下:");
+            for (String key : extras.keySet()) {
+                Object value = extras.get(key);
+                String valueString = (value != null) ? value.toString() : "null";
+                if (valueString.length() > 200) { 
+                    valueString = valueString.substring(0, 200) + "...";
+                }
+                Log.d("AviumLyric", "  > key: " + key + ", value: " + valueString);
+            }
+        } else {
+            Log.d("AviumLyric", "Extras Bundle 为空。");
+        }
+
+        if (extras != null) {
+            String title = extras.getString(Notification.EXTRA_TITLE, "N/A");
+            String text = extras.getString(Notification.EXTRA_TEXT, "N/A");
+            String subText = extras.getString(Notification.EXTRA_SUB_TEXT, "N/A");
+            Log.d("AviumLyric", "常用字段解析: Title='" + title + "', Text='" + text + "', SubText='" + subText + "'");
+        }
+        Log.d("AviumLyric", "onNotificationPosted: --- 通知详细内容打印完毕 ---");
+
+
         boolean isLyric = (notification.flags & Notification.FLAG_ALWAYS_SHOW_TICKER) != 0;
 
         boolean isCurrentNotification = mCurrentNotificationId == sbn.getId() &&
                 TextUtils.equals(sbn.getPackageName(), mCurrentNotificationPackage);
         if (!isLyric) {
+            Log.d("AviumLyric", "onNotificationPosted: 非歌词通知（isLyric=false），跳过");
             if (isCurrentNotification) {
+                Log.d("AviumLyric", "onNotificationPosted: 非歌词通知是当前歌词通知，停止歌词显示");
                 stopLyric();
             }
         } else {
             mCurrentNotificationPackage = sbn.getPackageName();
             mCurrentNotificationId = sbn.getId();
+            Log.d("AviumLyric", "onNotificationPosted: 确认歌词通知，更新当前标识：包名=" + mCurrentNotificationPackage +
+                    ", 通知ID=" + mCurrentNotificationId);
 
             if (notification.tickerText == null) {
+                Log.e("AviumLyric", "onNotificationPosted: 歌词文本（tickerText）为空，停止歌词显示");
                 stopLyric();
                 return;
             }
+            Log.d("AviumLyric", "onNotificationPosted: 歌词文本=" + notification.tickerText);
+
             if (!isCurrentNotification || !mStarted ||
-                    notification.extras.getBoolean(EXTRA_TICKER_ICON_SWITCH, false)) {
-                int iconId = notification.extras.getInt(EXTRA_TICKER_ICON, -1);
+                    extras.getBoolean(EXTRA_TICKER_ICON_SWITCH, false)) {
+                int iconId = extras.getInt(EXTRA_TICKER_ICON, -1);
                 String slot = sbn.getPackageName() + "/0x" + Integer.toHexString(sbn.getId());
                 StatusBarIconView statusBarIconView = new StatusBarIconView(mContext, slot, sbn);
                 Drawable icon = iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
                         statusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
                                 new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
-                                    iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.NotifSmallIcon));
+                                        iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.NotifSmallIcon));
                 mIconSwitcher.setImageDrawable(icon);
                 updateIconTint();
             }
+            Log.d("AviumLyric", "onNotificationPosted: 启动歌词显示，设置歌词文本");
             startLyric();
             mTextSwitcher.setText(notification.tickerText);
         }
@@ -170,17 +224,23 @@ public abstract class LyricViewController implements
 
     public void startLyric() {
         if (!mStarted) {
+            Log.d("AviumLyric", "startLyric: 启动歌词显示（mStarted=true）");
             mStarted = true;
             showLyricView(true);
+        } else {
+            Log.d("AviumLyric", "startLyric: 歌词已在运行（mStarted=true）");
         }
     }
 
     public void stopLyric() {
         if (mStarted) {
+            Log.d("AviumLyric", "stopLyric: 停止歌词显示（mStarted=false）");
             mStarted = false;
             hideLyricView(true);
             mCurrentNotificationPackage = null;
             mCurrentNotificationId = 0;
+        } else {
+            Log.d("AviumLyric", "stopLyric: 歌词已停止（mStarted=false)");
         }
     }
 

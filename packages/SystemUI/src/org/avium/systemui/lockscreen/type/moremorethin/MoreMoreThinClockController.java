@@ -6,12 +6,13 @@ import android.widget.ImageView;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 
-import com.android.systemui.res.R; 
+import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
+import org.avium.systemui.lockscreen.util.GlassClockManager; 
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 
 public class MoreMoreThinClockController extends BaseLockscreenController {
 
@@ -21,6 +22,10 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
     private ImageView mHour1, mHour2, mMinute1, mMinute2;
     private ImageView[] mDigitViews;
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
+
+    private boolean mUseBlurEffect;
+    private GlassClockManager mGlassClockManager;
+    
     private LockscreenLayoutManager mLayoutManager;
 
     private final int[] mDigitResources = new int[]{
@@ -33,11 +38,18 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
+
+        mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
+
         createViews();
         mLayoutManager = new LockscreenLayoutManager(mContainer);
-        mDigitalClockDisplayManager = new DigitalClockDisplayManager(mDigitViews, mDigitResources);
         setupLayout();
+    
+        if (mUseBlurEffect) {
+            mGlassClockManager.prepareWallpaper();
+        }
         initializeCommonViews();
+        
         return mContainer;
     }
 
@@ -45,15 +57,27 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
         mContainer = new ConstraintLayout(mContext);
         mContainer.setId(View.generateViewId());
 
-        mHour1 = createImageView();
-        mHour2 = createImageView();
-        mMinute1 = createImageView();
-        mMinute2 = createImageView();
+        if (mUseBlurEffect) {
+            mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            for (View iv : digitViews) {
+                iv.setId(View.generateViewId());
+                iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
+                iv.setAlpha(0.95f);
+                mContainer.addView(iv);
+            }
+        } else {
+            mHour1 = createImageView();
+            mHour2 = createImageView();
+            mMinute1 = createImageView();
+            mMinute2 = createImageView();
 
-        mDigitViews = new ImageView[]{mHour1, mHour2, mMinute1, mMinute2};
-        
-        for (ImageView iv : mDigitViews) {
-            mContainer.addView(iv);
+            mDigitViews = new ImageView[]{mHour1, mHour2, mMinute1, mMinute2};
+            
+            for (ImageView iv : mDigitViews) {
+                mContainer.addView(iv);
+            }
+            mDigitalClockDisplayManager = new DigitalClockDisplayManager(mDigitViews, mDigitResources);
         }
     }
 
@@ -67,7 +91,14 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
 
     private void setupLayout() {
         ConstraintSet cs = mLayoutManager.getConstraintSet();
-        int[] clockViewIds = {mHour1.getId(), mHour2.getId(), mMinute1.getId(), mMinute2.getId()};
+        View[] digitViews;
+        if (mUseBlurEffect) {
+            digitViews = mGlassClockManager.getDigitViews();
+        } else {
+            digitViews = mDigitViews;
+        }
+
+        int[] clockViewIds = {digitViews[0].getId(), digitViews[1].getId(), digitViews[2].getId(), digitViews[3].getId()};
 
         cs.createHorizontalChain(
             ConstraintSet.PARENT_ID, ConstraintSet.LEFT,
@@ -76,9 +107,9 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
         );
         
         int horizontalMarginPx = -dpToPx(20);
-        cs.setMargin(mHour2.getId(), ConstraintSet.START, horizontalMarginPx);
-        cs.setMargin(mMinute1.getId(), ConstraintSet.START, horizontalMarginPx);
-        cs.setMargin(mMinute2.getId(), ConstraintSet.START, horizontalMarginPx);
+        cs.setMargin(clockViewIds[1], ConstraintSet.START, horizontalMarginPx);
+        cs.setMargin(clockViewIds[2], ConstraintSet.START, horizontalMarginPx);
+        cs.setMargin(clockViewIds[3], ConstraintSet.START, horizontalMarginPx);
 
         for (int id : clockViewIds) {
             cs.connect(id, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP);
@@ -92,7 +123,11 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
     @Override
     public void onTimeTick() {
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        mDigitalClockDisplayManager.updateTimeDisplay(timeString);
+        if (mUseBlurEffect) {
+            mGlassClockManager.updateTime(timeString);
+        } else {
+            mDigitalClockDisplayManager.updateTimeDisplay(timeString);
+        }
     }
 
     @Override
@@ -100,13 +135,18 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        ImageView[] hourViews = {mHour1, mHour2};
-        ImageView[] minuteViews = {mMinute1, mMinute2};
-        mDigitalClockDisplayManager.applyColorAndEffects(hourViews, minuteViews);
+        if (!mUseBlurEffect) {
+            ImageView[] hourViews = {mHour1, mHour2};
+            ImageView[] minuteViews = {mMinute1, mMinute2};
+            mDigitalClockDisplayManager.applyColorAndEffects(hourViews, minuteViews);
+        }
     }
 
     @Override
     protected void cleanup() {
+        if (mGlassClockManager != null) {
+            mGlassClockManager.cleanup();
+        }
         mContext = null;
         mContainer = null;
         mDigitalClockDisplayManager = null;

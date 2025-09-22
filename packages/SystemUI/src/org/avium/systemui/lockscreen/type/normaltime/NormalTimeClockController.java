@@ -28,13 +28,13 @@ import androidx.constraintlayout.widget.ConstraintSet;
 
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
+import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 
 import java.util.Locale;
-import java.util.Calendar;
 
 public class NormalTimeClockController extends BaseLockscreenController {
 
@@ -47,6 +47,10 @@ public class NormalTimeClockController extends BaseLockscreenController {
     private TextView mLunarDateView, mGregorianDateView;
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
 
+    //Add blur
+    private boolean mUseBlurEffect;
+    private GlassClockManager mGlassClockManager;
+
     private final int[] mDigitResources = new int[]{
         R.drawable.normaltime_0, R.drawable.normaltime_1, R.drawable.normaltime_2,
         R.drawable.normaltime_3, R.drawable.normaltime_4, R.drawable.normaltime_5,
@@ -57,8 +61,17 @@ public class NormalTimeClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
+        //Add blur
+        mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
+
         createViews();
         setupLayout();
+
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager.prepareWallpaper();
+        }
+
         initializeCommonViews();
         return mContainer;
     }
@@ -69,23 +82,37 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
         mLunarDateView = createTextView(16);
         mGregorianDateView = createTextView(16);
-
-        mHour1 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
-        mHour2 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
-        mColon = createImageView(dpToPx(COLON_WIDTH_DP), dpToPx(COLON_HEIGHT_DP));
-        mMinute1 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
-        mMinute2 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
-
         mContainer.addView(mLunarDateView);
         mContainer.addView(mGregorianDateView);
-        mContainer.addView(mHour1);
-        mContainer.addView(mHour2);
-        mContainer.addView(mColon);
-        mContainer.addView(mMinute1);
-        mContainer.addView(mMinute2);
 
-        ImageView[] digitViews = {mHour1, mHour2, mMinute1, mMinute2};
-        mDigitalClockDisplayManager = new DigitalClockDisplayManager(digitViews, mDigitResources);
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            for (View iv : digitViews) {
+                iv.setId(View.generateViewId());
+                iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
+                iv.setAlpha(0.99f);
+                mContainer.addView(iv);
+            }
+            mColon = createImageView(dpToPx(COLON_WIDTH_DP), dpToPx(COLON_HEIGHT_DP));
+            mContainer.addView(mColon);
+        } else {
+            mHour1 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
+            mHour2 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
+            mColon = createImageView(dpToPx(COLON_WIDTH_DP), dpToPx(COLON_HEIGHT_DP));
+            mMinute1 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
+            mMinute2 = createImageView(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP));
+
+            mContainer.addView(mHour1);
+            mContainer.addView(mHour2);
+            mContainer.addView(mColon);
+            mContainer.addView(mMinute1);
+            mContainer.addView(mMinute2);
+
+            ImageView[] digitViews = {mHour1, mHour2, mMinute1, mMinute2};
+            mDigitalClockDisplayManager = new DigitalClockDisplayManager(digitViews, mDigitResources);
+        }
     }
 
     private TextView createTextView(float sizeSp) {
@@ -111,11 +138,23 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
         int lunarId = mLunarDateView.getId();
         int gregorianId = mGregorianDateView.getId();
-        int h1 = mHour1.getId();
-        int h2 = mHour2.getId();
-        int colon = mColon.getId();
-        int m1 = mMinute1.getId();
-        int m2 = mMinute2.getId();
+
+        //Add blur
+        int h1, h2, colon, m1, m2;
+        if (mUseBlurEffect) {
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            h1 = digitViews[0].getId();
+            h2 = digitViews[1].getId();
+            colon = mColon.getId();
+            m1 = digitViews[2].getId();
+            m2 = digitViews[3].getId();
+        } else {
+            h1 = mHour1.getId();
+            h2 = mHour2.getId();
+            colon = mColon.getId();
+            m1 = mMinute1.getId();
+            m2 = mMinute2.getId();
+        }
 
         int[] verticalChainIds = {lunarId, gregorianId, h1};
         cs.createVerticalChain(
@@ -124,7 +163,7 @@ public class NormalTimeClockController extends BaseLockscreenController {
             verticalChainIds, null, ConstraintSet.CHAIN_PACKED
         );
 
-        cs.setVerticalBias(lunarId, 0.35f); 
+        cs.setVerticalBias(lunarId, 0.35f);
 
         cs.setMargin(gregorianId, ConstraintSet.TOP, dpToPx(4));
         cs.setMargin(h1, ConstraintSet.TOP, dpToPx(12));
@@ -136,8 +175,8 @@ public class NormalTimeClockController extends BaseLockscreenController {
             timeViewIds, null, ConstraintSet.CHAIN_PACKED
         );
 
-        int tightSpacing = dpToPx(2);   
-        int normalSpacing = dpToPx(6); 
+        int tightSpacing = dpToPx(2);
+        int normalSpacing = dpToPx(6);
 
         cs.setMargin(h1, ConstraintSet.RIGHT, tightSpacing);
         cs.setMargin(h2, ConstraintSet.LEFT, tightSpacing);
@@ -167,8 +206,13 @@ public class NormalTimeClockController extends BaseLockscreenController {
         mColon.setImageResource(R.drawable.normaltime_colon);
 
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        mDigitalClockDisplayManager.updateTimeDisplay(timeString);
-        
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager.updateTime(timeString);
+        } else {
+            mDigitalClockDisplayManager.updateTimeDisplay(timeString);
+        }
+
         mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString("M月d日 EEEE", Locale.CHINESE));
         mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
     }
@@ -178,21 +222,28 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
-        int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
-        
-        mLunarDateView.setTextColor(hourColor);
-        mGregorianDateView.setTextColor(hourColor);
+        //Add blur
+        if (!mUseBlurEffect) {
+            int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+            int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
 
-        mHour1.setColorFilter(hourColor);
-        mHour2.setColorFilter(hourColor);
-        mColon.setColorFilter(hourColor);
-        mMinute1.setColorFilter(minuteColor);
-        mMinute2.setColorFilter(minuteColor);
+            mLunarDateView.setTextColor(hourColor);
+            mGregorianDateView.setTextColor(hourColor);
+
+            mHour1.setColorFilter(hourColor);
+            mHour2.setColorFilter(hourColor);
+            mColon.setColorFilter(hourColor);
+            mMinute1.setColorFilter(minuteColor);
+            mMinute2.setColorFilter(minuteColor);
+        }
     }
 
     @Override
     protected void cleanup() {
+        //Add blur
+        if (mGlassClockManager != null) {
+            mGlassClockManager.cleanup();
+        }
         mContext = null;
         mContainer = null;
         mDigitalClockDisplayManager = null;

@@ -24,7 +24,9 @@ import androidx.constraintlayout.widget.ConstraintSet;
 
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
+import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
 
@@ -38,6 +40,10 @@ public class ThinLongClockController extends BaseLockscreenController {
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
     private LockscreenLayoutManager mLayoutManager;
 
+    //Add blur
+    private boolean mUseBlurEffect;
+    private GlassClockManager mGlassClockManager;
+
     private final int[] mDigitResources = new int[]{
         R.drawable.thin_baa_0, R.drawable.thin_baa_1, R.drawable.thin_baa_2,
         R.drawable.thin_baa_3, R.drawable.thin_baa_4, R.drawable.thin_baa_5,
@@ -48,10 +54,18 @@ public class ThinLongClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
+        //Add blur
+        mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
+
         createViews();
         mLayoutManager = new LockscreenLayoutManager(mContainer);
-        mDigitalClockDisplayManager = new DigitalClockDisplayManager(mDigitViews, mDigitResources);
         setupLayout();
+
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager.prepareWallpaper();
+        }
+
         initializeCommonViews();
         return mContainer;
     }
@@ -60,29 +74,52 @@ public class ThinLongClockController extends BaseLockscreenController {
         mContainer = new ConstraintLayout(mContext);
         mContainer.setId(View.generateViewId());
 
-        mHour1 = new ImageView(mContext);
-        mHour2 = new ImageView(mContext);
-        mMinute1 = new ImageView(mContext);
-        mMinute2 = new ImageView(mContext);
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            for (View iv : digitViews) {
+                iv.setId(View.generateViewId());
+                iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
+                iv.setAlpha(0.99f);
+                mContainer.addView(iv);
+            }
+        } else {
+            mHour1 = createImageView();
+            mHour2 = createImageView();
+            mMinute1 = createImageView();
+            mMinute2 = createImageView();
 
-        mDigitViews = new ImageView[]{mHour1, mHour2, mMinute1, mMinute2};
-        
-        int digitWidthPx = dpToPx(DIGIT_WIDTH_DP);
-        int digitHeightPx = dpToPx(DIGIT_HEIGHT_DP);
+            mDigitViews = new ImageView[]{mHour1, mHour2, mMinute1, mMinute2};
 
-        for (ImageView iv : mDigitViews) {
-            iv.setId(View.generateViewId());
-            ConstraintLayout.LayoutParams params = new ConstraintLayout.LayoutParams(digitWidthPx, digitHeightPx);
-            iv.setLayoutParams(params);
-            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            mContainer.addView(iv);
+            for (ImageView iv : mDigitViews) {
+                mContainer.addView(iv);
+            }
+            mDigitalClockDisplayManager = new DigitalClockDisplayManager(mDigitViews, mDigitResources);
         }
     }
+    
+    private ImageView createImageView() {
+        ImageView iv = new ImageView(mContext);
+        iv.setId(View.generateViewId());
+        iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
+        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        return iv;
+    }
+
 
     private void setupLayout() {
         ConstraintSet cs = mLayoutManager.getConstraintSet();
-        int[] clockViewIds = {mHour1.getId(), mHour2.getId(), mMinute1.getId(), mMinute2.getId()};
         
+        //Add blur
+        int[] clockViewIds;
+        if (mUseBlurEffect) {
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            clockViewIds = new int[]{digitViews[0].getId(), digitViews[1].getId(), digitViews[2].getId(), digitViews[3].getId()};
+        } else {
+            clockViewIds = new int[]{mHour1.getId(), mHour2.getId(), mMinute1.getId(), mMinute2.getId()};
+        }
+
         cs.createHorizontalChain(
             ConstraintSet.PARENT_ID, ConstraintSet.LEFT,
             ConstraintSet.PARENT_ID, ConstraintSet.RIGHT,
@@ -101,7 +138,12 @@ public class ThinLongClockController extends BaseLockscreenController {
     @Override
     public void onTimeTick() {
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        mDigitalClockDisplayManager.updateTimeDisplay(timeString);
+        //Add blur
+        if (mUseBlurEffect) {
+            mGlassClockManager.updateTime(timeString);
+        } else {
+            mDigitalClockDisplayManager.updateTimeDisplay(timeString);
+        }
     }
 
     @Override
@@ -109,20 +151,22 @@ public class ThinLongClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        ImageView[] hourViews = {mHour1, mHour2};
-        ImageView[] minuteViews = {mMinute1, mMinute2};
-        mDigitalClockDisplayManager.applyColorAndEffects(hourViews, minuteViews);
+        //Add blur
+        if (!mUseBlurEffect) {
+            ImageView[] hourViews = {mHour1, mHour2};
+            ImageView[] minuteViews = {mMinute1, mMinute2};
+            mDigitalClockDisplayManager.applyColorAndEffects(hourViews, minuteViews);
+        }
     }
 
     @Override
     protected void cleanup() {
+        //Add blur
+        if (mGlassClockManager != null) {
+            mGlassClockManager.cleanup();
+        }
         mContext = null;
         mContainer = null;
-        mHour1 = null;
-        mHour2 = null;
-        mMinute1 = null;
-        mMinute2 = null;
-        mDigitViews = null;
         mDigitalClockDisplayManager = null;
         mLayoutManager = null;
     }

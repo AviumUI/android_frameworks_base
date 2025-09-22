@@ -28,6 +28,13 @@ import org.avium.systemui.lockscreen.type.moremorethin.MoreMoreThinClockControll
 import org.avium.systemui.lockscreen.type.normaltime.NormalTimeClockController;
 import org.avium.systemui.lockscreen.type.runrunclock.RunrunClockController;
 import org.avium.systemui.lockscreen.type.classicclock.ClassicClockController;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController2;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController3;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController4;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController5;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController6;
+import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController7;
 
 public class CustomLockScreenClockFactory {
 
@@ -59,6 +66,25 @@ public class CustomLockScreenClockFactory {
                 return new RunrunClockController();
             case 10:
                 return new ClassicClockController();
+            case 11:
+                return new GuoguoClockController();
+            case 12:
+                return new GuoguoClockController2();
+
+            case 13:
+                return new GuoguoClockController3();
+
+            case 14:
+                return new GuoguoClockController4();
+
+            case 15:
+                return new GuoguoClockController5();
+
+            case 16:
+                return new GuoguoClockController6();
+
+            case 17:
+                return new GuoguoClockController7();
             default:
                 Log.w(TAG, "Unknown clock type: " + clockType);
                 return null;

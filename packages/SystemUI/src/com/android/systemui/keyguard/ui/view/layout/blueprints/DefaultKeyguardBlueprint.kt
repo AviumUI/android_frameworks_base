@@ -18,7 +18,6 @@
 package com.android.systemui.keyguard.ui.view.layout.blueprints
 
 import android.util.Log
-import com.android.systemui.communal.ui.view.layout.sections.CommunalTutorialIndicatorSection
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardBlueprint
 import com.android.systemui.keyguard.shared.model.KeyguardSection
@@ -63,12 +62,10 @@ constructor(
     @Named(KEYGUARD_AMBIENT_INDICATION_AREA_SECTION)
     private val defaultAmbientIndicationAreaSection: Optional<KeyguardSection>,
     private val defaultSettingsPopupMenuSection: DefaultSettingsPopupMenuSection,
-    private val defaultStatusViewSection: DefaultStatusViewSection,
     private val defaultStatusBarSection: DefaultStatusBarSection,
     private val defaultNotificationStackScrollLayoutSection: DefaultNotificationStackScrollLayoutSection,
     private val aodNotificationIconsSection: AodNotificationIconsSection,
     private val aodBurnInSection: AodBurnInSection,
-    private val communalTutorialIndicatorSection: CommunalTutorialIndicatorSection,
     private val clockSection: ClockSection,
     private val smartspaceSection: SmartspaceSection,
     private val keyguardSliceViewSection: KeyguardSliceViewSection,
@@ -89,17 +86,14 @@ constructor(
                     defaultShortcutsSection,
                     defaultAmbientIndicationAreaSection.getOrNull(),
                     defaultSettingsPopupMenuSection,
-                    defaultStatusViewSection,
                     defaultStatusBarSection,
                     defaultNotificationStackScrollLayoutSection,
                     aodNotificationIconsSection,
                     smartspaceSection,
                     aodBurnInSection,
-                    communalTutorialIndicatorSection,
                     clockSection,
                     keyguardSliceViewSection,
                     defaultDeviceEntrySection,
-                    aodPromotedNotificationSection,
                     udfpsAccessibilityOverlaySection, // Add LAST: Intentionally has z-order above others
                 )
 

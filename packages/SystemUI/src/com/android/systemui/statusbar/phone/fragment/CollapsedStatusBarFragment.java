@@ -35,6 +35,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import com.android.systemui.Flags;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.core.animation.Animator;
@@ -68,7 +69,6 @@ import com.android.systemui.statusbar.disableflags.DisableFlagsLogger;
 import com.android.systemui.statusbar.events.SystemStatusAnimationCallback;
 import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler;
 import com.android.systemui.statusbar.phone.LyricViewController;
-import com.android.systemui.statusbar.phone.NotificationIconAreaController;
 import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior;
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerStatusBarViewBinder;
 import com.android.systemui.statusbar.phone.ClockController;
@@ -1169,11 +1169,14 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
 
             boolean disableNotifications = !visibilityModel.getShowNotificationIcons();
             boolean hasOngoingActivity;
+            /* 
             if (Flags.statusBarScreenSharingChips()) {
                 hasOngoingActivity = mHasPrimaryOngoingActivity;
             } else {
                 hasOngoingActivity = mOngoingCallController.hasOngoingCall();
             }
+            */
+            hasOngoingActivity = mOngoingCallController.hasOngoingCall();
             if (!disableNotifications && !hasOngoingActivity && isLyricStarted()) {
                 animateHide(mLeftSide, animate);
                 animateHide(mCenteredArea, animate);

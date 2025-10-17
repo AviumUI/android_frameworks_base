@@ -45,11 +45,10 @@ public final class PixelPropsUtils {
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private static final String SPOOF_PIXEL_PI = "persist.avium.spoof_pixel_pif";
+    private static final String SPOOF_PIXEL_GMS_CERT_CHAIN = "persist.avium.spoof_pixel_gmscertchain";
     private static final String SPOOF_PIXEL_GAMES = "persist.avium.spoof_pixel_games";
     private static final String SPOOF_PIXEL_GPHOTOS = "persist.avium.spoof_pixel_gphotos";
     private static final String SPOOF_PIXEL_NETFLIX = "persist.avium.spoof_pixel_netflix";
-
-
 
     private static final Map<String, Object> propsToChangeGeneric = new HashMap<>();
     private static final Map<String, Object> propsToChangePixel10ProXL = new HashMap<>();
@@ -379,7 +378,8 @@ public final class PixelPropsUtils {
         if (!SystemProperties.getBoolean(SPOOF_PIXEL_PI, true))
             return;
         // If a keybox is found, don't block key attestation
-        if (KeyProviderManager.isKeyboxAvailable()) {
+        if (SystemProperties.getBoolean(SPOOF_PIXEL_GMS_CERT_CHAIN, false)
+                && KeyProviderManager.isKeyboxAvailable()) {
             Log.i(TAG, "Key attestation blocking is disabled because a keybox is defined to spoof");
             return;
         }

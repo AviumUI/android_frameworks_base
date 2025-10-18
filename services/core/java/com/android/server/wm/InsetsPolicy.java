@@ -24,6 +24,8 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.view.InsetsSource.ID_IME;
 import static android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
+import static android.view.WindowInsets.Type.displayCutout;
+import static android.view.InsetsSource.createId;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -50,6 +52,7 @@ import android.view.WindowManager;
 import android.view.inputmethod.Flags;
 import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodManager;
+import android.view.DisplayCutout;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -62,6 +65,12 @@ import java.util.List;
  * Policy that implements who gets control over the windows generating insets.
  */
 class InsetsPolicy {
+
+    //Ext add
+    private static final int ID_DISPLAY_CUTOUT_LEFT = createId(null, 0, displayCutout());
+    private static final int ID_DISPLAY_CUTOUT_TOP = createId(null, 1, displayCutout());
+    private static final int ID_DISPLAY_CUTOUT_RIGHT = createId(null, 2, displayCutout());
+    private static final int ID_DISPLAY_CUTOUT_BOTTOM = createId(null, 3, displayCutout());
 
     public static final int CONTROLLABLE_TYPES = WindowInsets.Type.statusBars()
             | WindowInsets.Type.navigationBars()

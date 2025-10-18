@@ -33,4 +33,6 @@
     <java-symbol type="layout" name="pinned_window_dismiss" />
     <java-symbol type="layout" name="pinned_window_overlay" />
     <java-symbol type="string" name="recent_task_option_pop_up" />
+    <!-- Overlays that to be enabled in FHD+ resolution -->
+    <java-symbol type="array" name="config_fhdResolutionOverlays" />
 </resources>

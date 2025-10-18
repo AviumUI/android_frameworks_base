@@ -11,9 +11,7 @@ import android.util.ArraySet;
 /** @hide */
 public class PopUpViewManager {
 
-    public static final boolean FEATURE_SUPPORTED = SystemProperties.getBoolean(
-        "ro.rising.feature.pop_up_view", false
-    );
+    public static final boolean FEATURE_SUPPORTED = true;
 
     /** TODO: Get rid of these dirty blacklist stuff. Maybe move them to local config file. */
     private static final ArraySet<String> SYSTEM_NOTIFICATION_BLACKLIST = new ArraySet<>();

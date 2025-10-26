@@ -87,7 +87,7 @@ public class CustomLockScreenClockFactory {
                 return new GuoguoClockController7();
             default:
                 Log.w(TAG, "Unknown clock type: " + clockType);
-                return null;
+                return new TextTimeClockController();
         }
     }
 }

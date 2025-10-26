@@ -325,6 +325,22 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction,
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
+        //Ext add
+        for (TransitionInfo.Change change : info.getChanges()) {
+            if (change.getMode() == WindowManager.TRANSIT_OPEN
+                    || change.getMode() == WindowManager.TRANSIT_TO_FRONT) {
+                final ActivityManager.RunningTaskInfo taskInfo = change.getTaskInfo();
+                if (taskInfo != null) {
+                    final int windowingMode = taskInfo.getWindowingMode();
+                    if (windowingMode == 101 || windowingMode == 102) {
+                        startTransaction.apply();
+                        finishCallback.onTransitionFinished(null /* wct */);
+                        return true;
+                    }
+                }
+            }
+        }
+
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
                 "start default transition animation, info = %s", info);
         // If keyguard goes away, we should loadKeyguardExitAnimation. Otherwise this just

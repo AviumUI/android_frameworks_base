@@ -62,6 +62,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.window.ScreenCapture;
+import android.os.Looper;
+import android.os.Handler;
 
 import androidx.annotation.Nullable;
 
@@ -1017,6 +1019,11 @@ public class BubbleExpandedView extends LinearLayout {
     }
 
     void updateHeight() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new Handler(Looper.getMainLooper()).post(() -> updateHeight());
+            return;
+        }
+
         if (mExpandedViewContainerLocation == null) {
             return;
         }

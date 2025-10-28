@@ -33,6 +33,8 @@ import android.util.ArraySet;
 import android.util.Log;
 import android.util.Pair;
 import android.view.View;
+import android.os.Looper;
+import android.os.Handler;
 
 import androidx.annotation.Nullable;
 
@@ -1390,6 +1392,34 @@ public class BubbleData {
         pw.println(mSuppressedGroupKeys.size());
         for (String key : mSuppressedGroupKeys.keySet()) {
             pw.println("     suppressing: " + key);
+        }
+    }
+
+    //Ext add
+    public void addAppBubble(Bubble bubble) {
+        Bubble existing = getBubbleInStackWithKey(bubble.getKey());
+        if (existing != null) {
+            setSelectedBubbleInternal(existing);
+            if (!isExpanded()) {
+                setExpandedInternal(true);
+            }
+        } else {
+            bubble.markUpdatedAt(mTimeSource.currentTimeMillis());
+            doAdd(bubble);
+            trim();
+
+            setSelectedBubbleInternal(bubble);
+            if (!isExpanded()) {
+                setExpandedInternal(true);
+            }
+        }
+
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                dispatchPendingChanges();
+            });
+        } else {
+            dispatchPendingChanges();
         }
     }
 }

@@ -87,6 +87,16 @@ import android.window.WindowContainerTransaction;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
+import android.content.pm.ApplicationInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.BitmapDrawable;
+import android.os.Process;
+import android.annotation.FlaggedApi;
+import android.os.Looper;
+import com.android.wm.shell.common.HandlerExecutor;
+import android.app.ActivityManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
@@ -166,6 +176,24 @@ public class BubbleController implements ConfigurationChangeListener,
     private static final String SYSTEM_DIALOG_REASON_GESTURE_NAV = "gestureNav";
     private static final String SYSTEM_DIALOG_REASON_RECENT_APPS = "recentapps";
     private static final String SYSTEM_DIALOG_REASON_HOME_KEY = "homekey";
+
+    // Ext add
+    private static final String ACTION_LAUNCH_BUBBLE = "org.avium.LAUNCH_BUBBLE";
+    private static final String EXTRA_PACKAGE_NAME = "package_name";
+    private static final int MAX_RETRIES = 1; 
+    private static final long RETRY_CHECK_DELAY_MS = 1000; 
+
+    @FlaggedApi("com.android.permission.LAUNCH_BUBBLE")
+    private static final String PERMISSION_LAUNCH_BUBBLE = "com.android.systemui.permission.LAUNCH_BUBBLE";
+
+    private final BroadcastReceiver mLaunchBubbleReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (ACTION_LAUNCH_BUBBLE.equals(intent.getAction())) {
+                new Handler(Looper.getMainLooper()).post(() -> handleLaunchBubbleRequest(intent));
+            }
+        }
+    };
 
     /**
      * Common interface to send updates to bubble views.
@@ -393,6 +421,9 @@ public class BubbleController implements ConfigurationChangeListener,
         };
         mExpandedViewManager = BubbleExpandedViewManager.fromBubbleController(this);
         mResizabilityChecker = resizabilityChecker;
+        //Ext add
+        IntentFilter filter = new IntentFilter(ACTION_LAUNCH_BUBBLE);
+        mContext.registerReceiver(mLaunchBubbleReceiver, filter, null, null, Context.RECEIVER_EXPORTED);
     }
 
     private void registerOneHandedState(OneHandedController oneHanded) {
@@ -499,11 +530,21 @@ public class BubbleController implements ConfigurationChangeListener,
                 final int taskId = task.taskId;
                 Bubble bubble = mBubbleData.getBubbleInStackWithTaskId(taskId);
                 if (bubble != null) {
-                    ProtoLog.d(WM_SHELL_BUBBLES,
-                            "onActivityRestartAttempt - taskId=%d selecting matching bubble=%s",
-                            taskId, bubble.getKey());
-                    mBubbleData.setSelectedBubbleAndExpandStack(bubble);
-                    return;
+                    final String packageName = bubble.getPackageName();
+                    final UserHandle user = bubble.getUser();
+                    final String bubbleKey = bubble.getKey();
+                    mMainExecutor.execute(() -> {
+                        mBubbleData.dismissBubbleWithKey(bubbleKey, Bubbles.DISMISS_USER_GESTURE);
+                        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                            PackageManager pm = mContext.getPackageManager();
+                            Intent intent = pm.getLaunchIntentForPackage(packageName);
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                                mContext.startActivityAsUser(intent, user);
+                            }
+                        }, 300); 
+                    });
+                    return; 
                 }
 
                 bubble = mBubbleData.getOverflowBubbleWithTaskId(taskId);
@@ -2197,61 +2238,61 @@ public class BubbleController implements ConfigurationChangeListener,
     private final BubbleViewCallback mBubbleStackViewCallback = new BubbleViewCallback() {
         @Override
         public void removeBubble(Bubble removedBubble) {
-            if (mStackView != null) {
-                mStackView.removeBubble(removedBubble);
-            }
+                if (mStackView != null) {
+                    mStackView.removeBubble(removedBubble);
+                }
         }
 
         @Override
         public void addBubble(Bubble addedBubble) {
-            if (mStackView != null) {
-                mStackView.addBubble(addedBubble);
-            }
+                if (mStackView != null) {
+                    mStackView.addBubble(addedBubble);
+                }
         }
 
         @Override
         public void updateBubble(Bubble updatedBubble) {
-            if (mStackView != null) {
-                mStackView.updateBubble(updatedBubble);
-            }
+                if (mStackView != null) {
+                    mStackView.updateBubble(updatedBubble);
+                }
         }
 
         @Override
         public void bubbleOrderChanged(List<Bubble> bubbleOrder, boolean updatePointer) {
-            if (mStackView != null) {
-                mStackView.updateBubbleOrder(bubbleOrder, updatePointer);
-            }
+                if (mStackView != null) {
+                    mStackView.updateBubbleOrder(bubbleOrder, updatePointer);
+                }
         }
 
         @Override
         public void suppressionChanged(Bubble bubble, boolean isSuppressed) {
-            if (mStackView != null) {
-                mStackView.setBubbleSuppressed(bubble, isSuppressed);
-            }
+                if (mStackView != null) {
+                    mStackView.setBubbleSuppressed(bubble, isSuppressed);
+                }
         }
 
         @Override
         public void expansionChanged(boolean isExpanded) {
-            if (mStackView != null) {
-                mStackView.setExpanded(isExpanded);
-            }
+                if (mStackView != null) {
+                    mStackView.setExpanded(isExpanded);
+                }
         }
 
         @Override
         public void selectionChanged(BubbleViewProvider selectedBubble) {
-            if (mStackView != null) {
-                mStackView.setSelectedBubble(selectedBubble);
-            }
+                if (mStackView != null) {
+                    mStackView.setSelectedBubble(selectedBubble);
+                }
 
         }
 
         @Override
         public void bubbleOverflowChanged(boolean hasBubbles) {
-            if (Flags.enableOptionalBubbleOverflow()) {
-                if (mStackView != null) {
-                    mStackView.showOverflow(hasBubbles);
+                if (Flags.enableOptionalBubbleOverflow()) {
+                    if (mStackView != null) {
+                        mStackView.showOverflow(hasBubbles);
+                    }
                 }
-            }
         }
     };
 
@@ -2259,33 +2300,33 @@ public class BubbleController implements ConfigurationChangeListener,
     private final BubbleViewCallback mBubbleBarViewCallback = new BubbleViewCallback() {
         @Override
         public void removeBubble(Bubble removedBubble) {
-            if (mLayerView != null) {
-                final BubbleTransitions.BubbleTransition bubbleTransit =
-                        removedBubble.getPreparingTransition();
-                mLayerView.removeBubble(removedBubble, () -> {
-                    if (bubbleTransit != null) {
-                        bubbleTransit.continueCollapse();
-                    }
-                    if (!mBubbleData.hasBubbles() && !isStackExpanded()) {
-                        mLayerView.setVisibility(INVISIBLE);
-                        removeFromWindowManagerMaybe();
-                    }
-                });
-            }
+                if (mLayerView != null) {
+                    final BubbleTransitions.BubbleTransition bubbleTransit =
+                            removedBubble.getPreparingTransition();
+                    mLayerView.removeBubble(removedBubble, () -> {
+                        if (bubbleTransit != null) {
+                            bubbleTransit.continueCollapse();
+                        }
+                        if (!mBubbleData.hasBubbles() && !isStackExpanded()) {
+                            mLayerView.setVisibility(INVISIBLE);
+                            removeFromWindowManagerMaybe();
+                        }
+                    });
+                }
         }
 
         @Override
         public void addBubble(Bubble addedBubble) {
-            // Only log metrics event
-            mLogger.log(addedBubble, BubbleLogger.Event.BUBBLE_BAR_BUBBLE_POSTED);
-            // Nothing to do for adds, these are handled by launcher / in the bubble bar.
+                // Only log metrics event
+                mLogger.log(addedBubble, BubbleLogger.Event.BUBBLE_BAR_BUBBLE_POSTED);
+                // Nothing to do for adds, these are handled by launcher / in the bubble bar.
         }
 
         @Override
         public void updateBubble(Bubble updatedBubble) {
-            // Only log metrics event
-            mLogger.log(updatedBubble, BubbleLogger.Event.BUBBLE_BAR_BUBBLE_UPDATED);
-            // Nothing to do for updates, these are handled by launcher / in the bubble bar.
+                // Only log metrics event
+                mLogger.log(updatedBubble, BubbleLogger.Event.BUBBLE_BAR_BUBBLE_UPDATED);
+                // Nothing to do for updates, these are handled by launcher / in the bubble bar.
         }
 
         @Override
@@ -2305,32 +2346,32 @@ public class BubbleController implements ConfigurationChangeListener,
 
         @Override
         public void expansionChanged(boolean isExpanded) {
-            // in bubble bar mode, let the request to show the expanded view come from launcher.
-            // only collapse here if we're collapsing.
-            if (!isExpanded) {
-                collapseExpandedViewForBubbleBar();
-            }
+                // in bubble bar mode, let the request to show the expanded view come from launcher.
+                // only collapse here if we're collapsing.
+                if (!isExpanded) {
+                    collapseExpandedViewForBubbleBar();
+                }
 
-            BubbleLogger.Event event = isExpanded ? BubbleLogger.Event.BUBBLE_BAR_EXPANDED
-                    : BubbleLogger.Event.BUBBLE_BAR_COLLAPSED;
-            BubbleViewProvider selectedBubble = mBubbleData.getSelectedBubble();
-            if (selectedBubble instanceof Bubble) {
-                mLogger.log((Bubble) selectedBubble, event);
-            } else {
-                mLogger.log(event);
-            }
+                BubbleLogger.Event event = isExpanded ? BubbleLogger.Event.BUBBLE_BAR_EXPANDED
+                        : BubbleLogger.Event.BUBBLE_BAR_COLLAPSED;
+                BubbleViewProvider selectedBubble = mBubbleData.getSelectedBubble();
+                if (selectedBubble instanceof Bubble) {
+                    mLogger.log((Bubble) selectedBubble, event);
+                } else {
+                    mLogger.log(event);
+                }
         }
 
         @Override
         public void selectionChanged(BubbleViewProvider selectedBubble) {
-            // Only need to update the layer view if we're currently expanded for selection changes.
-            if (mLayerView != null && mLayerView.isExpanded()) {
-                mLayerView.showExpandedView(selectedBubble);
-                if (selectedBubble instanceof Bubble) {
-                    mLogger.log((Bubble) selectedBubble,
-                            BubbleLogger.Event.BUBBLE_BAR_BUBBLE_SWITCHED);
+                // Only need to update the layer view if we're currently expanded for selection changes.
+                if (mLayerView != null && mLayerView.isExpanded()) {
+                    mLayerView.showExpandedView(selectedBubble);
+                    if (selectedBubble instanceof Bubble) {
+                        mLogger.log((Bubble) selectedBubble,
+                                BubbleLogger.Event.BUBBLE_BAR_BUBBLE_SWITCHED);
+                    }
                 }
-            }
         }
     };
 
@@ -2339,6 +2380,12 @@ public class BubbleController implements ConfigurationChangeListener,
 
         @Override
         public void applyUpdate(BubbleData.Update update) {
+
+            if (Looper.myLooper() != Looper.getMainLooper()) {
+                new Handler(Looper.getMainLooper()).post(() -> applyUpdate(update));
+                return;
+            }
+
             ProtoLog.d(WM_SHELL_BUBBLES, "mBubbleDataListener#applyUpdate:"
                     + " added=%s removed=%b updated=%s orderChanged=%b expansionChanged=%b"
                     + " expanded=%b selectionChanged=%b selected=%s"
@@ -2356,117 +2403,117 @@ public class BubbleController implements ConfigurationChangeListener,
                     update.mBubbleBarLocation != null ? update.mBubbleBarLocation.toString()
                             : "null");
 
-            ensureBubbleViewsAndWindowCreated();
+                ensureBubbleViewsAndWindowCreated();
 
-            // Lazy load overflow bubbles from disk
-            loadOverflowBubblesFromDisk();
+                // Lazy load overflow bubbles from disk
+                loadOverflowBubblesFromDisk();
 
-            if (update.showOverflowChanged) {
-                mBubbleViewCallback.bubbleOverflowChanged(!update.overflowBubbles.isEmpty());
-            }
-
-            // If bubbles in the overflow have a dot, make sure the overflow shows a dot
-            updateOverflowButtonDot();
-
-            // Update bubbles in overflow.
-            if (mOverflowListener != null) {
-                mOverflowListener.applyUpdate(update);
-            }
-
-            // Do removals, if any.
-            ArrayList<Pair<Bubble, Integer>> removedBubbles =
-                    new ArrayList<>(update.removedBubbles);
-            ArrayList<Bubble> bubblesToBeRemovedFromRepository = new ArrayList<>();
-            for (Pair<Bubble, Integer> removed : removedBubbles) {
-                final Bubble bubble = removed.first;
-                @Bubbles.DismissReason final int reason = removed.second;
-
-                mBubbleViewCallback.removeBubble(bubble);
-
-                // Leave the notification in place if we're dismissing due to user switching, or
-                // because DND is suppressing the bubble. In both of those cases, we need to be able
-                // to restore the bubble from the notification later.
-                if (reason == DISMISS_USER_CHANGED || reason == DISMISS_NO_BUBBLE_UP) {
-                    continue;
+                if (update.showOverflowChanged) {
+                    mBubbleViewCallback.bubbleOverflowChanged(!update.overflowBubbles.isEmpty());
                 }
-                if (reason == DISMISS_NOTIF_CANCEL
-                        || reason == DISMISS_SHORTCUT_REMOVED) {
-                    bubblesToBeRemovedFromRepository.add(bubble);
+
+                // If bubbles in the overflow have a dot, make sure the overflow shows a dot
+                updateOverflowButtonDot();
+
+                // Update bubbles in overflow.
+                if (mOverflowListener != null) {
+                    mOverflowListener.applyUpdate(update);
                 }
-                if (!mBubbleData.hasBubbleInStackWithKey(bubble.getKey())) {
-                    if (!mBubbleData.hasOverflowBubbleWithKey(bubble.getKey())
-                            && (!bubble.showInShade()
-                            || reason == DISMISS_NOTIF_CANCEL
-                            || reason == DISMISS_GROUP_CANCELLED)) {
-                        // The bubble is now gone & the notification is hidden from the shade, so
-                        // time to actually remove it
-                        mSysuiProxy.notifyRemoveNotification(bubble.getKey(), REASON_CANCEL);
-                    } else {
-                        if (bubble.isBubble()) {
-                            setIsBubble(bubble, false /* isBubble */);
+
+                // Do removals, if any.
+                ArrayList<Pair<Bubble, Integer>> removedBubbles =
+                        new ArrayList<>(update.removedBubbles);
+                ArrayList<Bubble> bubblesToBeRemovedFromRepository = new ArrayList<>();
+                for (Pair<Bubble, Integer> removed : removedBubbles) {
+                    final Bubble bubble = removed.first;
+                    @Bubbles.DismissReason final int reason = removed.second;
+
+                    mBubbleViewCallback.removeBubble(bubble);
+
+                    // Leave the notification in place if we're dismissing due to user switching, or
+                    // because DND is suppressing the bubble. In both of those cases, we need to be able
+                    // to restore the bubble from the notification later.
+                    if (reason == DISMISS_USER_CHANGED || reason == DISMISS_NO_BUBBLE_UP) {
+                        continue;
+                    }
+                    if (reason == DISMISS_NOTIF_CANCEL
+                            || reason == DISMISS_SHORTCUT_REMOVED) {
+                        bubblesToBeRemovedFromRepository.add(bubble);
+                    }
+                    if (!mBubbleData.hasBubbleInStackWithKey(bubble.getKey())) {
+                        if (!mBubbleData.hasOverflowBubbleWithKey(bubble.getKey())
+                                && (!bubble.showInShade()
+                                || reason == DISMISS_NOTIF_CANCEL
+                                || reason == DISMISS_GROUP_CANCELLED)) {
+                            // The bubble is now gone & the notification is hidden from the shade, so
+                            // time to actually remove it
+                            mSysuiProxy.notifyRemoveNotification(bubble.getKey(), REASON_CANCEL);
+                        } else {
+                            if (bubble.isBubble()) {
+                                setIsBubble(bubble, false /* isBubble */);
+                            }
+                            mSysuiProxy.updateNotificationBubbleButton(bubble.getKey());
                         }
-                        mSysuiProxy.updateNotificationBubbleButton(bubble.getKey());
                     }
                 }
-            }
-            mDataRepository.removeBubbles(mCurrentUserId, bubblesToBeRemovedFromRepository);
+                mDataRepository.removeBubbles(mCurrentUserId, bubblesToBeRemovedFromRepository);
 
-            if (update.addedBubble != null) {
-                mDataRepository.addBubble(mCurrentUserId, update.addedBubble);
-                mBubbleViewCallback.addBubble(update.addedBubble);
-            }
-
-            if (update.updatedBubble != null) {
-                mBubbleViewCallback.updateBubble(update.updatedBubble);
-            }
-
-            if (update.suppressedBubble != null) {
-                mBubbleViewCallback.suppressionChanged(update.suppressedBubble, true);
-            }
-
-            if (update.unsuppressedBubble != null) {
-                mBubbleViewCallback.suppressionChanged(update.unsuppressedBubble, false);
-            }
-
-            boolean collapseStack = update.expandedChanged && !update.expanded;
-
-            // At this point, the correct bubbles are inflated in the stack.
-            // Make sure the order in bubble data is reflected in bubble row.
-            if (update.orderChanged) {
-                mDataRepository.addBubbles(mCurrentUserId, update.bubbles);
-                // if the stack is going to be collapsed, do not update pointer position
-                // after reordering
-                mBubbleViewCallback.bubbleOrderChanged(update.bubbles, !collapseStack);
-            }
-
-            if (collapseStack) {
-                mBubbleViewCallback.expansionChanged(/* expanded= */ false);
-                mSysuiProxy.requestNotificationShadeTopUi(false, TAG);
-            }
-
-            if (update.selectionChanged) {
-                mBubbleViewCallback.selectionChanged(update.selectedBubble);
-            }
-
-            // Expanding? Apply this last.
-            if (update.expandedChanged && update.expanded) {
-                mBubbleViewCallback.expansionChanged(/* expanded= */ true);
-                mSysuiProxy.requestNotificationShadeTopUi(true, TAG);
-            }
-
-            mSysuiProxy.notifyInvalidateNotifications("BubbleData.Listener.applyUpdate");
-            updateBubbleViews();
-
-            // Update the cached state for queries from SysUI
-            mImpl.mCachedState.update(update);
-
-            if (isShowingAsBubbleBar()) {
-                BubbleBarUpdate bubbleBarUpdate = update.toBubbleBarUpdate();
-                // Some updates aren't relevant to the bubble bar so check first.
-                if (bubbleBarUpdate.anythingChanged()) {
-                    mBubbleStateListener.onBubbleStateChange(bubbleBarUpdate);
+                if (update.addedBubble != null) {
+                    mDataRepository.addBubble(mCurrentUserId, update.addedBubble);
+                    mBubbleViewCallback.addBubble(update.addedBubble);
                 }
-            }
+
+                if (update.updatedBubble != null) {
+                    mBubbleViewCallback.updateBubble(update.updatedBubble);
+                }
+
+                if (update.suppressedBubble != null) {
+                    mBubbleViewCallback.suppressionChanged(update.suppressedBubble, true);
+                }
+
+                if (update.unsuppressedBubble != null) {
+                    mBubbleViewCallback.suppressionChanged(update.unsuppressedBubble, false);
+                }
+
+                boolean collapseStack = update.expandedChanged && !update.expanded;
+
+                // At this point, the correct bubbles are inflated in the stack.
+                // Make sure the order in bubble data is reflected in bubble row.
+                if (update.orderChanged) {
+                    mDataRepository.addBubbles(mCurrentUserId, update.bubbles);
+                    // if the stack is going to be collapsed, do not update pointer position
+                    // after reordering
+                    mBubbleViewCallback.bubbleOrderChanged(update.bubbles, !collapseStack);
+                }
+
+                if (collapseStack) {
+                    mBubbleViewCallback.expansionChanged(/* expanded= */ false);
+                    mSysuiProxy.requestNotificationShadeTopUi(false, TAG);
+                }
+
+                if (update.selectionChanged) {
+                    mBubbleViewCallback.selectionChanged(update.selectedBubble);
+                }
+
+                // Expanding? Apply this last.
+                if (update.expandedChanged && update.expanded) {
+                    mBubbleViewCallback.expansionChanged(/* expanded= */ true);
+                    mSysuiProxy.requestNotificationShadeTopUi(true, TAG);
+                }
+
+                mSysuiProxy.notifyInvalidateNotifications("BubbleData.Listener.applyUpdate");
+                updateBubbleViews();
+
+                // Update the cached state for queries from SysUI
+                mImpl.mCachedState.update(update);
+
+                if (isShowingAsBubbleBar()) {
+                    BubbleBarUpdate bubbleBarUpdate = update.toBubbleBarUpdate();
+                    // Some updates aren't relevant to the bubble bar so check first.
+                    if (bubbleBarUpdate.anythingChanged()) {
+                        mBubbleStateListener.onBubbleStateChange(bubbleBarUpdate);
+                    }
+                }
         }
     };
 
@@ -3388,5 +3435,112 @@ public class BubbleController implements ConfigurationChangeListener,
         public boolean isUsingShellTransitions() {
             return mBaseTransitions.isUsingShellTransitions();
         }
+    }
+
+    //Ext add
+    private void handleLaunchBubbleRequest(Intent intent) {
+        String packageName = intent.getStringExtra(EXTRA_PACKAGE_NAME);
+        if (packageName != null && !packageName.isEmpty()) {
+            launchBubbleForPackage(packageName);
+        }
+    }
+
+    private void ensureStackViewCreated() {
+        if (mStackView != null) {
+            return;
+        }
+
+        BubbleStackViewManager bubbleStackViewManager =
+                BubbleStackViewManager.fromBubbleController(this);
+
+        ShellExecutor appMainThreadExecutor = new HandlerExecutor(new Handler(Looper.getMainLooper()));
+        
+        mStackView = new BubbleStackView(
+                mContext, bubbleStackViewManager, mBubblePositioner, mBubbleData,
+                mSurfaceSynchronizer, mFloatingContentCoordinator, this, 
+                appMainThreadExecutor); 
+        mStackView.onOrientationChanged();
+                
+        if (!mAddedToWindowManager) {
+            mWmLayoutParams = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                            | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    PixelFormat.TRANSLUCENT);
+            mWmLayoutParams.privateFlags |= WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
+            mWmLayoutParams.setTitle("Bubbles");
+            mWmLayoutParams.setFitInsetsTypes(0);
+
+            try {
+                mWindowManager.addView(mStackView, mWmLayoutParams);
+                mAddedToWindowManager = true;
+            } catch (IllegalStateException e) {
+                //do nothing
+            }
+        }
+    }
+
+    // Ext add
+    public void launchBubbleForPackage(String packageName) {
+        launchBubbleForPackageInternal(packageName, 0);
+    }
+
+    private void launchBubbleForPackageInternal(String packageName, int retryCount) {
+        if (retryCount > MAX_RETRIES) {
+            return; 
+        }
+        final UserHandle user = Process.myUserHandle();
+        final String bubbleKey = Bubble.getAppBubbleKeyForApp(packageName, user);
+
+        ensureStackViewCreated();
+        PackageManager pm = mContext.getPackageManager();
+        Intent intent = pm.getLaunchIntentForPackage(packageName);
+        if (intent == null) {
+            return;
+        }
+        
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+
+        Icon icon = null;
+        try {
+            ApplicationInfo appInfo = pm.getApplicationInfo(packageName, 0);
+            Drawable drawableIcon = pm.getApplicationIcon(appInfo);
+            Bitmap bitmap;
+            if (drawableIcon instanceof BitmapDrawable) {
+                bitmap = ((BitmapDrawable) drawableIcon).getBitmap();
+            } else {
+                int width = drawableIcon.getIntrinsicWidth() > 0 ? drawableIcon.getIntrinsicWidth() : 128;
+                int height = drawableIcon.getIntrinsicHeight() > 0 ? drawableIcon.getIntrinsicHeight() : 128;
+                bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                drawableIcon.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                drawableIcon.draw(canvas);
+            }
+            icon = Icon.createWithAdaptiveBitmap(bitmap);
+        } catch (PackageManager.NameNotFoundException e) {
+            // do nothing
+        }
+
+        Bubble bubble = Bubble.createAppBubble(intent, user, icon, mMainExecutor, mBackgroundExecutor);
+
+        bubble.inflate(
+                (inflatedBubble) -> {
+                    mMainExecutor.execute(() -> {
+                        mBubbleData.addAppBubble(inflatedBubble);
+                        mMainExecutor.executeDelayed(() -> {
+                            Bubble currentBubble = mBubbleData.getBubbleInStackWithKey(bubbleKey);
+                            if (currentBubble == null || !mBubbleData.isExpanded() 
+                                    || mBubbleData.getSelectedBubble() != currentBubble) {
+                                launchBubbleForPackageInternal(packageName, retryCount + 1);
+                            } 
+                        }, RETRY_CHECK_DELAY_MS);
+                    });
+                },
+                mContext, mExpandedViewManager, mBubbleTaskViewFactory, mBubblePositioner,
+                mStackView, mLayerView, mBubbleIconFactory, false);
     }
 }

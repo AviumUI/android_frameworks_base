@@ -8882,6 +8882,11 @@
     <permission android:name="android.permission.OVERRIDE_SYSTEM_KEY_BEHAVIOR_IN_FOCUSED_WINDOW"
         android:protectionLevel="signature|privileged" />
 
+    <!--Ext add-->
+    <!-- @hide -->
+    <permission android:name="com.android.systemui.permission.LAUNCH_BUBBLE"
+        android:protectionLevel="signature" />
+
     <!-- @hide @SystemApi
         @FlaggedApi("android.view.flags.sensitive_content_app_protection_api")
         Allows apps with a NotificationListenerService to receive notifications with sensitive

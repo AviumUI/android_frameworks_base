@@ -738,11 +738,7 @@ public class Bubble implements BubbleViewProvider {
                     callback,
                     mMainExecutor,
                     mBgExecutor);
-            if (mInflateSynchronously) {
-                mInflationTask.startSync();
-            } else {
-                mInflationTask.start();
-            }
+            mInflationTask.startSync();
         } else {
             if (mInflationTaskLegacy != null && mInflationTaskLegacy.getStatus() != FINISHED) {
                 mInflationTaskLegacy.cancel(true /* mayInterruptIfRunning */);
@@ -763,11 +759,7 @@ public class Bubble implements BubbleViewProvider {
                     },
                     mMainExecutor,
                     mBgExecutor);
-            if (mInflateSynchronously) {
-                mInflationTaskLegacy.onPostExecute(mInflationTaskLegacy.doInBackground());
-            } else {
-                mInflationTaskLegacy.execute();
-            }
+            mInflationTaskLegacy.onPostExecute(mInflationTaskLegacy.doInBackground());
         }
     }
 

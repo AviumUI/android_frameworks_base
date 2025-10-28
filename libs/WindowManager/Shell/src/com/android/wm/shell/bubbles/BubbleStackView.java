@@ -2753,26 +2753,30 @@ public class BubbleStackView extends FrameLayout
                         collapsePosition,
                         /* fadeBubblesDuringCollapse= */ mRemovingLastBubbleWhileExpanded,
                         () -> {
-                            mBubbleContainer.setActiveController(mStackAnimationController);
-                            updateOverflowVisibility();
-                            animateShadows();
+                            post(() -> {
+                                mBubbleContainer.setActiveController(mStackAnimationController);
+                                updateOverflowVisibility();
+                                animateShadows();
+                            });
                         });
 
         final Runnable after = () -> {
-            final BubbleViewProvider previouslySelected = mExpandedBubble;
-            // TODO(b/231350255): investigate why this call is needed here
-            beforeExpandedViewAnimation();
-            if (mManageEduView != null) {
-                mManageEduView.hide();
-            }
+            post(() -> {
+                final BubbleViewProvider previouslySelected = mExpandedBubble;
+                // TODO(b/231350255): investigate why this call is needed here
+                beforeExpandedViewAnimation();
+                if (mManageEduView != null) {
+                    mManageEduView.hide();
+                }
 
-            updateBadges(true /* setBadgeForCollapsedStack */);
-            afterExpandedViewAnimation();
-            if (previouslySelected != null) {
-                previouslySelected.setTaskViewVisibility(false);
-            }
-            mExpandedViewAnimationController.reset();
-            animateStashedState(false /* stashImmediately */);
+                updateBadges(true /* setBadgeForCollapsedStack */);
+                afterExpandedViewAnimation();
+                if (previouslySelected != null) {
+                    previouslySelected.setTaskViewVisibility(false);
+                }
+                mExpandedViewAnimationController.reset();
+                animateStashedState(false /* stashImmediately */);
+            });
         };
         mExpandedViewAnimationController.animateCollapse(collapseBackToStack, after,
                 collapsePosition);

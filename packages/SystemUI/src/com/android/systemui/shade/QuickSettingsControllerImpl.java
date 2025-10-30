@@ -304,6 +304,8 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
     /** The animator for QS size change */
     private ValueAnimator mSizeChangeAnimator;
 
+    private final ContentObserver mTranslucentObserver;
+
     private ExpansionHeightListener mExpansionHeightListener;
     private ApplyClippingImmediatelyListener mApplyClippingImmediatelyListener;
     private FlingQsWithoutClickListener mFlingQsWithoutClickListener;
@@ -417,7 +419,7 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         mTranslucentObserver = new ContentObserver(null) {
             @Override
             public void onChange(boolean selfChange) {
-                onTransparencyUpdated(0f);
+                updateTransparencyIfNeeded();
             }
         };
 
@@ -1137,7 +1139,7 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         // Update the light bar
         mLightBarController.setQsExpanded(mFullyExpanded);
         
-        onTransparencyUpdated(adjustedExpansionFraction);
+        if (adjustedExpansionFraction == 1.0f || adjustedExpansionFraction == 0.0f) updateTransparencyIfNeeded();
 
         // Update full screen state
         setQsFullScreen(/* qsFullScreen = */ mFullyExpanded && !mSplitShadeEnabled);
@@ -2288,6 +2290,7 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
                     false, mOneFingerQuickSettingsInterceptObserver,
                     UserHandle.USER_ALL);
             mOneFingerQuickSettingsInterceptObserver.onChange(true);
+            mTranslucentObserver.onChange(true);
             updateExpansion();
         }
 
@@ -2296,6 +2299,8 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         public void onFragmentViewDestroyed(String tag, Fragment fragment) {
             mPanelView.getContext().getContentResolver().unregisterContentObserver(
                     mOneFingerQuickSettingsInterceptObserver);
+            mPanelView.getContext().getContentResolver().unregisterContentObserver(
+                    mTranslucentObserver);
             // Manual handling of fragment lifecycle is only required because this bridges
             // non-fragment and fragment code. Once we are using a fragment for the notification
             // panel, mQs will not need to be null cause it will be tied to the same lifecycle.
@@ -2482,15 +2487,14 @@ public class QuickSettingsControllerImpl implements QuickSettingsController, Dum
         void onFlingQsWithoutClick(ValueAnimator animator, float qsExpansionHeight,
                 float target, float vel);
     }
-    
-    public final void onTransparencyUpdated(float expansion) {
-        if (expansion != 0.01f) return;
+
+    public final void updateTransparencyIfNeeded() {
         NotificationStackScrollLayoutController controller = mNotificationStackScrollLayoutController;
         if (controller == null || controller.getView() == null) {
             return;
         }
         NotificationStackScrollLayout view = controller.getView();
-        view.post(() -> view.updateBgColor(mBarState == KEYGUARD));
+        view.post(() -> view.updateIfNeeded());
     }
 
     public boolean isVisible() {

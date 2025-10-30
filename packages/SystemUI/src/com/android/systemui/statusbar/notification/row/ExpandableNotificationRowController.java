@@ -440,7 +440,7 @@ public class ExpandableNotificationRowController implements NotifViewController 
             new ScrimUtils.ScrimEventListener() {
                 @Override
                 public void onNotificationPosted(StatusBarNotification sbn) {
-                    mView.setOnKeyguard(mStatusBarStateController.getState() == KEYGUARD);
+                    mView.updateIfNeeded();
                 }
             };
 

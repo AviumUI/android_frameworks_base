@@ -20,8 +20,8 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.util.Log;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -30,29 +30,29 @@ import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.android.systemui.res.R;
+//import org.avium.aviumlockscreenstudio.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
 public class TextTimeClockController extends BaseLockscreenController {
 
     private TextView mIntroView, mHourView, mMinuteView;
+    private TextView mMonthView, mDayView, mWeekView;
     private Typeface mClockTypeface;
     
-    private static final String[] ENGLISH_WORDS = {
-        "Twelve", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
-        "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
-    };
-    private static final String[] ENGLISH_TENS = {"", "", "Twenty", "Thirty", "Forty", "Fifty"};
-    private static final String[] CHINESE_DIGITS = {"零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
+    private String[] mNumberWords;
+    private String[] mTensWords;
+    private String[] mChineseDigits;
 
     @Override
     public View getView(Context context) {
         mContext = context;
+        loadStringResources();
         loadCustomFont();
         createViews();
         setupLayout();
@@ -60,9 +60,15 @@ public class TextTimeClockController extends BaseLockscreenController {
         return mContainer;
     }
 
+    private void loadStringResources() {
+        mNumberWords = mContext.getResources().getStringArray(R.array.number_words);
+        mTensWords = mContext.getResources().getStringArray(R.array.tens_words);
+        mChineseDigits = mContext.getResources().getStringArray(R.array.number_words);
+    }
+
     private void loadCustomFont() {
         try {
-            mClockTypeface = ResourcesCompat.getFont(mContext, R.font.FlyFlowerSong);
+            mClockTypeface = ResourcesCompat.getFont(mContext, R.font.fly_flower_song);
         } catch (Resources.NotFoundException e) {
             mClockTypeface = Typeface.DEFAULT;
         }
@@ -75,6 +81,19 @@ public class TextTimeClockController extends BaseLockscreenController {
         mIntroView = createTextView(50);
         mHourView = createTextView(50);
         mMinuteView = createTextView(50);
+        mMonthView = createTextView(22);
+        mDayView = createTextView(22);
+        mWeekView = createTextView(22);
+
+        mMonthView.setIncludeFontPadding(false);
+        mDayView.setIncludeFontPadding(false);
+        mWeekView.setIncludeFontPadding(false);
+        mMonthView.setGravity(Gravity.CENTER);
+        mDayView.setGravity(Gravity.CENTER);
+        mWeekView.setGravity(Gravity.CENTER);
+        mMonthView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        mDayView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        mWeekView.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
     }
 
     private TextView createTextView(float sizeSp) {
@@ -106,10 +125,35 @@ public class TextTimeClockController extends BaseLockscreenController {
 
         mContainer.addView(textContainer);
 
+        LinearLayout dateRow = new LinearLayout(mContext);
+        dateRow.setId(View.generateViewId());
+        dateRow.setOrientation(LinearLayout.HORIZONTAL);
+        float density = mContext.getResources().getDisplayMetrics().density;
+        int betweenPx = (int) (6 * density);
+
+        LinearLayout.LayoutParams childLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        childLp.setMargins(0, 0, betweenPx, 0);
+
+        dateRow.addView(mMonthView, childLp);
+        dateRow.addView(mDayView);
+        LinearLayout.LayoutParams weekLp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        weekLp.setMargins(betweenPx, 0, 0, 0);
+        dateRow.addView(mWeekView, weekLp);
+
+        mContainer.addView(dateRow);
+
         LockscreenLayoutManager layoutManager = new LockscreenLayoutManager(mContainer);
         ConstraintSet cs = layoutManager.getConstraintSet();
         
-        int leftMarginPx = (int) (60 * mContext.getResources().getDisplayMetrics().density);
+        int leftMarginPx = (int) (60 * density);
+        int bottomMarginPx = (int) (60 * density);
+        int rightMarginPx = (int) (30 * density);
         int containerId = textContainer.getId();
 
         cs.connect(containerId, ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP);
@@ -118,6 +162,11 @@ public class TextTimeClockController extends BaseLockscreenController {
         cs.constrainWidth(containerId, ConstraintSet.WRAP_CONTENT);
         cs.constrainHeight(containerId, ConstraintSet.WRAP_CONTENT);
         cs.setVerticalBias(containerId, 0.25f);
+
+        cs.connect(dateRow.getId(), ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM, bottomMarginPx);
+        cs.connect(dateRow.getId(), ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END, rightMarginPx);
+        cs.constrainWidth(dateRow.getId(), ConstraintSet.WRAP_CONTENT);
+        cs.constrainHeight(dateRow.getId(), ConstraintSet.WRAP_CONTENT);
 
         layoutManager.applyLayoutChanges();
     }
@@ -128,33 +177,59 @@ public class TextTimeClockController extends BaseLockscreenController {
         Calendar calendar = Calendar.getInstance();
         int hour = calendar.get(Calendar.HOUR_OF_DAY);
         int minute = calendar.get(Calendar.MINUTE);
+        int month = calendar.get(Calendar.MONTH) + 1;
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
 
         if (isChinese) {
-            mIntroView.setText("现在是");
-            mHourView.setText(convertToChineseNumber(hour) + "时");
-            mMinuteView.setText(convertToChineseNumber(minute) + "分");
+            mIntroView.setText(mContext.getString(R.string.texttime_intro));
+            mHourView.setText(convertToChineseNumber(hour) + mContext.getString(R.string.texttime_hour_unit));
+            mMinuteView.setText(convertToChineseNumber(minute) + mContext.getString(R.string.texttime_minute_unit));
         } else {
-            mIntroView.setText("It's");
+            mIntroView.setText(mContext.getString(R.string.texttime_intro));
             mHourView.setText(convertToEnglishWords(hour));
-            mMinuteView.setText(minute == 0 ? "O'clock" : convertToEnglishWords(minute));
+            mMinuteView.setText(minute == 0 ? mContext.getString(R.string.texttime_oclock) : convertToEnglishWords(minute));
         }
+
+        String monthSuffix = mContext.getString(R.string.texttime_month_suffix);
+        String daySuffix = mContext.getString(R.string.texttime_day_suffix);
+        String weekFormat = mContext.getString(R.string.texttime_week_format);
+
+        String monthChinese = convertToChineseNumber(month) + monthSuffix;
+        String dayChinese = convertToChineseNumber(day) + daySuffix;
+
+        SimpleDateFormat sdfWeek = new SimpleDateFormat(weekFormat, Locale.getDefault());
+        String weekStr = sdfWeek.format(calendar.getTime());
+
+        mMonthView.setText(verticalize(monthChinese));
+        mDayView.setText(verticalize(dayChinese));
+        mWeekView.setText(verticalize(weekStr));
+    }
+
+    private String verticalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            sb.append(s.charAt(i));
+            if (i != s.length() - 1) sb.append('\n');
+        }
+        return sb.toString();
     }
 
     private String convertToEnglishWords(int number) {
-        if (number == 0) return "Midnight"; 
-        if (number < 20) return ENGLISH_WORDS[number];
+        if (number == 0) return mContext.getString(R.string.texttime_midnight); 
+        if (number < 20) return mNumberWords[number];
         int tens = number / 10;
         int ones = number % 10;
-        if (ones == 0) return ENGLISH_TENS[tens];
-        return ENGLISH_TENS[tens] + " " + ENGLISH_WORDS[ones];
+        if (ones == 0) return mTensWords[tens];
+        return mTensWords[tens] + " " + mNumberWords[ones];
     }
     
     private String convertToChineseNumber(int n) {
-        if (n == 0) return "零";
-        if (n <= 10) return CHINESE_DIGITS[n];
-        if (n < 20) return "十" + CHINESE_DIGITS[n % 10];
-        String tens = CHINESE_DIGITS[n / 10] + "十";
-        String ones = (n % 10 == 0) ? "" : CHINESE_DIGITS[n % 10];
+        if (n == 0) return mChineseDigits[0];
+        if (n <= 10) return mChineseDigits[n];
+        if (n < 20) return mChineseDigits[10] + mChineseDigits[n % 10];
+        String tens = mChineseDigits[n / 10] + mChineseDigits[10];
+        String ones = (n % 10 == 0) ? "" : mChineseDigits[n % 10];
         return tens + ones;
     }
 
@@ -169,6 +244,11 @@ public class TextTimeClockController extends BaseLockscreenController {
         mIntroView.setTextColor(introColor);
         mHourView.setTextColor(timeColor);
         mMinuteView.setTextColor(timeColor);
+
+        mDayView.setTextColor(timeColor);
+        mMonthView.setTextColor(timeColor);
+        
+        mWeekView.setTextColor(timeColor);
     }
 
     @Override
@@ -178,5 +258,8 @@ public class TextTimeClockController extends BaseLockscreenController {
         mIntroView = null;
         mHourView = null;
         mMinuteView = null;
+        mMonthView = null;
+        mDayView = null;
+        mWeekView = null;
     }
 }

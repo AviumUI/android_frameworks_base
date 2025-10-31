@@ -45,6 +45,8 @@ public class GlassClockManager {
     private Bitmap mBlurredWallpaperBitmap;
     private final DigitView[] mDigitViews;
     private final int[] mDigitResources;
+    private DigitView mDotView;
+    private int mDotResource;
 
     public GlassClockManager(Context context, int numDigits, int[] digitResources) {
         this.mContext = context;
@@ -56,8 +58,18 @@ public class GlassClockManager {
         }
     }
 
+    public void setDotResource(int dotResource) {
+        this.mDotResource = dotResource;
+        this.mDotView = new DigitView(mContext);
+        this.mDotView.setDigitDrawable(ContextCompat.getDrawable(mContext, mDotResource));
+    }
+
     public View[] getDigitViews() {
         return mDigitViews;
+    }
+
+    public View getDotView() {
+        return mDotView;
     }
 
     public void prepareWallpaper() {
@@ -86,6 +98,10 @@ public class GlassClockManager {
 
         for (DigitView digitView : mDigitViews) {
             digitView.invalidate();
+        }
+
+        if (mDotView != null) {
+            mDotView.invalidate();
         }
     }
 

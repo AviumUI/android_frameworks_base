@@ -25,7 +25,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
-
+//import org.avium.aviumlockscreenstudio.R;
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
@@ -33,19 +33,19 @@ import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
 import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-
 import java.util.Locale;
 
 public class RunrunClockController extends BaseLockscreenController {
 
     private static final int DIGIT_WIDTH_DP = 187;
     private static final int DIGIT_HEIGHT_DP = 184;
+    private static final int LEFT_COLUMN_UP_DP = 56;
 
+    private ConstraintLayout mInnerContainer;
     private ImageView mHour1, mHour2, mMinute1, mMinute2;
     private TextView mDateView;
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
 
-    //Add blur
     private boolean mUseBlurEffect;
     private GlassClockManager mGlassClockManager;
 
@@ -59,17 +59,13 @@ public class RunrunClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
-        //Add blur
-        mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
-
+        mUseBlurEffect = mContext.getString(R.string.runrun_blur_effect).equalsIgnoreCase(
+            CustomLockscreenSettings.getClockColor().trim());
         createViews();
         setupLayout();
-
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.prepareWallpaper();
         }
-
         initializeCommonViews();
         return mContainer;
     }
@@ -78,15 +74,21 @@ public class RunrunClockController extends BaseLockscreenController {
         mContainer = new ConstraintLayout(mContext);
         mContainer.setId(View.generateViewId());
 
+        mInnerContainer = new ConstraintLayout(mContext);
+        mInnerContainer.setId(View.generateViewId());
+        ConstraintLayout.LayoutParams innerLp = new ConstraintLayout.LayoutParams(
+                ConstraintLayout.LayoutParams.WRAP_CONTENT, ConstraintLayout.LayoutParams.WRAP_CONTENT);
+        mInnerContainer.setLayoutParams(innerLp);
+        mContainer.addView(mInnerContainer);
+
         mDateView = new TextView(mContext);
         mDateView.setId(View.generateViewId());
         mDateView.setTextColor(Color.WHITE);
         mDateView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         mDateView.setGravity(Gravity.CENTER);
         mDateView.setLineSpacing(0f, 1.1f);
-        mContainer.addView(mDateView);
+        mInnerContainer.addView(mDateView);
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -94,7 +96,7 @@ public class RunrunClockController extends BaseLockscreenController {
                 iv.setId(View.generateViewId());
                 iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
                 iv.setAlpha(0.99f);
-                mContainer.addView(iv);
+                mInnerContainer.addView(iv);
             }
         } else {
             mHour1 = createImageView();
@@ -102,10 +104,10 @@ public class RunrunClockController extends BaseLockscreenController {
             mMinute1 = createImageView();
             mMinute2 = createImageView();
 
-            mContainer.addView(mHour1);
-            mContainer.addView(mHour2);
-            mContainer.addView(mMinute1);
-            mContainer.addView(mMinute2);
+            mInnerContainer.addView(mHour1);
+            mInnerContainer.addView(mHour2);
+            mInnerContainer.addView(mMinute1);
+            mInnerContainer.addView(mMinute2);
 
             ImageView[] digitViews = {mHour1, mHour2, mMinute1, mMinute2};
             mDigitalClockDisplayManager = new DigitalClockDisplayManager(digitViews, mDigitResources);
@@ -125,7 +127,13 @@ public class RunrunClockController extends BaseLockscreenController {
         ConstraintSet cs = layoutManager.getConstraintSet();
         cs.clone(mContainer);
 
-        //Add blur
+        cs.centerHorizontally(mInnerContainer.getId(), ConstraintSet.PARENT_ID);
+        cs.centerVertically(mInnerContainer.getId(), ConstraintSet.PARENT_ID);
+        cs.applyTo(mContainer);
+
+        ConstraintSet innerCs = new ConstraintSet();
+        innerCs.clone(mInnerContainer);
+
         int h1Id, h2Id, m1Id, m2Id;
         if (mUseBlurEffect) {
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -140,54 +148,48 @@ public class RunrunClockController extends BaseLockscreenController {
             m2Id = mMinute2.getId();
         }
 
-        cs.centerHorizontally(mDateView.getId(), ConstraintSet.PARENT_ID);
-        cs.connect(mDateView.getId(), ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, dpToPx(48));
+        innerCs.centerHorizontally(mDateView.getId(), ConstraintSet.PARENT_ID);
+        innerCs.connect(mDateView.getId(), ConstraintSet.TOP, ConstraintSet.PARENT_ID, ConstraintSet.TOP, 0);
 
-        cs.createHorizontalChain(
-            ConstraintSet.PARENT_ID, ConstraintSet.LEFT,
-            ConstraintSet.PARENT_ID, ConstraintSet.RIGHT,
-            new int[]{h1Id, h2Id},
-            null,
-            ConstraintSet.CHAIN_PACKED
-        );
-        cs.connect(h1Id, ConstraintSet.TOP, mDateView.getId(), ConstraintSet.BOTTOM, dpToPx(16));
-        cs.connect(h2Id, ConstraintSet.TOP, h1Id, ConstraintSet.TOP);
-        cs.setMargin(h2Id, ConstraintSet.START, -dpToPx(30));
+        innerCs.connect(h1Id, ConstraintSet.TOP, mDateView.getId(), ConstraintSet.BOTTOM, dpToPx(10));
+        innerCs.connect(h1Id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 0);
+        innerCs.connect(h1Id, ConstraintSet.END, h2Id, ConstraintSet.START, dpToPx(12));
 
-        cs.createHorizontalChain(
-            ConstraintSet.PARENT_ID, ConstraintSet.LEFT,
-            ConstraintSet.PARENT_ID, ConstraintSet.RIGHT,
-            new int[]{m1Id, m2Id},
-            null,
-            ConstraintSet.CHAIN_PACKED
-        );
-        cs.connect(m1Id, ConstraintSet.TOP, h1Id, ConstraintSet.BOTTOM, 0);
-        cs.connect(m2Id, ConstraintSet.TOP, m1Id, ConstraintSet.TOP);
-        cs.setMargin(m2Id, ConstraintSet.START, -dpToPx(30));
+        innerCs.connect(h2Id, ConstraintSet.TOP, h1Id, ConstraintSet.TOP, 0);
+        innerCs.connect(h2Id, ConstraintSet.START, h1Id, ConstraintSet.END, -dpToPx(40));
+        innerCs.setMargin(h2Id, ConstraintSet.TOP, -dpToPx(12));
 
-        cs.createVerticalChain(
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM,
-            new int[]{h1Id, m1Id},
-            null,
-            ConstraintSet.CHAIN_PACKED
-        );
-        cs.setVerticalBias(h1Id, 0.5f);
+        innerCs.connect(m1Id, ConstraintSet.TOP, h1Id, ConstraintSet.BOTTOM, dpToPx(22));
+        innerCs.connect(m1Id, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START, 0);
+        innerCs.connect(m1Id, ConstraintSet.END, m2Id, ConstraintSet.START, dpToPx(12));
 
+        innerCs.connect(m2Id, ConstraintSet.TOP, m1Id, ConstraintSet.TOP, 0);
+        innerCs.connect(m2Id, ConstraintSet.START, m1Id, ConstraintSet.END, -dpToPx(40));
+        innerCs.setMargin(m2Id, ConstraintSet.TOP, dpToPx(8));
+
+        innerCs.applyTo(mInnerContainer);
         layoutManager.applyLayoutChanges();
+
+        float offset = -dpToPx(LEFT_COLUMN_UP_DP);
+        if (mUseBlurEffect) {
+            View[] digitViews = mGlassClockManager.getDigitViews();
+            digitViews[0].setTranslationY(offset);
+            digitViews[2].setTranslationY(offset);
+        } else {
+            mHour1.setTranslationY(offset);
+            mMinute1.setTranslationY(offset);
+        }
     }
 
     @Override
     public void onTimeTick() {
-        String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        //Add blur
+        String timeString = LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.runrun_time_format));
         if (mUseBlurEffect) {
             mGlassClockManager.updateTime(timeString);
         } else {
             mDigitalClockDisplayManager.updateTimeDisplay(timeString);
         }
-
-        mDateView.setText(LockscreenClockUtils.getCurrentTimeString("M/d\nE", Locale.CHINESE));
+        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.runrun_date_format), Locale.CHINESE));
     }
 
     @Override
@@ -195,11 +197,9 @@ public class RunrunClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        //Add blur
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
-
             mDateView.setTextColor(hourColor);
             mHour1.setColorFilter(hourColor);
             mHour2.setColorFilter(hourColor);
@@ -210,7 +210,6 @@ public class RunrunClockController extends BaseLockscreenController {
 
     @Override
     protected void cleanup() {
-        //Add blur
         if (mGlassClockManager != null) {
             mGlassClockManager.cleanup();
         }

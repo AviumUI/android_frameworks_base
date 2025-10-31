@@ -16,16 +16,18 @@
 
 package org.avium.systemui.lockscreen.util;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.icu.text.SimpleDateFormat;
 import android.util.Log;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Calendar;
 
 public class LockscreenClockUtils {
 
     private static final String TAG = "AVIUM_LOCKSCREEN";
-    
+
     private static final int DEFAULT_COLOR = Color.WHITE;
 
     public static String getCurrentTimeString(String pattern, Locale locale) {
@@ -47,6 +49,57 @@ public class LockscreenClockUtils {
 
     public static String getCurrentDateString() {
         return getCurrentTimeString("M月d日 EEEE", Locale.CHINESE);
+    }
+
+    public static String getWeekdayString(Context context, Locale locale) {
+        Calendar calendar = Calendar.getInstance();
+        int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
+
+        String weekdayKey;
+        switch (dayOfWeek) {
+            case Calendar.SUNDAY:
+                weekdayKey = "sunday";
+                break;
+            case Calendar.MONDAY:
+                weekdayKey = "monday";
+                break;
+            case Calendar.TUESDAY:
+                weekdayKey = "tuesday";
+                break;
+            case Calendar.WEDNESDAY:
+                weekdayKey = "wednesday";
+                break;
+            case Calendar.THURSDAY:
+                weekdayKey = "thursday";
+                break;
+            case Calendar.FRIDAY:
+                weekdayKey = "friday";
+                break;
+            case Calendar.SATURDAY:
+                weekdayKey = "saturday";
+                break;
+            default:
+                weekdayKey = "sunday";
+                break;
+        }
+        
+        int resId = context.getResources().getIdentifier(weekdayKey, "string", context.getPackageName());
+        if (resId != 0) {
+            return context.getString(resId);
+        }
+        
+        String[] defaultWeekdays = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+        return defaultWeekdays[dayOfWeek - 1];
+    }
+
+    public static String getWeekdayString(Context context) {
+        return getWeekdayString(context, Locale.getDefault());
+    }
+
+    public static String getDateWithWeekdayString(Context context) {
+        String date = getCurrentTimeString("M/d");
+        String weekday = getWeekdayString(context);
+        return date + " " + weekday;
     }
 
     public static int parseColor(String colorString) {

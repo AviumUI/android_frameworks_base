@@ -29,6 +29,8 @@ import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
+//import org.avium.aviumlockscreenstudio.R;
+import com.android.systemui.res.R;
 
 import java.util.Locale;
 
@@ -64,6 +66,7 @@ public class ClassicClockController extends BaseLockscreenController {
         textView.setTextColor(Color.WHITE);
         textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
         textView.setGravity(Gravity.CENTER);
+        textView.setTypeface(null, android.graphics.Typeface.BOLD);
         return textView;
     }
 
@@ -85,7 +88,7 @@ public class ClassicClockController extends BaseLockscreenController {
             cs.centerHorizontally(id, ConstraintSet.PARENT_ID);
         }
 
-        int marginPx = (int) (4 * mContext.getResources().getDisplayMetrics().density);
+        int marginPx = (int) (2 * mContext.getResources().getDisplayMetrics().density);
         cs.setMargin(mLunarDateView.getId(), ConstraintSet.TOP, marginPx);
         cs.setMargin(mTimeView.getId(), ConstraintSet.TOP, marginPx);
         
@@ -94,9 +97,9 @@ public class ClassicClockController extends BaseLockscreenController {
 
     @Override
     public void onTimeTick() {
-        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString("M月d日 EEEE", Locale.CHINESE));
+        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_date_format), Locale.CHINESE));
         mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
-        mTimeView.setText(LockscreenClockUtils.getCurrentTimeString("HH:mm"));
+        mTimeView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_time_format)));
     }
 
     @Override

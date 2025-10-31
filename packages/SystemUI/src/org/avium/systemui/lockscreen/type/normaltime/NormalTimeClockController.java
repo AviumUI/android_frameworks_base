@@ -2,6 +2,7 @@ package org.avium.systemui.lockscreen.type.normaltime;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -11,6 +12,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 
 import com.android.systemui.res.R;
+//import org.avium.aviumlockscreenstudio.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
@@ -31,7 +33,6 @@ public class NormalTimeClockController extends BaseLockscreenController {
     private TextView mLunarDateView, mGregorianDateView;
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
 
-    //Add blur
     private boolean mUseBlurEffect;
     private GlassClockManager mGlassClockManager;
 
@@ -45,13 +46,11 @@ public class NormalTimeClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
-        //Add blur
         mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
 
         createViews();
         setupLayout();
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.prepareWallpaper();
         }
@@ -64,12 +63,11 @@ public class NormalTimeClockController extends BaseLockscreenController {
         mContainer = new ConstraintLayout(mContext);
         mContainer.setId(View.generateViewId());
 
-        mLunarDateView = createTextView(16);
-        mGregorianDateView = createTextView(16);
+        mLunarDateView = createTextView(18);
+        mGregorianDateView = createTextView(20);
         mContainer.addView(mLunarDateView);
         mContainer.addView(mGregorianDateView);
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -105,6 +103,7 @@ public class NormalTimeClockController extends BaseLockscreenController {
         textView.setTextColor(Color.WHITE);
         textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
         textView.setGravity(Gravity.CENTER);
+        textView.setTypeface(Typeface.DEFAULT_BOLD);
         return textView;
     }
 
@@ -123,7 +122,6 @@ public class NormalTimeClockController extends BaseLockscreenController {
         int lunarId = mLunarDateView.getId();
         int gregorianId = mGregorianDateView.getId();
 
-        //Add blur
         int h1, h2, colon, m1, m2;
         if (mUseBlurEffect) {
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -187,17 +185,21 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
     @Override
     public void onTimeTick() {
-        mColon.setImageResource(R.drawable.normaltime_colon);
+        if (mUseBlurEffect) {
+            mColon.setImageResource(R.drawable.normaltime_colon);
+        } else {
+            mColon.setImageResource(R.drawable.normaltime_colon);
+        }
 
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.updateTime(timeString);
         } else {
             mDigitalClockDisplayManager.updateTimeDisplay(timeString);
         }
 
-        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString("M月d日 EEEE", Locale.CHINESE));
+        String dateFormat = mContext.getString(R.string.date_format);
+        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString(dateFormat, Locale.getDefault()));
         mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
     }
 
@@ -206,7 +208,6 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        //Add blur
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
@@ -224,7 +225,6 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
     @Override
     protected void cleanup() {
-        //Add blur
         if (mGlassClockManager != null) {
             mGlassClockManager.cleanup();
         }

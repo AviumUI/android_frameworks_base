@@ -2,6 +2,7 @@ package org.avium.systemui.lockscreen.type.smallcuteclock;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.ImageView;
@@ -10,6 +11,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 
 import com.android.systemui.res.R;
+//import org.avium.aviumlockscreenstudio.R;
 
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
@@ -31,7 +33,6 @@ public class SmallCuteClockController extends BaseLockscreenController {
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
     private LockscreenLayoutManager mLayoutManager;
 
-    //Add blur
     private boolean mUseBlurEffect;
     private GlassClockManager mGlassClockManager;
 
@@ -45,14 +46,12 @@ public class SmallCuteClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
-        //Add blur
         mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
 
         createViews();
         mLayoutManager = new LockscreenLayoutManager(mContainer);
         setupLayout();
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.prepareWallpaper();
         }
@@ -68,10 +67,10 @@ public class SmallCuteClockController extends BaseLockscreenController {
         mDateView = new TextView(mContext);
         mDateView.setId(View.generateViewId());
         mDateView.setTextColor(Color.WHITE);
-        mDateView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        mDateView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        mDateView.setTypeface(Typeface.DEFAULT_BOLD);
         mContainer.addView(mDateView);
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -107,7 +106,6 @@ public class SmallCuteClockController extends BaseLockscreenController {
     private void setupLayout() {
         ConstraintSet cs = mLayoutManager.getConstraintSet();
 
-        //Add blur
         int[] clockViewIds;
         if (mUseBlurEffect) {
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -138,13 +136,13 @@ public class SmallCuteClockController extends BaseLockscreenController {
     @Override
     public void onTimeTick() {
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.updateTime(timeString);
         } else {
             mDigitalClockDisplayManager.updateTimeDisplay(timeString);
         }
-        mDateView.setText(LockscreenClockUtils.getCurrentTimeString("M月d日 EEEE", Locale.CHINESE));
+        String dateFormat = mContext.getString(R.string.date_format);
+        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(dateFormat, Locale.getDefault()));
     }
 
     @Override
@@ -152,7 +150,6 @@ public class SmallCuteClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        //Add blur
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             mDateView.setTextColor(hourColor);
@@ -165,7 +162,6 @@ public class SmallCuteClockController extends BaseLockscreenController {
 
     @Override
     protected void cleanup() {
-        //Add blur
         if (mGlassClockManager != null) {
             mGlassClockManager.cleanup();
         }

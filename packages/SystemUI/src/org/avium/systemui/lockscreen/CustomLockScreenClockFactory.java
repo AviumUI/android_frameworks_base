@@ -35,6 +35,7 @@ import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController4;
 import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController5;
 import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController6;
 import org.avium.systemui.lockscreen.type.guoguoclock.GuoguoClockController7;
+import org.avium.systemui.lockscreen.type.mediablur.MediaBlurClockController;
 
 public class CustomLockScreenClockFactory {
 
@@ -85,6 +86,9 @@ public class CustomLockScreenClockFactory {
 
             case 17:
                 return new GuoguoClockController7();
+
+            case 18:
+                return new MediaBlurClockController();
             default:
                 Log.w(TAG, "Unknown clock type: " + clockType);
                 return new TextTimeClockController();

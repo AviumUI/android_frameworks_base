@@ -15,8 +15,6 @@
      limitations under the License.
 -->
 <resources>
-    <string name="avium_lockscreen_non_sing">Unknown song</string> 
-    <string name="avium_lockscreen_non_artist">Unknown artist</string>
     <string name="sunday">周日</string>
     <string name="monday">周一</string>
     <string name="tuesday">周二</string>
@@ -73,8 +71,8 @@
     <string name="guoguo_date_format">M月d日 EEEE</string>
     <string name="guoguo_time_format">HHmm</string>
     <string name="guoguo_blur_effect">blur</string>
+
     <string name="media_blur_clock_title">音乐模糊时钟</string>
     <string name="default_song_title">独享时光</string>
     <string name="default_song_artist">待你开启</string>
-
 </resources>

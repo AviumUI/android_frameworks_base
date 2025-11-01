@@ -64,12 +64,14 @@
     <string name="runrun_time_format">HHmm</string>
     <string name="runrun_date_format">M/d\nE</string>
     <string name="runrun_blur_effect">blur</string>
-
     <string name="classic_date_format">MMMM d, EEEE</string>
     <string name="classic_time_format">HH:mm</string>
-
     <string name="guoguo_date_format">MMMM d, EEEE</string>
     <string name="guoguo_time_format">HHmm</string>
     <string name="guoguo_blur_effect">blur</string>
+
+    <string name="media_blur_clock_title">Music Blur Clock</string>
+    <string name="default_song_title">Wonderful Time</string>
+    <string name="default_song_artist">wait for you to open</string>
 
 </resources>

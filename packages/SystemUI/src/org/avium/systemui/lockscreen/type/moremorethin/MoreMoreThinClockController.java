@@ -93,7 +93,7 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
             for (View iv : digitViews) {
                 iv.setId(View.generateViewId());
                 iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
-                iv.setAlpha(0.95f);
+//                iv.setAlpha(0.95f);
                 mContainer.addView(iv);
             }
         } else {

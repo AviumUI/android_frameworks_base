@@ -396,10 +396,21 @@ public class MediaBlurClockController extends BaseLockscreenController implement
             mMusicController.cleanup();
             mMusicController = null;
         }
-
         if (controllers != null && !controllers.isEmpty()) {
+            if (mSeekBarBackground != null) {
+                mSeekBarBackground.setVisibility(View.VISIBLE);
+            }
+            if (mSeekBarProgress != null) {
+                mSeekBarProgress.setVisibility(View.VISIBLE);
+            }
             mMusicController = new MusicController(controllers.get(0), this);
         } else {
+            if (mSeekBarBackground != null) {
+                mSeekBarBackground.setVisibility(View.GONE);
+            }
+            if (mSeekBarProgress != null) {
+                mSeekBarProgress.setVisibility(View.GONE);
+            }
             onMetadataChanged(null, null, null);
             onPlaybackStateChanged(false);
             onProgressChanged(0, 0);

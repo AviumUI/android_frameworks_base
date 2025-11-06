@@ -6793,6 +6793,38 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     }
 
+    private final DisplayManager.DisplayListener mDisplayListener =
+        new DisplayManager.DisplayListener() {
+        @Override
+        public void onDisplayAdded(int displayId) {}
+
+        @Override
+        public void onDisplayRemoved(int displayId) {}
+
+        @Override
+        public void onDisplayChanged(int displayId) {
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                updateGestureParams();
+                mIsTrackingSideGesture = false;
+                mGestureTriggered = false;
+            }
+        }
+    };
+
+    private void updateGestureParams() {
+        Display display = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY);
+        if (display != null) {
+            Point size = new Point();
+            display.getRealSize(size);
+            mDisplayWidth = size.x;
+            mDisplayHeight = size.y;
+        }
+        float density = mContext.getResources().getDisplayMetrics().density;
+        mMinGestureDistancePx = TRIGGER_MIN_DISTANCE_DP * density;
+        mGestureAreaHeightPx  = GESTURE_AREA_HEIGHT_DP  * density;
+        mGestureAreaWidthPx   = GESTURE_AREA_WIDTH_DP   * density;
+    }
+
 
 
     /** {@inheritDoc} */
@@ -6802,19 +6834,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         // So it is better not to bind keyguard here.
         mKeyguardDelegate.onSystemReady();
         //Ext add
-        Display display = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY);
-        Point displaySize = new Point();
-        display.getRealSize(displaySize);
-        mDisplayWidth = displaySize.x;
-        mDisplayHeight = displaySize.y;
-        float density = mContext.getResources().getDisplayMetrics().density;
-        
-        mMinGestureDistancePx = TRIGGER_MIN_DISTANCE_DP * density;
-        mGestureAreaHeightPx = GESTURE_AREA_HEIGHT_DP * density;
-        mGestureAreaWidthPx = GESTURE_AREA_WIDTH_DP * density;
-        
-        Slog.i(TAG_GESTURE, "Gesture parameters initialized: minDistance=" + mMinGestureDistancePx +
-                "px, areaHeight=" + mGestureAreaHeightPx + "px, areaWidth=" + mGestureAreaWidthPx + "px");
+        updateGestureParams();
+        mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
 
         mModifierShortcutManager.onSystemReady();
 

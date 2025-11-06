@@ -205,6 +205,11 @@ public class ClipboardService extends SystemService {
      */
     private static final String EXTHM_USEFUL_PACKAGE = "org.avium.exthmuseful";
 
+    // Avium: secure clipboard update broadcast
+    private static final String ACTION_CLIPBOARD_LISTEN = "org.avium.CLIPBOARD_LISTEN";
+    private static final String PERM_RECEIVE_CLIPBOARD_LISTEN =
+        "org.avium.permission.RECEIVE_CLIPBOARD_LISTEN";
+
     /**
      * Instantiates the clipboard.
      */
@@ -589,6 +594,21 @@ public class ClipboardService extends SystemService {
                     ClipboardManager.DEVICE_CONFIG_DEFAULT_SHOW_ACCESS_NOTIFICATIONS) ? 1 : 0;
         }
 
+        //Ext add (secured): only receivers with signature permission can get this broadcast
+        private void sendClipboardUpdateBroadcast(@UserIdInt int userId) {
+            final Intent intent = new Intent(ACTION_CLIPBOARD_LISTEN);
+            intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                // Require platform-defined signature permission to receive
+                ClipboardService.this.getContext().sendBroadcastAsUser(
+                        intent, UserHandle.of(userId), PERM_RECEIVE_CLIPBOARD_LISTEN);
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+            //Slog.d("AviumClipoard", "sendClipboardUpdateBroadcast userId: " + userId);
+        }
+
         private void checkAndSetPrimaryClip(
                 ClipData clip,
                 String callingPackage,
@@ -615,6 +635,7 @@ public class ClipboardService extends SystemService {
             synchronized (mLock) {
                 scheduleAutoClear(userId, intendingUid, intendingDeviceId);
                 setPrimaryClipInternalLocked(clip, intendingUid, intendingDeviceId, sourcePackage);
+                sendClipboardUpdateBroadcast(userId);
             }
         }
 

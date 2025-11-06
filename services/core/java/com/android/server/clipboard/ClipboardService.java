@@ -589,6 +589,19 @@ public class ClipboardService extends SystemService {
                     ClipboardManager.DEVICE_CONFIG_DEFAULT_SHOW_ACCESS_NOTIFICATIONS) ? 1 : 0;
         }
 
+        //Ext add
+        private void sendClipboardUpdateBroadcast(@UserIdInt int userId) {
+            final Intent intent = new Intent("org.avium.CLIPBOARD_LISTEN");
+            intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                ClipboardService.this.getContext().sendBroadcastAsUser(intent, UserHandle.of(userId));
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+            //Slog.d("AviumClipoard", "sendClipboardUpdateBroadcast userId: " + userId);
+        }
+
         private void checkAndSetPrimaryClip(
                 ClipData clip,
                 String callingPackage,
@@ -615,6 +628,7 @@ public class ClipboardService extends SystemService {
             synchronized (mLock) {
                 scheduleAutoClear(userId, intendingUid, intendingDeviceId);
                 setPrimaryClipInternalLocked(clip, intendingUid, intendingDeviceId, sourcePackage);
+                sendClipboardUpdateBroadcast(userId);
             }
         }
 

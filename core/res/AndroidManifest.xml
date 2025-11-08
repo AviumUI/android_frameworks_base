@@ -29,6 +29,9 @@
     <!--ext add : timeout not to sleep broadcasts -->
     <protected-broadcast android:name="org.exthm.action.SCREEN_NEED_RELIGHT" />
 
+    <!-- Avium add: prevent third-parties from spoofing this clipboard broadcast -->
+    <protected-broadcast android:name="org.avium.CLIPBOARD_LISTEN" />
+
     <protected-broadcast android:name="android.intent.action.SCREEN_OFF" />
     <protected-broadcast android:name="android.intent.action.SCREEN_ON" />
     <protected-broadcast android:name="android.intent.action.USER_PRESENT" />

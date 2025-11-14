@@ -52,17 +52,7 @@ constructor(
             allowedTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop(),
             logger = logger,
         )
-
-    val iconView: ImageView =
-        object : ImageView(context, attrs) {
-            override fun drawableStateChanged() {
-                super.drawableStateChanged()
-                val isFingerprint = drawableState.contains(android.R.attr.state_middle)
-                scaleX = if (isFingerprint) 1.5f else 1f
-                scaleY = if (isFingerprint) 1.5f else 1f
-            }
-        }.apply { id = R.id.device_entry_icon_fg }
-
+    val iconView: ImageView = ImageView(context, attrs).apply { id = R.id.device_entry_icon_fg }
     val bgView: ImageView = ImageView(context, attrs).apply { id = R.id.device_entry_icon_bg }
     val aodFpDrawable: LottieDrawable = LottieDrawable()
     var accessibilityHintType: AccessibilityHintType = AccessibilityHintType.NONE

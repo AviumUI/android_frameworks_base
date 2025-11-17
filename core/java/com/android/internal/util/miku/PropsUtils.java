@@ -31,10 +31,10 @@ import java.util.Map;
 public class PropsUtils {
 
     private static final String TAG = PropsUtils.class.getSimpleName();
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     private static final Map<String, Object> propsToChangeMeizu;
-    private static final String[] meizuPropToChange = {
+    private static final String[] meizuPropToChangeBase = {
             "com.netease.cloudmusic",
             "com.tencent.qqmusic",
             "com.kugou.android",
@@ -44,16 +44,16 @@ public class PropsUtils {
             "com.meizu.media.music"
     };
 
+    private static final String[] meizuPropToChange;
+
     static {
-        propsToKeep = new HashMap<>();
-        propsToKeep.put("com.google.android.settings.intelligence", new ArrayList<String>(Arrays.asList("FINGERPRINT")));
-        propsToChange = new HashMap<>();
-        propsToChange.put("BRAND", "google");
-        propsToChange.put("MANUFACTURER", "Google");
-        propsToChange.put("DEVICE", "raven");
-        propsToChange.put("PRODUCT", "raven");
-        propsToChange.put("MODEL", "Pixel 6 Pro");
-        propsToChange.put("FINGERPRINT", "google/redfin/redfin:12/SP2A.220305.012/8177914:user/release-keys");
+        if (DEBUG) {
+            meizuPropToChange = Arrays.copyOf(meizuPropToChangeBase, meizuPropToChangeBase.length + 1);
+            meizuPropToChange[meizuPropToChangeBase.length] = "com.finalwire.aida64";
+        } else {
+            meizuPropToChange = meizuPropToChangeBase.clone();
+        }
+
         propsToChangeMeizu = new HashMap<>();
         propsToChangeMeizu.put("BRAND", "meizu");
         propsToChangeMeizu.put("MANUFACTURER", "Meizu");
@@ -68,23 +68,6 @@ public class PropsUtils {
     public static void setProps(String packageName) {
         if (packageName == null){
             return;
-        }
-        if (packageName.equals(PACKAGE_GMS)) {
-            sIsGms = true;
-            setPropValue("TYPE", "userdebug");
-        }
-        if (packageName.startsWith("com.google.") || Arrays.asList(extraPackagesToChange).contains(packageName)){
-            if (DEBUG) Log.d(TAG, "Defining props for: " + packageName);
-            for (Map.Entry<String, Object> prop : propsToChange.entrySet()) {
-                String key = prop.getKey();
-                Object value = prop.getValue();
-                if (propsToKeep.containsKey(packageName) && propsToKeep.get(packageName).contains(key)){
-                    if (DEBUG) Log.d(TAG, "Not defining " + key + " prop for: " + packageName);
-                    continue;
-                }
-                if (DEBUG) Log.d(TAG, "Defining " + key + " prop for: " + packageName);
-                setPropValue(key, value);
-            }
         }
 	// Set Props for StatusBar Lyric
         if(Arrays.asList(meizuPropToChange).contains(packageName)){
@@ -113,6 +96,18 @@ public class PropsUtils {
             field.setAccessible(false);
         } catch (NoSuchFieldException | IllegalAccessException e) {
             Log.e(TAG, "Failed to set prop " + key, e);
+        }
+    }
+
+    private static boolean isCallerSafetyNet() {
+        return Arrays.stream(Thread.currentThread().getStackTrace())
+                .anyMatch(elem -> elem.getClassName().contains("DroidGuard"));
+    }
+
+    public static void onEngineGetCertificateChain() {
+        // Check stack for SafetyNet
+        if (isCallerSafetyNet()) {
+            throw new UnsupportedOperationException();
         }
     }
 }

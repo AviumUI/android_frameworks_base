@@ -38,6 +38,10 @@ import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import android.view.ViewGroup;
 import java.util.Locale;
 
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
+
+
 public class GuoguoClockController5 extends BaseLockscreenController {
 
     private static final float SCALE_FACTOR = 0.5f;
@@ -72,7 +76,9 @@ public class GuoguoClockController5 extends BaseLockscreenController {
             mGlassClockManager.prepareWallpaper();
         }
         initializeCommonViews();
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void createViews() {

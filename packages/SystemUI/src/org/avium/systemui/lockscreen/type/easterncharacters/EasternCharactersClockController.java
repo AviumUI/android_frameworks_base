@@ -38,6 +38,8 @@ import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
 import java.util.Date;
 import java.util.Locale;
@@ -57,7 +59,9 @@ public class EasternCharactersClockController extends BaseLockscreenController {
         createViews();
         setupLayout();
         initializeCommonViews();
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void loadCustomFont() {

@@ -19,6 +19,9 @@ import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
 import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
+
 
 import java.util.Locale;
 
@@ -56,7 +59,9 @@ public class NormalTimeClockController extends BaseLockscreenController {
         }
 
         initializeCommonViews();
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void createViews() {

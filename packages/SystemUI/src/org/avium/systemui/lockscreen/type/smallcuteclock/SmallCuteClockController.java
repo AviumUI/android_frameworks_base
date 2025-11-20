@@ -25,6 +25,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
+
 
 import com.android.systemui.res.R;
 //import org.avium.aviumlockscreenstudio.R;
@@ -73,7 +76,9 @@ public class SmallCuteClockController extends BaseLockscreenController {
         }
 
         initializeCommonViews();
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void createViews() {

@@ -44,6 +44,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.avium.systemui.lockscreen.CustomLockscreenClockManager
 import org.avium.systemui.lockscreen.sections.CustomClockSection
 import org.avium.systemui.lockscreen.CustomLockscreenRepository
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher
 
 /**
  * Positions elements of the lockscreen to the default position.

@@ -17,29 +17,47 @@
 package org.avium.systemui.lockscreen.util;
 
 import android.app.WallpaperManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
-import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.FileObserver;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.renderscript.Allocation;
 import android.renderscript.Element;
 import android.renderscript.RenderScript;
 import android.renderscript.ScriptIntrinsicBlur;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.View;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
-import android.graphics.Color;
 
+import java.io.File;
 import java.io.IOException;
 
+import org.avium.systemui.depthwallpaper.DepthWallpaperSwitch;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
+
 public class GlassClockManager {
+
+    private static final String TAG = "GlassClockManager";
+    private static final String CUSTOM_WALLPAPER_DIR = "/data/system/avium";
+    private static final String CUSTOM_WALLPAPER_FILE = "wallpaper";
+    private static final String CUSTOM_WALLPAPER_PATH = CUSTOM_WALLPAPER_DIR + "/" + CUSTOM_WALLPAPER_FILE;
 
     private final Context mContext;
     private Bitmap mBlurredWallpaperBitmap;
@@ -47,6 +65,11 @@ public class GlassClockManager {
     private final int[] mDigitResources;
     private DigitView mDotView;
     private int mDotResource;
+
+    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
+    
+    private FileObserver mFileObserver;
+    private BroadcastReceiver mWallpaperReceiver;
 
     public GlassClockManager(Context context, int numDigits, int[] digitResources) {
         this.mContext = context;
@@ -56,6 +79,36 @@ public class GlassClockManager {
         for (int i = 0; i < numDigits; i++) {
             mDigitViews[i] = new DigitView(context);
         }
+
+        initListeners();
+    }
+
+    private void initListeners() {
+        mFileObserver = new FileObserver(CUSTOM_WALLPAPER_DIR, FileObserver.CLOSE_WRITE | FileObserver.MOVED_TO) {
+            @Override
+            public void onEvent(int event, @Nullable String path) {
+                if (path != null && path.equals(CUSTOM_WALLPAPER_FILE)) {
+                    Log.d(TAG, "Detected custom wallpaper file change.");
+                    if (DepthWallpaperSwitch.INSTANCE.isEnabled(mContext)) {
+                        Log.d(TAG, "Depth feature enabled, enforcing system lock wallpaper sync...");
+                        DepthWallpaperSetup.INSTANCE.applyIfNeeded(mContext);
+                    }
+                    mMainHandler.postDelayed(() -> {
+                        prepareWallpaper();
+                    }, 200);
+                }
+            }
+        };
+        mFileObserver.startWatching();
+
+        mWallpaperReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                prepareWallpaper();
+            }
+        };
+        IntentFilter filter = new IntentFilter(Intent.ACTION_WALLPAPER_CHANGED);
+        mContext.registerReceiver(mWallpaperReceiver, filter);
     }
 
     public void setDotResource(int dotResource) {
@@ -72,36 +125,87 @@ public class GlassClockManager {
         return mDotView;
     }
 
-    public void prepareWallpaper() {
+    public synchronized void prepareWallpaper() {
         WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
         Bitmap wallpaperBitmap = null;
-
-        try (ParcelFileDescriptor pfd = wallpaperManager.getWallpaperFile(WallpaperManager.FLAG_LOCK)) {
-            if (pfd != null) {
-                wallpaperBitmap = BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor());
+        try {
+            if (DepthWallpaperSwitch.INSTANCE.isEnabled(mContext)) {
+                File file = new File(CUSTOM_WALLPAPER_PATH);
+                if (file.exists() && file.canRead()) {
+                    BitmapFactory.Options options = new BitmapFactory.Options();
+                    options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                    wallpaperBitmap = BitmapFactory.decodeFile(file.getAbsolutePath(), options);
+                    if (wallpaperBitmap != null) {
+                        Log.d(TAG, "Loaded custom depth wallpaper for glass clock.");
+                    }
+                }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+           //ntd
         }
-        
+        if (wallpaperBitmap == null) {
+            try (ParcelFileDescriptor pfd = wallpaperManager.getWallpaperFile(WallpaperManager.FLAG_LOCK)) {
+                if (pfd != null) {
+                    wallpaperBitmap = BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor());
+                }
+            } catch (IOException | SecurityException e) {
+                // do nothing 
+            }
+        }
+
         if (wallpaperBitmap == null) {
             try (ParcelFileDescriptor pfd = wallpaperManager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM)) {
                 if (pfd != null) {
                     wallpaperBitmap = BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor());
                 }
-            } catch (IOException e) {
+            } catch (IOException | SecurityException e) {
+                //do nothing
+            }
+        }
+
+        if (wallpaperBitmap == null) {
+            Drawable wallpaperDrawable = wallpaperManager.getDrawable();
+            if (wallpaperDrawable != null) {
+                if (wallpaperDrawable instanceof BitmapDrawable) {
+                    wallpaperBitmap = ((BitmapDrawable) wallpaperDrawable).getBitmap();
+                } else {
+                    int width = wallpaperDrawable.getIntrinsicWidth();
+                    int height = wallpaperDrawable.getIntrinsicHeight();
+                    if (width <= 0 || height <= 0) {
+                        DisplayMetrics displayMetrics = mContext.getResources().getDisplayMetrics();
+                        width = displayMetrics.widthPixels;
+                        height = displayMetrics.heightPixels;
+                    }
+
+                    try {
+                        wallpaperBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                        Canvas canvas = new Canvas(wallpaperBitmap);
+                        wallpaperDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                        wallpaperDrawable.draw(canvas);
+                    } catch (Exception e) {
+                        //do nothing
+                    }
+                }
             }
         }
 
         if (wallpaperBitmap != null) {
-            mBlurredWallpaperBitmap = blurBitmap(wallpaperBitmap, 25f);
-        }
-
-        for (DigitView digitView : mDigitViews) {
-            digitView.invalidate();
-        }
-
-        if (mDotView != null) {
-            mDotView.invalidate();
+            Bitmap newBlurred = blurBitmap(wallpaperBitmap, 25f);
+            
+            final Bitmap finalBlurred = newBlurred;
+            mMainHandler.post(() -> {
+                if (mBlurredWallpaperBitmap != null && !mBlurredWallpaperBitmap.isRecycled()) {
+                    mBlurredWallpaperBitmap.recycle();
+                }
+                mBlurredWallpaperBitmap = finalBlurred;
+                
+                for (DigitView digitView : mDigitViews) {
+                    digitView.invalidate();
+                }
+                if (mDotView != null) {
+                    mDotView.invalidate();
+                }
+            });
         }
     }
 
@@ -120,10 +224,24 @@ public class GlassClockManager {
     }
 
     public void cleanup() {
+        if (mWallpaperReceiver != null) {
+            try {
+                mContext.unregisterReceiver(mWallpaperReceiver);
+            } catch (Exception e) { }
+            mWallpaperReceiver = null;
+        }
+
+        if (mFileObserver != null) {
+            mFileObserver.stopWatching();
+            mFileObserver = null;
+        }
+
         if (mBlurredWallpaperBitmap != null && !mBlurredWallpaperBitmap.isRecycled()) {
             mBlurredWallpaperBitmap.recycle();
         }
         mBlurredWallpaperBitmap = null;
+        
+        mMainHandler.removeCallbacksAndMessages(null);
     }
 
     private Bitmap blurBitmap(Bitmap input, float radius) {
@@ -149,21 +267,17 @@ public class GlassClockManager {
             output_alloc.destroy();
             script.destroy();
             rs.destroy();
-            Bitmap finalResult = Bitmap.createScaledBitmap(blurred, input.getWidth(), input.getHeight(), true);
-            smallBitmap.recycle();
-            blurred.recycle();
-
-            return finalResult;
+            return blurred; 
         } catch (Exception e) {
             return input;
         }
     }
 
     public class DigitView extends View {
-
         private Drawable mDigitDrawable;
         private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint mXfermodePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Matrix mDrawMatrix = new Matrix();
 
         private Bitmap mMaskBitmap;
         private Canvas mMaskCanvas;
@@ -171,6 +285,7 @@ public class GlassClockManager {
         public DigitView(Context context) {
             super(context);
             mXfermodePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+            mPaint.setFilterBitmap(true);
         }
 
         public void setDigitDrawable(@Nullable Drawable digitDrawable) {
@@ -205,31 +320,36 @@ public class GlassClockManager {
             super.onDraw(canvas);
             Bitmap wallpaper = GlassClockManager.this.mBlurredWallpaperBitmap;
 
-            if (wallpaper == null || mDigitDrawable == null || mMaskBitmap == null) {
+            if (wallpaper == null || mDigitDrawable == null || mMaskBitmap == null || wallpaper.isRecycled()) {
                 return;
             }
 
-            int saveCount = canvas.saveLayer(0, 0, getWidth(), getHeight(), null);
-            RectF viewRect = new RectF(0, 0, getWidth(), getHeight());
+            DisplayMetrics dm = getResources().getDisplayMetrics();
+            int screenW = dm.widthPixels;
+            int screenH = dm.heightPixels;
+
+            int bmpW = wallpaper.getWidth();
+            int bmpH = wallpaper.getHeight();
+
+            float scale = Math.max((float) screenW / bmpW, (float) screenH / bmpH);
+            float dx = (screenW - bmpW * scale) * 0.5f;
+            float dy = (screenH - bmpH * scale) * 0.5f;
+
             int[] location = new int[2];
             getLocationOnScreen(location);
+            int vx = location[0];
+            int vy = location[1];
 
-            float scaleX = (float) wallpaper.getWidth() / getResources().getDisplayMetrics().widthPixels;
-            float scaleY = (float) wallpaper.getHeight() / getResources().getDisplayMetrics().heightPixels;
+            mDrawMatrix.reset();
+            mDrawMatrix.postScale(scale, scale);
+            mDrawMatrix.postTranslate(dx, dy);
+            mDrawMatrix.postTranslate(-vx, -vy);
 
-            Rect srcRect = new Rect(
-                (int) (location[0] * scaleX),
-                (int) (location[1] * scaleY),
-                (int) ((location[0] + getWidth()) * scaleX),
-                (int) ((location[1] + getHeight()) * scaleY)
-            );
+            int saveCount = canvas.saveLayer(0, 0, getWidth(), getHeight(), null);
+            RectF viewRect = new RectF(0, 0, getWidth(), getHeight());
 
-            srcRect.left = Math.max(0, Math.min(srcRect.left, wallpaper.getWidth()));
-            srcRect.top = Math.max(0, Math.min(srcRect.top, wallpaper.getHeight()));
-            srcRect.right = Math.max(srcRect.left, Math.min(srcRect.right, wallpaper.getWidth()));
-            srcRect.bottom = Math.max(srcRect.top, Math.min(srcRect.bottom, wallpaper.getHeight()));
+            canvas.drawBitmap(wallpaper, mDrawMatrix, mPaint);
 
-            canvas.drawBitmap(wallpaper, srcRect, viewRect, mPaint);
             Paint maskPaint = new Paint();
             maskPaint.setColor(Color.WHITE);
             maskPaint.setAlpha(50);

@@ -34,6 +34,9 @@ import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
 import java.util.Locale;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
+
 
 public class RunrunClockController extends BaseLockscreenController {
 
@@ -67,7 +70,9 @@ public class RunrunClockController extends BaseLockscreenController {
             mGlassClockManager.prepareWallpaper();
         }
         initializeCommonViews();
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void createViews() {

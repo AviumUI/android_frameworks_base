@@ -35,6 +35,8 @@ import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
@@ -57,7 +59,8 @@ public class TextTimeClockController extends BaseLockscreenController {
         createViews();
         setupLayout();
         initializeCommonViews();
-        return mContainer;
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
     }
 
     private void loadStringResources() {

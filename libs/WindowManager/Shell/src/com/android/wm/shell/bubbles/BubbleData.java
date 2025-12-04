@@ -1413,13 +1413,6 @@ public class BubbleData {
                 setExpandedInternal(true);
             }
         }
-
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            new Handler(Looper.getMainLooper()).post(() -> {
-                dispatchPendingChanges();
-            });
-        } else {
-            dispatchPendingChanges();
-        }
+        dispatchPendingChanges();
     }
 }

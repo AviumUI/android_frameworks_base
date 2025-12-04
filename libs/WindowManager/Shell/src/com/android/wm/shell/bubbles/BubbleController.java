@@ -190,7 +190,7 @@ public class BubbleController implements ConfigurationChangeListener,
         @Override
         public void onReceive(Context context, Intent intent) {
             if (ACTION_LAUNCH_BUBBLE.equals(intent.getAction())) {
-                new Handler(Looper.getMainLooper()).post(() -> handleLaunchBubbleRequest(intent));
+                mMainExecutor.execute(() -> handleLaunchBubbleRequest(intent));
             }
         }
     };
@@ -2380,12 +2380,6 @@ public class BubbleController implements ConfigurationChangeListener,
 
         @Override
         public void applyUpdate(BubbleData.Update update) {
-
-            if (Looper.myLooper() != Looper.getMainLooper()) {
-                new Handler(Looper.getMainLooper()).post(() -> applyUpdate(update));
-                return;
-            }
-
             ProtoLog.d(WM_SHELL_BUBBLES, "mBubbleDataListener#applyUpdate:"
                     + " added=%s removed=%b updated=%s orderChanged=%b expansionChanged=%b"
                     + " expanded=%b selectionChanged=%b selected=%s"
@@ -3456,9 +3450,9 @@ public class BubbleController implements ConfigurationChangeListener,
         ShellExecutor appMainThreadExecutor = new HandlerExecutor(new Handler(Looper.getMainLooper()));
         
         mStackView = new BubbleStackView(
-                mContext, bubbleStackViewManager, mBubblePositioner, mBubbleData,
-                mSurfaceSynchronizer, mFloatingContentCoordinator, this, 
-                appMainThreadExecutor); 
+            mContext, bubbleStackViewManager, mBubblePositioner, mBubbleData,
+            mSurfaceSynchronizer, mFloatingContentCoordinator, this, 
+            mMainExecutor);
         mStackView.onOrientationChanged();
                 
         if (!mAddedToWindowManager) {

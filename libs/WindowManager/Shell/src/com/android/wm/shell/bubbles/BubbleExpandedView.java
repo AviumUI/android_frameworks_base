@@ -1019,11 +1019,6 @@ public class BubbleExpandedView extends LinearLayout {
     }
 
     void updateHeight() {
-        if (Looper.myLooper() != Looper.getMainLooper()) {
-            new Handler(Looper.getMainLooper()).post(() -> updateHeight());
-            return;
-        }
-
         if (mExpandedViewContainerLocation == null) {
             return;
         }

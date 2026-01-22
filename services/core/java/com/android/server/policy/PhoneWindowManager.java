@@ -6840,9 +6840,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         //Ext add
         updateGestureParams();
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
-
-        mModifierShortcutManager.onSystemReady();
-
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
             mVrManagerInternal.addPersistentVrModeStateListener(mPersistentVrModeListener);
@@ -7351,14 +7348,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     @Override
     public void sendCustomAction(Intent intent) {
-        String action = intent.getAction();
-        if (action != null) {
-            if (derpUtils.INTENT_SCREENSHOT.equals(action)) {
-                mContext.enforceCallingOrSelfPermission(Manifest.permission.ACCESS_SURFACE_FLINGER,
-                        TAG + "sendCustomAction permission denied");
-                interceptScreenshotChord(SCREENSHOT_KEY_OTHER, 0 /*pressDelay*/);
-            }
-        }
+        //TODO add custom action
     }
 
     @Override

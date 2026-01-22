@@ -32,6 +32,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.hardware.input.InputManager;
+import android.hardware.input.InputManagerGlobal;
 import android.media.AudioManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -156,14 +157,14 @@ public class derpUtils {
         handler.post(new Runnable() {
             @Override
             public void run() {
-                InputManager.injectInputEvent(evDown,
+                InputManagerGlobal.getInstance().injectInputEvent(evDown,
                         InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
             }
         });
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                InputManager.injectInputEvent(evUp,
+                InputManagerGlobal.getInstance().injectInputEvent(evUp,
                         InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
             }
         }, 20);

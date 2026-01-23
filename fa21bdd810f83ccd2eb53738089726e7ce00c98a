@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "898f7821_57fa951b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-23T18:02:58Z",
+      "side": 1,
+      "message": "I think you should either completely remove the custom actions here, or leave it there.\nIs it a bit strange to \"clean up\" it in the commit message but still include the TODO for it in the code?",
+      "revId": "fa21bdd810f83ccd2eb53738089726e7ce00c98a",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}

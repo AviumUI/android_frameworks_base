@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "c3553474_33db9ef1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-23T15:14:33Z",
+      "side": 1,
+      "message": "Fixup which commit?",
+      "revId": "be615f79d09f8adfe46573ab8011cee82201300c",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}

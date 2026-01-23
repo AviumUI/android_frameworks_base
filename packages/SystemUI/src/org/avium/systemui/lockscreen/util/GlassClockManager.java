@@ -24,11 +24,13 @@ import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.FileObserver;
 import android.os.Handler;
@@ -38,11 +40,11 @@ import android.renderscript.Allocation;
 import android.renderscript.Element;
 import android.renderscript.RenderScript;
 import android.renderscript.ScriptIntrinsicBlur;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
-import android.graphics.Color;
 
 import java.io.File;
 import java.io.IOException;
@@ -150,13 +152,40 @@ public class GlassClockManager {
                 // do nothing 
             }
         }
-        
+
         if (wallpaperBitmap == null) {
             try (ParcelFileDescriptor pfd = wallpaperManager.getWallpaperFile(WallpaperManager.FLAG_SYSTEM)) {
                 if (pfd != null) {
                     wallpaperBitmap = BitmapFactory.decodeFileDescriptor(pfd.getFileDescriptor());
                 }
-            } catch (IOException e) {
+            } catch (IOException | SecurityException e) {
+                //do nothing
+            }
+        }
+
+        if (wallpaperBitmap == null) {
+            Drawable wallpaperDrawable = wallpaperManager.getDrawable();
+            if (wallpaperDrawable != null) {
+                if (wallpaperDrawable instanceof BitmapDrawable) {
+                    wallpaperBitmap = ((BitmapDrawable) wallpaperDrawable).getBitmap();
+                } else {
+                    int width = wallpaperDrawable.getIntrinsicWidth();
+                    int height = wallpaperDrawable.getIntrinsicHeight();
+                    if (width <= 0 || height <= 0) {
+                        DisplayMetrics displayMetrics = mContext.getResources().getDisplayMetrics();
+                        width = displayMetrics.widthPixels;
+                        height = displayMetrics.heightPixels;
+                    }
+
+                    try {
+                        wallpaperBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                        Canvas canvas = new Canvas(wallpaperBitmap);
+                        wallpaperDrawable.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+                        wallpaperDrawable.draw(canvas);
+                    } catch (Exception e) {
+                        //do nothing
+                    }
+                }
             }
         }
 

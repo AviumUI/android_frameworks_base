@@ -16,6 +16,24 @@
       "message": "Please separate this commit into two\n- optimization \n- Import translations\nPlease also add translators\u0027 author or co-author to second changes.\nFor now, let me set this to -2",
       "revId": "401da695084b4dceb47db79383014ab2a0585849",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "74612165_72fa508a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-23T17:08:23Z",
+      "side": 1,
+      "message": "Also don\u0027t forget to add copyright header for translated xml, and rename `avium_string.xml` to `avium_strings.xml`.",
+      "parentUuid": "5edafd8a_090663b5",
+      "revId": "401da695084b4dceb47db79383014ab2a0585849",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

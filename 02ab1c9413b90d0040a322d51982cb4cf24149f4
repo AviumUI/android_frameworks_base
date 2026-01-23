@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "05ed4bc4_07bd7d01",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-23T16:50:43Z",
+      "side": 1,
+      "message": "@ruyueee@outlook.com I cherry-picked new commit from crdroid, please see the difference between patchset 1 \u0026 2.\n\n@finish21190@gmail.com Please verify this",
+      "revId": "02ab1c9413b90d0040a322d51982cb4cf24149f4",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}

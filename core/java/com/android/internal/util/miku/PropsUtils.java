@@ -98,4 +98,16 @@ public class PropsUtils {
             Log.e(TAG, "Failed to set prop " + key, e);
         }
     }
+
+    private static boolean isCallerSafetyNet() {
+        return Arrays.stream(Thread.currentThread().getStackTrace())
+                .anyMatch(elem -> elem.getClassName().contains("DroidGuard"));
+    }
+
+    public static void onEngineGetCertificateChain() {
+        // Check stack for SafetyNet
+        if (isCallerSafetyNet()) {
+            throw new UnsupportedOperationException();
+        }
+    }
 }

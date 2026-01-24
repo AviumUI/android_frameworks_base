@@ -52,6 +52,24 @@
       "parentUuid": "74612165_72fa508a",
       "revId": "401da695084b4dceb47db79383014ab2a0585849",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ca179ed0_51c9adf3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000004
+      },
+      "writtenOn": "2026-01-24T14:34:53Z",
+      "side": 1,
+      "message": "I didn\u0027t review it carefully at that time, sorry",
+      "parentUuid": "34b43700_63de76d6",
+      "revId": "401da695084b4dceb47db79383014ab2a0585849",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

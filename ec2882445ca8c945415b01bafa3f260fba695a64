@@ -16,6 +16,24 @@
       "message": "Similar to change 281",
       "revId": "ec2882445ca8c945415b01bafa3f260fba695a64",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "61732f52_51eb4f11",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T13:39:47Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "d6902b62_b79cf793",
+      "revId": "ec2882445ca8c945415b01bafa3f260fba695a64",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

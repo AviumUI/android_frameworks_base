@@ -16,6 +16,24 @@
       "message": "@ruyueee@outlook.com I cherry-picked new commit from crdroid, please see the difference between patchset 1 \u0026 2.\n\n@finish21190@gmail.com Please verify this",
       "revId": "02ab1c9413b90d0040a322d51982cb4cf24149f4",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "695899ff_fdaede0f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T09:44:18Z",
+      "side": 1,
+      "message": "tested, no error",
+      "parentUuid": "05ed4bc4_07bd7d01",
+      "revId": "02ab1c9413b90d0040a322d51982cb4cf24149f4",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

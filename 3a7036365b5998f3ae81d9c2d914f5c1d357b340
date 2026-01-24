@@ -16,6 +16,24 @@
       "message": "Need to migrate the string to our own avium_strings.xml",
       "revId": "3a7036365b5998f3ae81d9c2d914f5c1d357b340",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "10673c31_fe58a8d6",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T13:26:36Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "4771fca7_9b625245",
+      "revId": "3a7036365b5998f3ae81d9c2d914f5c1d357b340",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

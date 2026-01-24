@@ -34,6 +34,24 @@
       "parentUuid": "5edafd8a_090663b5",
       "revId": "401da695084b4dceb47db79383014ab2a0585849",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "34b43700_63de76d6",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T08:20:46Z",
+      "side": 1,
+      "message": "but sometimes only one changes is good.\nThe translators\u0027 author is himself,it\u0027s normal.\nDo not use 2 changes to add the feature",
+      "parentUuid": "74612165_72fa508a",
+      "revId": "401da695084b4dceb47db79383014ab2a0585849",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

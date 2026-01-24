@@ -18,6 +18,24 @@
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     },
     {
+      "unresolved": false,
+      "key": {
+        "uuid": "33d62827_e1117f6a",
+        "filename": "core/java/com/android/internal/util/miku/PropsUtils.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T13:23:15Z",
+      "side": 1,
+      "message": "the feat need this to verify\nview in aida64",
+      "parentUuid": "a4423e53_6d20c6f5",
+      "revId": "29fd61ee6d063d2308d2c4e81ce67adc686ec196",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
       "unresolved": true,
       "key": {
         "uuid": "c8c07f5a_0d217181",
@@ -31,6 +49,24 @@
       "writtenOn": "2026-01-23T17:34:35Z",
       "side": 1,
       "message": "Consider separate these two func to another commit, and squash the clean up part to change 269",
+      "revId": "29fd61ee6d063d2308d2c4e81ce67adc686ec196",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ef07e9b3_a1e4751a",
+        "filename": "core/java/com/android/internal/util/miku/PropsUtils.java",
+        "patchSetId": 2
+      },
+      "lineNbr": 101,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T13:23:15Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "c8c07f5a_0d217181",
       "revId": "29fd61ee6d063d2308d2c4e81ce67adc686ec196",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }

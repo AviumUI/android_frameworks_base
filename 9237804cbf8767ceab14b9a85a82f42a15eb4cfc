@@ -16,6 +16,24 @@
       "message": "Fixup which commit?",
       "revId": "9237804cbf8767ceab14b9a85a82f42a15eb4cfc",
       "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d3b889f8_97a58a9f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-01-24T13:44:52Z",
+      "side": 1,
+      "message": "fixup in qpr2 ,not a commit",
+      "parentUuid": "65b95c2b_4c364c9c",
+      "revId": "9237804cbf8767ceab14b9a85a82f42a15eb4cfc",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
     }
   ]
 }

@@ -10148,4 +10148,9 @@
 
     </application>
 
+    <!--Ext add-->
+    <!-- @hide -->
+    <permission android:name="com.android.systemui.permission.LAUNCH_BUBBLE"
+        android:protectionLevel="signature" />
+
 </manifest>

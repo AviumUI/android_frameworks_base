@@ -151,6 +151,7 @@ import com.android.wm.shell.taskview.TaskViewTaskController;
 import com.android.wm.shell.taskview.TaskViewTransitions;
 import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.unfold.ShellUnfoldProgressProvider;
+import com.android.wm.shell.bubbles.BubbleExt;
 
 import dagger.Lazy;
 
@@ -179,6 +180,23 @@ import java.util.function.IntConsumer;
 public class BubbleController implements ConfigurationChangeListener,
         RemoteCallable<BubbleController>, Bubbles.SysuiProxy.Provider,
         BubbleTaskUnfoldTransitionMerger {
+
+    //Ext add
+    private BubbleExt mBubbleExt;
+    private final Set<String> mRetryingPackages = new HashSet<>();
+    private final android.app.TaskStackListener mBubbleTaskListener = new android.app.TaskStackListener() {
+        @Override
+        public void onTaskRemoved(int taskId) {
+            mMainExecutor.execute(() -> handleTaskRemoved(taskId));
+        }
+
+        @Override
+        public void onTaskMovedToFront(ActivityManager.RunningTaskInfo taskInfo) {
+            mMainExecutor.execute(() -> handleTaskMovedToFront(taskInfo));
+        }
+    };
+    private String mLastRequestPackage = null;
+    private long mLastRequestTime = 0;
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "BubbleController" : TAG_BUBBLES;
 
@@ -495,6 +513,15 @@ public class BubbleController implements ConfigurationChangeListener,
     }
 
     protected void onInit() {
+        //Ext add
+        mBubbleExt = new BubbleExt(mContext, this);
+        mBubbleExt.onInit(); 
+        try {
+            ActivityTaskManager.getService().registerTaskStackListener(mBubbleTaskListener);
+        } catch (Exception e) {
+            //ntd
+        }
+
         mBubbleViewCallback = isShowingAsBubbleBar()
                 ? mBubbleBarViewCallback
                 : mBubbleStackViewCallback;
@@ -3956,6 +3983,98 @@ public class BubbleController implements ConfigurationChangeListener,
         @Override
         public void setTaskBounds(TaskViewTaskController taskView, Rect boundsOnScreen) {
             mBaseTransitions.setTaskBounds(taskView, boundsOnScreen);
+        }
+    }
+
+    //Ext add
+    public void showOrUpdateAppBubble(String packageName) {
+        mMainExecutor.execute(() -> {
+            mLastRequestPackage = packageName;
+            mLastRequestTime = System.currentTimeMillis();
+
+            if (mRetryingPackages.contains(packageName)) {
+                ActivityManager am = mContext.getSystemService(ActivityManager.class);
+                if (am != null) {
+                    am.forceStopPackage(packageName);
+                }
+            }
+
+            UserHandle user = UserHandle.of(ActivityManager.getCurrentUser());
+            PackageManager pm = mContext.getPackageManager();
+            Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+            
+            if (launchIntent == null) {
+                return;
+            }
+
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
+                    | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
+                    | Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
+
+            PendingIntent pi = PendingIntent.getActivityAsUser(
+                    mContext, 
+                    packageName.hashCode(), 
+                    launchIntent,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT, 
+                    null, 
+                    user);
+
+            Bubble bubble = Bubble.createAppBubble(pi, user, mMainExecutor, mBackgroundExecutor);
+            bubble.setShouldAutoExpand(true);
+            inflateAndAdd(bubble, true /* suppressFlyout */, false /* showInShade */);
+        });
+    }
+
+    private void handleTaskRemoved(int taskId) {
+        mMainExecutor.execute(() -> {
+            String packageToRetry = null;
+            Bubble bubble = mBubbleData.getBubbleInStackWithTaskId(taskId);
+            if (bubble != null && bubble.isAppBubble()) {
+                packageToRetry = bubble.getPackageName();
+                mBubbleData.dismissBubbleWithKey(bubble.getKey(), Bubbles.DISMISS_USER_GESTURE);
+            } 
+            else {
+                long timeDiff = System.currentTimeMillis() - mLastRequestTime;
+                if (mLastRequestPackage != null && timeDiff < 1000) {
+                    packageToRetry = mLastRequestPackage;
+                }
+            }
+            if (packageToRetry != null) {
+                final String pkg = packageToRetry;
+                
+                if (!mRetryingPackages.contains(pkg)) {
+                    mRetryingPackages.add(pkg);
+                    mMainExecutor.executeDelayed(() -> {
+                        showOrUpdateAppBubble(pkg); 
+                    }, 500);
+                } else {
+                    mRetryingPackages.remove(pkg);
+                    mLastRequestPackage = null;
+                }
+            }
+        });
+    }
+
+    private void handleTaskMovedToFront(android.app.ActivityManager.RunningTaskInfo taskInfo) {
+        mMainExecutor.execute(() -> {
+            Bubble bubble = mBubbleData.getBubbleInStackWithTaskId(taskInfo.taskId);
+            if (bubble != null && bubble.isAppBubble() && !isStackExpanded()) {
+                String pkg = bubble.getPackageName();
+                mBubbleData.dismissBubbleWithKey(bubble.getKey(), Bubbles.DISMISS_USER_GESTURE);
+                mMainExecutor.executeDelayed(() -> {
+                    launchAppFullscreen(pkg);
+                }, 300);
+            }
+        });
+    }
+    
+    private void launchAppFullscreen(String packageName) {
+        PackageManager pm = mContext.getPackageManager();
+        Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
+                                  Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            mContext.startActivityAsUser(launchIntent, UserHandle.CURRENT);
         }
     }
 }

@@ -30,6 +30,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.os.UserHandle;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.graphics.ColorUtils;
@@ -350,20 +351,34 @@ public class BubbleViewInfoTask {
         }
 
         BubbleAppInfo appInfo = appInfoProvider.resolveAppInfo(c, b);
-        if (appInfo == null) {
+        Drawable appIcon = null;
+        String appName = null;
+        UserHandle user = b.mUser; 
+
+        if (appInfo != null) {
+            appIcon = appInfo.getAppIcon();
+            appName = appInfo.getAppName();
+        } else if (b.isAppBubble()) {
+            try {
+                android.content.pm.PackageManager pm = c.getPackageManager();
+                android.content.pm.ApplicationInfo ai = pm.getApplicationInfo(b.getPackageName(), 0);
+                appIcon = pm.getApplicationIcon(ai);
+                appName = String.valueOf(pm.getApplicationLabel(ai));
+            } catch (Exception e) {
+                return false;
+            }
+        } else {
             return false;
         }
 
-        Drawable appIcon = appInfo.getAppIcon();
-        if (appInfo.getAppName() != null) {
-            info.appName = appInfo.getAppName();
+        if (appName != null) {
+            info.appName = appName;
         }
 
         Drawable bubbleDrawable = null;
         try {
             // Badged bubble image
-            bubbleDrawable = iconFactory.getBubbleDrawable(c, info.shortcutInfo,
-                    b.getIcon());
+            bubbleDrawable = iconFactory.getBubbleDrawable(c, info.shortcutInfo, b.getIcon());
         } catch (Exception e) {
             // If we can't create the icon we'll default to the app icon
             Log.w(TAG, "Exception creating icon for the bubble: " + b.getKey());
@@ -374,17 +389,15 @@ public class BubbleViewInfoTask {
             bubbleDrawable = appIcon;
         }
 
-        BitmapInfo badgeBitmapInfo = iconFactory.getBadgeBitmap(
-                appIcon,
-                appInfo.getUser(),
-                b.isImportantConversation());
+        BitmapInfo badgeBitmapInfo = iconFactory.getBadgeBitmap(appIcon, user, b.isImportantConversation());
         info.badgeBitmap = badgeBitmapInfo;
         // Raw badge bitmap never includes the important conversation ring
         info.rawBadgeBitmap = b.isImportantConversation()
-                ? iconFactory.getBadgeBitmap(appIcon, appInfo.getUser(), false)
+                ? iconFactory.getBadgeBitmap(appIcon, user, false)
                 : badgeBitmapInfo;
 
         info.bubbleBitmap = iconFactory.getBubbleBitmap(bubbleDrawable);
+        info.dotColor = ColorUtils.blendARGB(badgeBitmapInfo.color, Color.WHITE, WHITE_SCRIM_ALPHA);
 
         info.dotColor = ColorUtils.blendARGB(badgeBitmapInfo.color,
                 Color.WHITE, WHITE_SCRIM_ALPHA);

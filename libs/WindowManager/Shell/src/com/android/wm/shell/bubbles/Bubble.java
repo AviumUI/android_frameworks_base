@@ -165,7 +165,7 @@ public class Bubble implements BubbleViewProvider {
     private int mFlags;
 
     @NonNull
-    private UserHandle mUser;
+    UserHandle mUser;
     @NonNull
     private String mPackageName;
     @Nullable
@@ -1405,5 +1405,15 @@ public class Bubble implements BubbleViewProvider {
         }
 
         return bubbleMessage;
+    }
+
+    //Ext add
+    public boolean isAppBubble() {
+        return mType == BubbleType.TYPE_APP;
+    }
+
+    @Nullable
+    public PendingIntent getAppBubbleIntent() {
+        return mPendingIntent;
     }
 }

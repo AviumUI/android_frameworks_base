@@ -374,4 +374,6 @@ interface IWindowSession {
      */
     oneway void notifyImeWindowVisibilityChangedFromClient(IWindow window, boolean visible,
             in ImeTracker.Token statsToken);
+    
+    oneway void bringToFront(IWindow window);
 }

@@ -11052,4 +11052,34 @@ public class WindowManagerService extends IWindowManager.Stub
             }
         }
     }
+
+    //Ext add
+    final WindowState windowForClientLocked(Session session, IWindow client, boolean throwOnError) {
+        return windowForClientLocked(session, client.asBinder(), throwOnError);
+    }
+
+    final WindowState windowForClientLocked(Session session, IBinder client, boolean throwOnError) {
+        WindowState win = mWindowMap.get(client);
+        if (DEBUG) Slog.v(TAG_WM, "Looking up client " + client + ": " + win);
+        if (win == null) {
+            if (throwOnError) {
+                throw new IllegalArgumentException(
+                        "Requested window " + client + " does not exist");
+            }
+            ProtoLog.w(WM_ERROR, "Failed looking up window session=%s callers=%s", session,
+                    Debug.getCallers(3));
+            return null;
+        }
+        if (session != null && win.mSession != session) {
+            if (throwOnError) {
+                throw new IllegalArgumentException("Requested window " + client + " is in session "
+                        + win.mSession + ", not " + session);
+            }
+            ProtoLog.w(WM_ERROR, "Failed looking up window session=%s callers=%s", session,
+                    Debug.getCallers(3));
+            return null;
+        }
+
+        return win;
+    }
 }

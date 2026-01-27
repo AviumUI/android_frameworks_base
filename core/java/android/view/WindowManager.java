@@ -729,6 +729,11 @@ public interface WindowManager extends ViewManager {
      * @param view The view to be removed.
      */
     public void removeViewImmediate(View view);
+    
+    /**
+     * @hide
+     */
+    public void bringViewToFront(@NonNull View view);
 
     /**
      * Returns the {@link WindowMetrics} according to the current system state.

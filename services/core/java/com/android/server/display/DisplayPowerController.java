@@ -2298,6 +2298,17 @@ final class DisplayPowerController implements AutomaticBrightnessController.Call
             Slog.i(TAG, "Window Manager Policy screenTurningOn complete");
         }
 
+        if (mDisplayId == Display.DEFAULT_DISPLAY) {
+            DisplayManagerInternal dmi = LocalServices.getService(DisplayManagerInternal.class);
+            if (dmi != null) {
+                if (isOff) {
+                    dmi.pauseAllFreeformDisplays();
+                } else if (isOn) {
+                    dmi.resumeAllFreeformDisplays();
+                }
+            }
+        }
+
         // Return true if the screen isn't blocked.
         return mPendingScreenOnUnblocker == null
                 && mPendingScreenOnUnblockerByDisplayOffload == null;

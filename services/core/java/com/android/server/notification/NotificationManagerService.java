@@ -8749,6 +8749,10 @@ public class NotificationManagerService extends SystemService {
             final Notification notification, @CanBeALL @CanBeCURRENT @UserIdInt int incomingUserId,
             boolean postSilently, PostNotificationTracker tracker, boolean byForegroundService,
             boolean isAppProvided) {
+        //Ext add
+        if (isPackageShielded(pkg)) {
+            return false;
+        }
         if (DBG) {
             Slog.v(TAG, "enqueueNotificationInternal: pkg=" + pkg + " id=" + id
                     + " notification=" + notification);
@@ -15422,6 +15426,22 @@ public class NotificationManagerService extends SystemService {
                     SystemMessageProto.SystemMessage.NOTE_REVIEW_NOTIFICATION_PERMISSIONS,
                     createReviewPermissionsNotification());
         }
+    }
+    //Ext add
+    private boolean isPackageShielded(String pkg) {
+        if (TextUtils.isEmpty(pkg)) {
+            return false;
+        }
+        String shieldList = SystemProperties.get("persist.avium.hide_sysapp_notifs", "");
+        if (!shieldList.isEmpty()) {
+            String[] apps = shieldList.split(",");
+            for (String app : apps) {
+                if (pkg.equals(app.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**

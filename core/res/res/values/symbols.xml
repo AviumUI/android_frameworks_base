@@ -6383,4 +6383,7 @@
     <java-symbol type="layout" name="pinned_window_overlay" />
     <java-symbol type="layout" name="pinned_window_dismiss" />
     <java-symbol type="string" name="recent_task_option_pop_up" />
+
+    <java-symbol type="string" name="config_avium_hide_sysapp_notifs_default" />
+    <java-symbol type="string" name="config_avium_disable_sensor_apps_default" />
 </resources>

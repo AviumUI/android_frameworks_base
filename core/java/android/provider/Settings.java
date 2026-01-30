@@ -13928,6 +13928,14 @@ public final class Settings {
          */
         @Readable
         public static final String STATUS_BAR_SHOW_LYRIC = "status_bar_show_lyric";
+
+        /** 
+         * 
+         * @hide 
+         * 
+         */
+        @Readable
+        public static final String AVIUM_DISABLE_SENSOR_APPS = "avium_disable_sensor_apps";
         
         /**
          * String property which contains the package name of the contextual
@@ -21586,6 +21594,14 @@ public final class Settings {
             public static final String WEAR_SYSTEM_STATUS_TRAY_CONFIGURATION =
                     "wear_system_status_tray_configuration";
         }
+
+        /** 
+         * Ext add
+         * @hide 
+         * 
+         */
+        @Readable
+        public static final String AVIUM_HIDE_SYSAPP_NOTIFS = "avium_hide_sysapp_notifs";
     }
 
     /**

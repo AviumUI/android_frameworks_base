@@ -17,6 +17,7 @@
 */
 -->
 <resources>
+  <item type="id" name="avium_popup_button" />
   <item type="id" name="background" />
   <item type="id" name="checkbox" />
   <item type="id" name="content" />

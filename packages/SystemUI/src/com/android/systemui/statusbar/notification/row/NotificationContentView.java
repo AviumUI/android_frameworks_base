@@ -42,6 +42,9 @@ import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.os.SystemProperties; 
+import android.content.Intent;
+import android.content.ComponentName;
 
 import androidx.annotation.MainThread;
 
@@ -1617,43 +1620,84 @@ public class NotificationContentView extends FrameLayout implements Notification
         ImageView bubbleButton = layout.findViewById(com.android.internal.R.id.bubble_button);
         // With the new design, the actions_container should always be visible to act as padding
         // when there are no actions. We're making its child visible/invisible instead.
-        View actionsContainerForVisibilityChange = layout.findViewById(
+        ImageView aviumPopupButton = layout.findViewById(com.android.internal.R.id.avium_popup_button);
+        View actionsContainer = layout.findViewById(
                 notificationsRedesignTemplates()
                         ? com.android.internal.R.id.actions_container_layout
                         : com.android.internal.R.id.actions_container);
-        if (bubbleButton == null || actionsContainerForVisibilityChange == null) {
-            return;
+
+        if (actionsContainer == null) return;
+
+        if (aviumPopupButton != null) {
+            boolean isPropEnabled = SystemProperties.getBoolean("persist.avium.popup_view_notifs", false);
+            boolean canBubble = shouldShowBubbleButton(entry);
         }
 
-        if (shouldShowBubbleButton(entry)) {
-            boolean isBubble = NotificationBundleUi.isEnabled()
-                    ? mContainingNotification.getEntryAdapter().isBubble()
-                    : entry.isBubble();
-            // explicitly resolve drawable resource using SystemUI's theme
-            Drawable d = mContext.getDrawable(isBubble
-                    ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
-                    : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
+        boolean isPropEnabled = SystemProperties.getBoolean("persist.avium.popup_view_notifs", false);
+        boolean canBubble = shouldShowBubbleButton(entry);
 
-            String contentDescription = mContext.getResources().getString(isBubble
-                    ? R.string.notification_conversation_unbubble
-                    : R.string.notification_conversation_bubble);
+        if (canBubble) {
+            if (aviumPopupButton != null) aviumPopupButton.setVisibility(GONE);
+            
+            if (bubbleButton != null) {
+                bubbleButton.setVisibility(VISIBLE);
+                boolean isBubble = NotificationBundleUi.isEnabled()
+                        ? mContainingNotification.getEntryAdapter().isBubble()
+                        : (entry != null && entry.isBubble());
+                Drawable d = mContext.getDrawable(isBubble
+                        ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
+                        : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
 
-            bubbleButton.setContentDescription(contentDescription);
-            bubbleButton.setImageDrawable(d);
-            bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
-            bubbleButton.setVisibility(VISIBLE);
-            actionsContainerForVisibilityChange.setVisibility(VISIBLE);
-            if (!notificationsRedesignTemplates()) {
-                // Set notification_action_list_margin_target's bottom margin to 0 when showing
-                // bubble
-                ViewGroup actionListMarginTarget = layout.findViewById(
-                        com.android.internal.R.id.notification_action_list_margin_target);
-                if (actionListMarginTarget != null) {
-                    removeBottomMargin(actionListMarginTarget);
-                }
+                String contentDescription = mContext.getResources().getString(isBubble
+                        ? R.string.notification_conversation_unbubble
+                        : R.string.notification_conversation_bubble);
+
+                bubbleButton.setContentDescription(contentDescription);
+                bubbleButton.setImageDrawable(d);
+                bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
             }
-        } else  {
-            bubbleButton.setVisibility(GONE);
+            actionsContainer.setVisibility(VISIBLE);
+
+        } else if (isPropEnabled) {
+            if (bubbleButton != null) bubbleButton.setVisibility(GONE);
+
+            if (aviumPopupButton != null) {
+                aviumPopupButton.setVisibility(VISIBLE);
+                Drawable icon = mContext.getDrawable(com.android.systemui.res.R.drawable.ic_popupview);
+                if (icon != null) {
+                    aviumPopupButton.setImageDrawable(icon);
+                }
+
+                aviumPopupButton.setImageTintList(android.content.res.ColorStateList.valueOf(
+                    com.android.settingslib.Utils.getColorAttrDefaultColor(mContext, android.R.attr.textColorSecondary)
+                ));
+
+                final String pkgName = NotificationBundleUi.isEnabled()
+                        ? mContainingNotification.getEntryAdapter().getSbn().getPackageName()
+                        : entry.getSbn().getPackageName();
+                aviumPopupButton.setOnClickListener(v -> {
+                    launchAppNormally(v.getContext(), pkgName);
+                });
+                aviumPopupButton.setOnTouchListener((v, event) -> {
+                    if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                        v.getParent().requestDisallowInterceptTouchEvent(true);
+                    }
+                    return false;
+                });
+            }
+            actionsContainer.setVisibility(VISIBLE);
+
+        } else {
+            if (bubbleButton != null) bubbleButton.setVisibility(GONE);
+            if (aviumPopupButton != null) aviumPopupButton.setVisibility(GONE);
+        }
+
+        if (!notificationsRedesignTemplates() && (canBubble || isPropEnabled)) {
+            ViewGroup actionListMarginTarget = layout.findViewById(
+                    com.android.internal.R.id.notification_action_list_margin_target);
+            if (actionListMarginTarget != null) {
+                removeBottomMargin(actionListMarginTarget);
+            }
         }
     }
 
@@ -2611,5 +2655,37 @@ public class NotificationContentView extends FrameLayout implements Notification
         } catch (RemoteException ex) {
             Log.e(TAG, "cancelNotification failed: " + ex);
         }
+    }
+
+    //Ext add
+    private void launchAppNormally(Context context, String packageName) {
+        if (context == null || packageName == null) return;
+        
+        Object statusBarManager = context.getSystemService(Context.STATUS_BAR_SERVICE);
+        if (statusBarManager != null) {
+            try {
+                java.lang.reflect.Method collapsePanels = statusBarManager.getClass().getMethod("collapsePanels");
+                collapsePanels.invoke(statusBarManager);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        
+        android.content.pm.PackageManager pm = context.getPackageManager();
+        Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
+        if (launchIntent != null) {
+            ComponentName componentName = launchIntent.getComponent();
+            if (componentName != null) {
+                String activityName = componentName.getClassName();
+                Intent intent = new Intent("com.sunshine.freeform.start_freeform");
+                intent.setPackage("com.sunshine.freeform");
+                intent.putExtra("packageName", packageName);
+                intent.putExtra("activityName", activityName);
+                intent.putExtra("userId", 0);
+                intent.putExtra(Intent.EXTRA_INTENT, launchIntent);
+                intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+                context.sendBroadcast(intent);
+            }
+        } 
     }
 }

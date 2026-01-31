@@ -386,6 +386,16 @@ public class NotificationHeaderView extends RelativeLayout {
             if (mAcceptAllTouches) {
                 return true;
             }
+
+            View aviumButton = findViewById(com.android.internal.R.id.avium_popup_button);
+            if (aviumButton != null && aviumButton.getVisibility() == VISIBLE) {
+                Rect r = new Rect();
+                aviumButton.getHitRect(r);
+                if (r.contains((int) x, (int) y)) {
+                    return false;
+                }
+            }
+
             if (mExpandOnlyOnButton) {
                 return mExpandButtonRect.contains((int) x, (int) y)
                         || mAltExpandTargetRect.contains((int) x, (int) y);

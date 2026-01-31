@@ -42,19 +42,20 @@ class OccludingMaskLayout @JvmOverloads constructor(
 
     private var bgBitmap: Bitmap? = null
     private var maskBitmap: Bitmap? = null
-    
+
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val drawMatrix = Matrix()
-    
+
     private var lastBgMTime: Long = 0L
     private var lastMaskMTime: Long = 0L
-    
+
     private val viewLoc = IntArray(2)
     private var screenW = 0
     private var screenH = 0
 
     private var mDozeAmount: Float = 0f
     private var mStatusBarStateController: StatusBarStateController? = null
+    private var mStatusBarView: View? = null
 
     init {
         setWillNotDraw(false)
@@ -147,7 +148,7 @@ class OccludingMaskLayout @JvmOverloads constructor(
             maskBitmap = newMask
             lastMaskMTime = maskTime
         }
-        
+
         if (bgBitmap != null || maskBitmap != null) {
             updateMatrix()
         }
@@ -174,6 +175,21 @@ class OccludingMaskLayout @JvmOverloads constructor(
         drawMatrix.postTranslate(-vx, -vy)
     }
 
+    private fun findKeyguardStatusBar() {
+        if (mStatusBarView != null && mStatusBarView!!.isAttachedToWindow) return
+
+        var current: View? = this
+        while (current != null) {
+            val sb = current.rootView.findViewById<View>(com.android.systemui.res.R.id.keyguard_header)
+            if (sb != null) {
+                mStatusBarView = sb
+                break
+            }
+            val parent = current.parent
+            current = if (parent is View) parent else null
+        }
+    }
+
     override fun dispatchDraw(canvas: Canvas) {
         if (!DepthWallpaperSwitch.isEnabled(context) || mDozeAmount == 1f) {
             super.dispatchDraw(canvas)
@@ -182,7 +198,7 @@ class OccludingMaskLayout @JvmOverloads constructor(
 
         reloadImagesIfNeeded()
         val alpha = ((1f - mDozeAmount) * 255).toInt().coerceIn(0, 255)
-        
+
         if (alpha == 0) {
             super.dispatchDraw(canvas)
             return
@@ -201,6 +217,33 @@ class OccludingMaskLayout @JvmOverloads constructor(
         if (mask != null && !mask.isRecycled) {
             paint.xfermode = null
             canvas.drawBitmap(mask, drawMatrix, paint)
+        }
+
+        drawStatusBarMirror(canvas)
+    }
+
+    private fun drawStatusBarMirror(canvas: Canvas) {
+        findKeyguardStatusBar()
+
+        mStatusBarView?.let { sb ->
+            if (sb.visibility == View.VISIBLE && sb.alpha > 0.1f) {
+                canvas.save()
+
+                val sbLoc = IntArray(2)
+                sb.getLocationOnScreen(sbLoc)
+
+                val myLoc = IntArray(2)
+                getLocationOnScreen(myLoc)
+
+                canvas.translate(
+                    (sbLoc[0] - myLoc[0]).toFloat(),
+                    (sbLoc[1] - myLoc[1]).toFloat()
+                )
+
+                sb.draw(canvas)
+
+                canvas.restore()
+            }
         }
     }
 }

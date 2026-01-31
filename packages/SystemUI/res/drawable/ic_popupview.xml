@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 The AviumUI Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="25dp"
+    android:height="25dp"
+    android:viewportWidth="50"
+    android:viewportHeight="50">
+  <path
+      android:fillColor="#FF000000"
+      android:pathData="M12.98,4C9.12,4 5.98,7.14 5.98,11L6,26L9.98,26L9.98,11C9.98,9.35 11.32,8 12.98,8L40.02,8C41.68,8 43.02,9.35 43.02,11L43.02,39C43.02,40.65 41.68,42 40.02,42L29,42C29,43.54 28.421,44.94 27.461,46L40.02,46C43.88,46 47.02,42.86 47.02,39L47.02,11C47.02,7.14 43.88,4 40.02,4L12.98,4zM7,28C4.794,28 3,29.794 3,32L3,42C3,44.206 4.794,46 7,46L23,46C25.206,46 27,44.206 27,42L27,32C27,29.794 25.206,28 23,28L7,28zM7,32L23,32L23.002,42L7,42L7,32z"/>
+</vector>

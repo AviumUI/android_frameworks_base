@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.chips.ui.compose
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -132,14 +133,15 @@ fun ChipContent(
                     style = textStyle,
                     softWrap = false,
                     modifier =
-                        modifier.hideTextIfDoesNotFit(
-                            text = text,
-                            textStyle = textStyle,
-                            textMeasurer = textMeasurer,
-                            maxTextWidth = maxTextWidth,
-                            startPadding = startPadding,
-                            endPadding = endPadding,
-                        ),
+                        modifier.marqueeTextIfNeeded(
+                                text = text,
+                                textStyle = textStyle,
+                                textMeasurer = textMeasurer,
+                                maxTextWidth = maxTextWidth,
+                                startPadding = startPadding,
+                                endPadding = endPadding,
+                            )
+                            .basicMarquee(),
                 )
             }
         }
@@ -299,6 +301,82 @@ private class HideTextIfDoesNotFitNode(
             }
         } else {
             layout(0, 0) {}
+        }
+    }
+}
+
+//Ext add
+private fun Modifier.marqueeTextIfNeeded(
+    text: String,
+    textStyle: TextStyle,
+    textMeasurer: TextMeasurer,
+    maxTextWidth: Dp,
+    startPadding: Dp = 0.dp,
+    endPadding: Dp = 0.dp,
+): Modifier {
+    return this.then(
+        MarqueeTextElement(
+            text,
+            textStyle,
+            textMeasurer,
+            maxTextWidth,
+            startPadding,
+            endPadding,
+        )
+    )
+}
+
+private data class MarqueeTextElement(
+    val text: String,
+    val textStyle: TextStyle,
+    val textMeasurer: TextMeasurer,
+    val maxTextWidth: Dp,
+    val startPadding: Dp,
+    val endPadding: Dp,
+) : ModifierNodeElement<MarqueeTextNode>() {
+    override fun create(): MarqueeTextNode {
+        return MarqueeTextNode(
+            text,
+            textStyle,
+            textMeasurer,
+            maxTextWidth,
+            startPadding,
+            endPadding,
+        )
+    }
+
+    override fun update(node: MarqueeTextNode) {
+        node.text = text
+        node.textStyle = textStyle
+        node.textMeasurer = textMeasurer
+        node.maxTextWidth = maxTextWidth
+        node.startPadding = startPadding
+        node.endPadding = endPadding
+    }
+}
+
+private class MarqueeTextNode(
+    var text: String,
+    var textStyle: TextStyle,
+    var textMeasurer: TextMeasurer,
+    var maxTextWidth: Dp,
+    var startPadding: Dp,
+    var endPadding: Dp,
+) : Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        val horizontalPadding = startPadding + endPadding
+        val maxWidth =
+            min(maxTextWidth.roundToPx(), (constraints.maxWidth - horizontalPadding.roundToPx()))
+                .coerceAtLeast(constraints.minWidth)
+        val placeable = measurable.measure(constraints.copy(maxWidth = maxWidth))
+
+        val height = placeable.height
+        val width = placeable.width
+        return layout(width + horizontalPadding.roundToPx(), height) {
+            placeable.placeRelative(x = startPadding.roundToPx(), y = 0)
         }
     }
 }

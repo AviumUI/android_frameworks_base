@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.chips.ui.view
 
 import android.content.Context
 import android.content.res.Configuration
+import android.text.TextUtils
 import android.util.AttributeSet
 import android.widget.DateTimeView
 
@@ -25,6 +26,13 @@ import android.widget.DateTimeView
 class ChipDateTimeView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) :
     DateTimeView(context, attrs) {
     private val textTruncationHelper = ChipTextTruncationHelper(this)
+
+    init {
+        ellipsize = TextUtils.TruncateAt.MARQUEE
+        marqueeRepeatLimit = -1 
+        isSelected = true 
+        setHorizontallyScrolling(true)
+    }
 
     override fun onConfigurationChanged(newConfig: Configuration?) {
         super.onConfigurationChanged(newConfig)
@@ -35,20 +43,22 @@ class ChipDateTimeView @JvmOverloads constructor(context: Context, attrs: Attrib
         // Evaluate how wide the text *wants* to be if it had unlimited space. This is needed so
         // that [textTruncationHelper.shouldShowText] works correctly.
         super.onMeasure(textTruncationHelper.unlimitedWidthMeasureSpec.specInt, heightMeasureSpec)
+        val shouldShow = textTruncationHelper.shouldShowText(
+            desiredTextWidthPx = measuredWidth,
+            widthMeasureSpec = SysuiMeasureSpec(widthMeasureSpec),
+        )
+        // Show the text with the width spec specified by the helper
+        super.onMeasure(textTruncationHelper.widthMeasureSpec.specInt, heightMeasureSpec)
+        visibility = VISIBLE
+    }
 
-        if (
-            textTruncationHelper.shouldShowText(
-                desiredTextWidthPx = measuredWidth,
-                widthMeasureSpec = SysuiMeasureSpec(widthMeasureSpec),
-            )
-        ) {
-            // Show the text with the width spec specified by the helper
-            super.onMeasure(textTruncationHelper.widthMeasureSpec.specInt, heightMeasureSpec)
-        } else {
-            // Changing visibility ensures that the content description is not read aloud when the
-            // text isn't displayed.
-            visibility = GONE
-            setMeasuredDimension(0, 0)
-        }
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        isSelected = true 
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        isSelected = false 
     }
 }

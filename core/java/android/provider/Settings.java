@@ -13854,6 +13854,18 @@ public final class Settings {
         public static final String CHARGE_OPTIMIZATION_MODE = "charge_optimization_mode";
 
         /**
+         * Show lyric in status bar when playing music
+         * <ul>
+         *    <li> 0 = disabled </li>
+         *    <li> 1 = enabled </li>
+         * </ul>
+         *
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_SHOW_LYRIC = "status_bar_show_lyric";
+        
+        /**
          * String property which contains the package name of the contextual
          * search provider supplied by individual OEM's
          * R.string.config_defaultContextualSearchPackageName.

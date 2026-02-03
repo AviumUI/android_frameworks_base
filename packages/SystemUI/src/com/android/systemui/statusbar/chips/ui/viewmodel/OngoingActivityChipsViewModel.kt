@@ -37,6 +37,7 @@ import com.android.systemui.statusbar.notification.promoted.PromotedNotification
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.util.kotlin.filterValuesNotNull
 import com.android.systemui.util.kotlin.pairwise
+import org.avium.systemui.chips.ui.viewmodel.AviumChipViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -65,6 +66,7 @@ constructor(
     castToOtherDeviceChipViewModel: CastToOtherDeviceChipViewModel,
     callChipViewModel: CallChipViewModel,
     notifChipsViewModel: NotifChipsViewModel,
+    aviumChipViewModel: AviumChipViewModel,
     @DisplayAware displayStateInteractor: DisplayStateInteractor,
     private val chipsRefiners: Set<@JvmSuppressWildcards OngoingActivityChipsRefiner>,
     @StatusBarChipsLog private val logger: LogBuffer,
@@ -75,6 +77,7 @@ constructor(
         CastToOtherDevice,
         Call,
         Notification,
+        Avium,
     }
 
     /** Model that helps us internally track the various chip states from each of the types. */
@@ -97,6 +100,7 @@ constructor(
             val castToOtherDevice: OngoingActivityChipModel.Inactive,
             val call: OngoingActivityChipModel.Inactive,
             val notifs: OngoingActivityChipModel.Inactive,
+            val avium: OngoingActivityChipModel.Inactive,
         ) : InternalChipModel
     }
 
@@ -106,6 +110,7 @@ constructor(
         val castToOtherDevice: OngoingActivityChipModel = OngoingActivityChipModel.Inactive(),
         val call: OngoingActivityChipModel = OngoingActivityChipModel.Inactive(),
         val notifs: List<OngoingActivityChipModel.Active> = emptyList(),
+        val avium: OngoingActivityChipModel = OngoingActivityChipModel.Inactive(),
     )
 
     /** Bundles all the incoming chips into one object to easily pass to various flows. */
@@ -116,7 +121,14 @@ constructor(
                 castToOtherDeviceChipViewModel.chip,
                 callChipViewModel.chip,
                 notifChipsViewModel.chips,
-            ) { screenRecord, shareToApp, castToOtherDevice, call, notifs ->
+                aviumChipViewModel.chip,
+            ) { array ->
+                val screenRecord = array[0] as OngoingActivityChipModel
+                val shareToApp = array[1] as OngoingActivityChipModel
+                val castToOtherDevice = array[2] as OngoingActivityChipModel
+                val call = array[3] as OngoingActivityChipModel
+                val notifs = array[4] as List<OngoingActivityChipModel.Active>
+                val avium = array[5] as OngoingActivityChipModel
                 logger.log(
                     TAG,
                     LogLevel.INFO,
@@ -133,8 +145,9 @@ constructor(
                     {
                         str1 = call.logName
                         str2 = notifs.map { it.logName }.toString()
+                        str3 = avium.logName
                     },
-                    { "... > Call=$str1 > Notifs=$str2" },
+                    { "... > Call=$str1 > Notifs=$str2 > Avium=$str3" },
                 )
                 ChipBundle(
                     screenRecord = screenRecord,
@@ -142,6 +155,7 @@ constructor(
                     castToOtherDevice = castToOtherDevice,
                     call = call,
                     notifs = notifs,
+                    avium = avium,
                 )
             }
             // Some of the chips could have timers in them and we don't want the start time for
@@ -404,7 +418,7 @@ constructor(
         val inactiveChips = mutableListOf<OngoingActivityChipModel.Inactive>()
 
         val sortedChips =
-            with(bundle) { listOf(screenRecord, shareToApp, castToOtherDevice, call) + notifs }
+            with(bundle) { listOf(screenRecord, shareToApp, castToOtherDevice, call) + notifs + avium }
 
         var shownSlotsRemaining = MAX_VISIBLE_CHIPS
         for (chip in sortedChips) {
@@ -498,6 +512,12 @@ constructor(
                     remainingChips =
                         bundle.copy(notifs = bundle.notifs.subList(1, bundle.notifs.size)),
                 )
+            bundle.avium is OngoingActivityChipModel.Active ->
+                MostImportantChipResult(
+                    mostImportantChip =
+                        InternalChipModel.Active(ChipType.Avium, bundle.avium),
+                    remainingChips = bundle.copy(avium = OngoingActivityChipModel.Inactive()),
+                )
             else -> {
                 // We should only get here if all chip types are hidden
                 check(bundle.screenRecord is OngoingActivityChipModel.Inactive)
@@ -505,6 +525,7 @@ constructor(
                 check(bundle.castToOtherDevice is OngoingActivityChipModel.Inactive)
                 check(bundle.call is OngoingActivityChipModel.Inactive)
                 check(bundle.notifs.isEmpty())
+                check(bundle.avium is OngoingActivityChipModel.Inactive)
                 MostImportantChipResult(
                     mostImportantChip =
                         InternalChipModel.Inactive(
@@ -513,6 +534,7 @@ constructor(
                             castToOtherDevice = bundle.castToOtherDevice,
                             call = bundle.call,
                             notifs = OngoingActivityChipModel.Inactive(),
+                            avium = bundle.avium,
                         ),
                     // All the chips are already hidden, so no need to filter anything out of the
                     // bundle.
@@ -541,6 +563,7 @@ constructor(
                 ChipType.CastToOtherDevice -> new.castToOtherDevice
                 ChipType.Call -> new.call
                 ChipType.Notification -> new.notifs
+                ChipType.Avium -> new.avium
             }
         } else if (new is InternalChipModel.Active) {
             // If we have a chip to show, always show it.
@@ -562,6 +585,7 @@ constructor(
                 castToOtherDevice = OngoingActivityChipModel.Inactive(),
                 call = OngoingActivityChipModel.Inactive(),
                 notifs = OngoingActivityChipModel.Inactive(),
+                avium = OngoingActivityChipModel.Inactive(),
             )
 
         private val DEFAULT_MULTIPLE_INTERNAL_INACTIVE_MODEL =

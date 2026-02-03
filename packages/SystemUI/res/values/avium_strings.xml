@@ -86,4 +86,8 @@
     <!-- Statusbar Icons -->
     <string name="status_bar_nfc">NFC</string>
 
+    <!-- Avium Chip Notifs -->
+    <string name="avium_chip_notification_title">Next</string>
+    <string name="avium_chip_notification_dismiss_hint">Click to dismiss</string>
+
 </resources>

@@ -29,8 +29,9 @@ import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import dagger.multibindings.Multibinds
+import org.avium.systemui.chips.di.AviumChipsModule
 
-@Module
+@Module(includes = [AviumChipsModule::class])
 abstract class StatusBarChipsModule {
     companion object {
         @Provides

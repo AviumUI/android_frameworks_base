@@ -201,9 +201,9 @@ public class ClipboardService extends SystemService {
 
     /*
      * Ext add
-     * Add exthmuseful allow to read clipboard
+     * Add aviumuseful allow to read clipboard
      */
-    private static final String EXTHM_USEFUL_PACKAGE = "org.exthm.exthmuseful";
+    private static final String AVIUM_USEFUL_PACKAGE = "org.avium.aviumuseful";
 
     // Avium: secure clipboard update broadcast
     private static final String ACTION_CLIPBOARD_LISTEN = "org.avium.CLIPBOARD_LISTEN";
@@ -1402,11 +1402,11 @@ public class ClipboardService extends SystemService {
 
         /*
          * Ext add 
-         * Add exthmuseful allow to read and write clipboard
+         * Add aviumuseful allow to read and write clipboard
          */
-        if(EXTHM_USEFUL_PACKAGE.equals(callingPackage)){
+        if(AVIUM_USEFUL_PACKAGE.equals(callingPackage)){
             if(op == AppOpsManager.OP_READ_CLIPBOARD || op == AppOpsManager.OP_WRITE_CLIPBOARD){
-//                Slog.i(TAG, "Allow exthmuseful to read clipboard");
+//                Slog.i(TAG, "Allow aviumuseful to read clipboard");
                 return true;
             }
         }

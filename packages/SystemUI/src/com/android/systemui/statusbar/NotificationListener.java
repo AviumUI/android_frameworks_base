@@ -74,7 +74,7 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
      * Ext add
      * streamline notifications
     */
-    private static final String EXTHM_USEFUL_PACKAGE = "org.exthm.exthmuseful";
+    private static final String EXTHM_USEFUL_PACKAGE = "org.avium.aviumuseful";
 
     /**
      * Injected constructor. See {@link CentralSurfacesModule}.

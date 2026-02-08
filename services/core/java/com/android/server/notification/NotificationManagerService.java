@@ -463,6 +463,8 @@ public class NotificationManagerService extends SystemService {
     public static final boolean DBG = Log.isLoggable(TAG, Log.DEBUG);
     public static final boolean ENABLE_CHILD_NOTIFICATIONS
             = SystemProperties.getBoolean("debug.child_notifs", true);
+    //Ext add
+    private Set<String> mShieldedPackages = new HashSet<>();
 
     // pullStats report request: undecorated remote view stats
     public static final int REPORT_REMOTE_VIEWS = 0x01;
@@ -3058,6 +3060,7 @@ public class NotificationManagerService extends SystemService {
             mBitmapOffloader.registerPermissionHandler(BITMAP_SOURCE_NOTIFICATIONS,
                     new BitmapAccessHandler());
         }
+        observeShieldedSettings();
     }
 
     /**
@@ -15428,20 +15431,40 @@ public class NotificationManagerService extends SystemService {
         }
     }
     //Ext add
-    private boolean isPackageShielded(String pkg) {
-        if (TextUtils.isEmpty(pkg)) {
-            return false;
-        }
-        String shieldList = SystemProperties.get("persist.avium.hide_sysapp_notifs", "");
-        if (!shieldList.isEmpty()) {
-            String[] apps = shieldList.split(",");
-            for (String app : apps) {
-                if (pkg.equals(app.trim())) {
-                    return true;
+    private void observeShieldedSettings() {
+        Settings.Global.putString(getContext().getContentResolver(),
+                Settings.Global.AVIUM_HIDE_SYSAPP_NOTIFS,
+                getContext().getResources().getString(R.string.config_avium_hide_sysapp_notifs_default));
+        ContentObserver observer = new ContentObserver(getContext().getMainThreadHandler()) {
+            @Override
+            public void onChange(boolean selfChange) {
+                updateShieldedPackages();
+            }
+        };
+        getContext().getContentResolver().registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.AVIUM_HIDE_SYSAPP_NOTIFS),
+                false, observer);
+        updateShieldedPackages(); 
+    }
+
+    private void updateShieldedPackages() {
+        String rawList = Settings.Global.getString(getContext().getContentResolver(),
+                Settings.Global.AVIUM_HIDE_SYSAPP_NOTIFS);
+        synchronized (mShieldedPackages) {
+            mShieldedPackages.clear();
+            if (!TextUtils.isEmpty(rawList)) {
+                for (String s : rawList.split(",")) {
+                    mShieldedPackages.add(s.trim());
                 }
             }
         }
-        return false;
+    }
+
+    private boolean isPackageShielded(String pkg) {
+        if (pkg == null) return false;
+        synchronized (mShieldedPackages) {
+            return mShieldedPackages.contains(pkg);
+        }
     }
 
     /**

@@ -7757,4 +7757,10 @@
         It can only contain non-AOSP permissions outside of the android.*
         and com.android.* namespace. -->
     <string-array name="config_watchFacePermissions" translatable="false"/>
+
+    <!-- Default value for AVIUM_HIDE_SYSAPP_NOTIFS -->
+     <string name="config_avium_hide_sysapp_notifs_default" translatable="false">org.avium.systemuiex,com.sunshine.freeform,org.exthm.exthmuseful,org.avium.alivenotifscore</string>
+     
+     <!-- Default value for AVIUM_DISABLE_SENSOR_APPS -->
+     <string name="config_avium_disable_sensor_apps_default" translatable="false"></string>
 </resources>

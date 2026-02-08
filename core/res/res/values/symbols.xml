@@ -6347,4 +6347,7 @@
 
   <!-- Action for opening trusted location settings page -->
   <java-symbol type="string" name="trusted_location_settings_action" />
+
+  <java-symbol type="string" name="config_avium_hide_sysapp_notifs_default" />
+  <java-symbol type="string" name="config_avium_disable_sensor_apps_default" />
 </resources>

@@ -255,4 +255,9 @@ interface IStatusBarService
      * DerpFest extensions
      */
     void toggleCameraFlash();
+
+    /**
+     * Toggle recent apps.
+     */
+    void toggleRecentApps();
 }

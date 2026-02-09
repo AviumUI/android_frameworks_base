@@ -74,7 +74,7 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
      * Ext add
      * streamline notifications
     */
-    private static final String EXTHM_USEFUL_PACKAGE = "org.avium.aviumuseful";
+    private static final String AVIUM_USEFUL_PACKAGE = "org.avium.aviumuseful";
 
     /**
      * Injected constructor. See {@link CentralSurfacesModule}.
@@ -147,7 +147,7 @@ public class NotificationListener extends NotificationListenerWithPlugins implem
          * Ext add
          * streamline notifications
          */
-        if (sbn != null && EXTHM_USEFUL_PACKAGE.equals(sbn.getPackageName())) {
+        if (sbn != null && AVIUM_USEFUL_PACKAGE.equals(sbn.getPackageName())) {
             return; 
         }
 

@@ -27,7 +27,7 @@
     <eat-comment />
 
     <!--ext add : timeout not to sleep broadcasts -->
-    <protected-broadcast android:name="org.exthm.action.SCREEN_NEED_RELIGHT" />
+    <protected-broadcast android:name="org.avium.action.SCREEN_NEED_RELIGHT" />
 
     <!-- Avium add: prevent third-parties from spoofing this clipboard broadcast -->
     <protected-broadcast android:name="org.avium.CLIPBOARD_LISTEN" />

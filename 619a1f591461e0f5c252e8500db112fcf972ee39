@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "8332fc70_1c3b1a8f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000002
+      },
+      "writtenOn": "2026-02-10T05:10:39Z",
+      "side": 1,
+      "message": "We don\u0027t need game space for now",
+      "revId": "619a1f591461e0f5c252e8500db112fcf972ee39",
+      "serverId": "8582d5b1-6499-4a2f-9eb8-9aae0e0bb54f"
+    }
+  ]
+}

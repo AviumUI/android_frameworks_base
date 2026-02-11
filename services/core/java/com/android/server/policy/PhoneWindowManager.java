@@ -6714,17 +6714,17 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     @Override
     public int interceptMotionBeforeQueueing(MotionEvent event) {
-        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", true);
+        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", false);
         if(!isPopupViewEnable){
             return SYSTEM_GESTURE_NONE;
         }
         final int action = event.getActionMasked();
         final float x = event.getRawX();
         final float y = event.getRawY();
-        boolean gestureTriggered = false;
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                mGestureTriggered = false;
                 boolean inGestureArea = y > (mDisplayHeight - mGestureAreaHeightPx) &&
                                         (x < mGestureAreaWidthPx || x > (mDisplayWidth - mGestureAreaWidthPx));
                 if (inGestureArea) {
@@ -6738,12 +6738,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                if (mIsTrackingSideGesture) {
+                if (mIsTrackingSideGesture || mGestureTriggered) {
                     final float dx = x - mGestureStartPoint.x;
                     final float dy = y - mGestureStartPoint.y;
                     final float distance = (float) Math.hypot(dx, dy);
-
-                    if (distance > mMinGestureDistancePx) {
+                    if (!mGestureTriggered && distance > mMinGestureDistancePx) {
                         final float absDx = Math.abs(dx);
                         final float absDy = Math.abs(dy);
                         final float angle = (float) Math.atan2(absDy, absDx);
@@ -6753,24 +6752,32 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                             boolean isRightSwipe = mGestureStartPoint.x > (mDisplayWidth - mGestureAreaWidthPx) && dx < 0;
 
                             if (isLeftSwipe || isRightSwipe) {
-                                onSideGestureDetected(isRightSwipe);
+                                onSideGestureDetected(isRightSwipe, mGestureStartPoint.x, mGestureStartPoint.y); 
+                                mGestureTriggered = true;
                                 mIsTrackingSideGesture = false; 
-                                gestureTriggered = true; 
                             }
                         }
-                        if (!gestureTriggered) {
+                        if (!mGestureTriggered) {
                             mIsTrackingSideGesture = false;
+                            return SYSTEM_GESTURE_RESET;
                         }
                     }
-                    if (gestureTriggered || !mIsTrackingSideGesture) {
-                        return SYSTEM_GESTURE_RESET;
+                    if (mGestureTriggered) {
+                        sendTouchCoordinatesToApp(x, y, false);
+                        return SYSTEM_GESTURE_MOVE;
                     }
-                    return SYSTEM_GESTURE_MOVE;
+                    
+                    return mGestureTriggered ? SYSTEM_GESTURE_MOVE : SYSTEM_GESTURE_RESET; 
                 }
                 break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                if (mGestureTriggered) {
+                    sendTouchCoordinatesToApp(x, y, true);
+                    mGestureTriggered = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
                 if (mIsTrackingSideGesture) {
                     mIsTrackingSideGesture = false;
                     return SYSTEM_GESTURE_RESET;
@@ -6781,9 +6788,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         return SYSTEM_GESTURE_NONE;
     }
 
-    private void onSideGestureDetected(boolean fromRight) { 
+    private void sendTouchCoordinatesToApp(float x, float y, boolean isUp) {
+        Intent intent = new Intent("org.avium.systemuiex.TOUCH_COORDINATES");
+        intent.putExtra("x", x);
+        intent.putExtra("y", y);
+        intent.putExtra("isUp", isUp);
+        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mContext.sendBroadcast(intent);
+    }
+
+    private void onSideGestureDetected(boolean fromRight, float startX, float startY) {
         if(AVIUM_DEBUG){
-            Slog.d("AviumGesture", "onSideGestureDetected called with: " + fromRight);
+            Slog.d("AviumGesture", "onSideGestureDetected called with: " + fromRight + ", startX: " + startX + ", startY: " + startY); 
         }
     
         Intent intent = new Intent(); 
@@ -6792,6 +6808,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             "org.avium.systemuiex.service.GestureService" 
         )); 
         intent.putExtra("isLeft", !fromRight); 
+        intent.putExtra("startX", startX);
+        intent.putExtra("startY", startY);
         
         PendingIntent pendingIntent;
         pendingIntent = PendingIntent.getForegroundService(

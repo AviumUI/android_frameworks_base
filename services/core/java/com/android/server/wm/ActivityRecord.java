@@ -8668,6 +8668,10 @@ final class ActivityRecord extends WindowToken {
      *        call to getConfigurationChanges.
      */
     private boolean shouldRelaunchLocked(int changes, Configuration changesConfig) {
+        boolean isBetaForceRelaunch = android.os.SystemProperties.getBoolean("persist.avium.beta_force_relaunch", false);
+        if(isBetaForceRelaunch) {
+            return false;
+        }
         int configChanged = info.getRealConfigChanged();
         if (android.content.res.Flags.handleAllConfigChanges()) {
             if ((configChanged & CONFIG_RESOURCES_UNUSED) != 0) {

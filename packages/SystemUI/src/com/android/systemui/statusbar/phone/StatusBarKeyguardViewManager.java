@@ -1971,6 +1971,7 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
     @Override
     public void onDozingChanged(boolean isDozing) {
         setDozing(isDozing);
+        mAviumMusicController.onDozingChanged(isDozing);
     }
 
     @Override

@@ -77,6 +77,7 @@ class AviumMusicLockscreenController @Inject constructor(
     private var activePointerId = MotionEvent.INVALID_POINTER_ID
     private var isDragging = false
     private var isVerticalDrag = false
+    private var isDozing = false
 
 
     private val touchListener = View.OnTouchListener { v, event ->
@@ -114,16 +115,19 @@ class AviumMusicLockscreenController @Inject constructor(
 
                 if (isDragging) {
                     if (isVerticalDrag) {
-                        if (dy < 0) { 
-                            view.translationY = dy / 2f
-                            val progress = (abs(dy) / (v.height * 0.5f)).coerceIn(0f, 1f)
-                            
-                            val scale = 1f - progress * 0.1f 
-                            val blurRadius = progress * 50f   
+                        val dampedDy = dy / 2f
+                        view.translationY = dampedDy
+                        
+                        val progress = (abs(dy) / (v.height * 0.5f)).coerceIn(0f, 1f)
+                        val scale = 1f - progress * 0.1f
+                        val blurRadius = if (dy < 0) progress * 50f else 0f
 
-                            view.scaleX = scale
-                            view.scaleY = scale
+                        view.scaleX = scale
+                        view.scaleY = scale
+                        if (dy < 0) {
                             view.setRenderEffect(RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP))
+                        } else {
+                            view.setRenderEffect(null)
                         }
                     } else {
                         vinylContainer.translationX = dx
@@ -222,6 +226,9 @@ class AviumMusicLockscreenController @Inject constructor(
             .scaleY(0.85f)
             .setDuration(250) 
             .setInterpolator(DecelerateInterpolator())
+            .withStartAction {
+                view.setRenderEffect(null)
+            }
             .withEndAction {
                 view.visibility = View.GONE
                 val rootView = view.parent as? ViewGroup
@@ -238,8 +245,8 @@ class AviumMusicLockscreenController @Inject constructor(
             .scaleY(1f)
             .setDuration(300)
             .setInterpolator(DecelerateInterpolator())
-            .withEndAction {
-                view.setRenderEffect(null) 
+            .withStartAction {
+                view.setRenderEffect(null)
             }
             .start()
     }
@@ -283,6 +290,10 @@ class AviumMusicLockscreenController @Inject constructor(
     }
     
     fun onShown() {
+        if (isDozing) {
+            view.visibility = View.GONE
+            return
+        }
         view.visibility = View.VISIBLE
         view.translationY = 0f
         view.alpha = 1f
@@ -302,5 +313,36 @@ class AviumMusicLockscreenController @Inject constructor(
 
     fun onHidden() {
         albumArtAnimator?.cancel()
+    }
+
+    fun onDozingChanged(isDozing: Boolean) {
+        this.isDozing = isDozing
+        if (isDozing) {
+            view.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    view.visibility = View.GONE
+                }
+                .start()
+        } else {
+            view.visibility = View.VISIBLE
+            view.alpha = 0f
+            view.translationY = 0f
+            view.scaleX = 1f
+            view.scaleY = 1f
+            view.setRenderEffect(null)
+            
+            vinylContainer.translationX = 0f
+            vinylContainer.rotation = 0f
+            vinylContainer.alpha = 1f
+            
+            view.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
     }
 }

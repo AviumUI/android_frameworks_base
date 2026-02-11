@@ -28,6 +28,7 @@ import kotlin.math.max
 
 import com.android.systemui.Dependency
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.res.R;
 
 class OccludingMaskLayout @JvmOverloads constructor(
     context: Context,
@@ -56,6 +57,14 @@ class OccludingMaskLayout @JvmOverloads constructor(
     private var mDozeAmount: Float = 0f
     private var mStatusBarStateController: StatusBarStateController? = null
     private var mStatusBarView: View? = null
+    private var mDeviceEntryIconView: View? = null
+    private var mKeyguardIndicationArea: View? = null
+    private var mStartButton: View? = null
+    private var mEndButton: View? = null
+
+    private val invalidateRunnable = Runnable {
+        invalidate()
+    }
 
     init {
         setWillNotDraw(false)
@@ -72,12 +81,19 @@ class OccludingMaskLayout @JvmOverloads constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to attach StatusBarStateController", e)
         }
+        scheduleInvalidate()
     }
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         mStatusBarStateController?.removeCallback(this)
         mStatusBarStateController = null
+        removeCallbacks(invalidateRunnable)
+    }
+
+    private fun scheduleInvalidate() {
+        removeCallbacks(invalidateRunnable)
+        postDelayed(invalidateRunnable, 100)
     }
 
     override fun onDozeAmountChanged(linear: Float, eased: Float) {
@@ -176,14 +192,73 @@ class OccludingMaskLayout @JvmOverloads constructor(
     }
 
     private fun findKeyguardStatusBar() {
-        if (mStatusBarView != null && mStatusBarView!!.isAttachedToWindow) return
-
         var current: View? = this
         while (current != null) {
-            val sb = current.rootView.findViewById<View>(com.android.systemui.res.R.id.keyguard_header)
+            val sb = current.rootView.findViewById<View>(R.id.keyguard_header)
             if (sb != null) {
                 mStatusBarView = sb
                 break
+            }
+            val parent = current.parent
+            current = if (parent is View) parent else null
+        }
+    }
+
+    private fun findDeviceEntryIcon() {
+        var current: View? = this
+        while (current != null) {
+            val icon = current.rootView.findViewById<View>(R.id.device_entry_icon_view)
+            if (icon != null) {
+                mDeviceEntryIconView = icon
+                break
+            }
+            val parent = current.parent
+            current = if (parent is View) parent else null
+        }
+    }
+
+    private fun findKeyguardIndicationArea() {
+        var current: View? = this
+        while (current != null) {
+            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
+            if (keyguardRootView != null) {
+                val area = keyguardRootView.findViewById<View>(R.id.keyguard_indication_area)
+                if (area != null) {
+                    mKeyguardIndicationArea = area
+                    break
+                }
+            }
+            val parent = current.parent
+            current = if (parent is View) parent else null
+        }
+    }
+
+    private fun findStartButton() {
+        var current: View? = this
+        while (current != null) {
+            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
+            if (keyguardRootView != null) {
+                val btn = keyguardRootView.findViewById<View>(R.id.start_button)
+                if (btn != null) {
+                    mStartButton = btn
+                    break
+                }
+            }
+            val parent = current.parent
+            current = if (parent is View) parent else null
+        }
+    }
+
+    private fun findEndButton() {
+        var current: View? = this
+        while (current != null) {
+            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
+            if (keyguardRootView != null) {
+                val btn = keyguardRootView.findViewById<View>(R.id.end_button)
+                if (btn != null) {
+                    mEndButton = btn
+                    break
+                }
             }
             val parent = current.parent
             current = if (parent is View) parent else null
@@ -220,30 +295,59 @@ class OccludingMaskLayout @JvmOverloads constructor(
         }
 
         drawStatusBarMirror(canvas)
+        drawDeviceEntryIconMirror(canvas)
+        drawKeyguardIndicationAreaMirror(canvas)
+        drawStartButtonMirror(canvas)
+        drawEndButtonMirror(canvas)
+
+        scheduleInvalidate()
     }
 
-    private fun drawStatusBarMirror(canvas: Canvas) {
-        findKeyguardStatusBar()
-
-        mStatusBarView?.let { sb ->
-            if (sb.visibility == View.VISIBLE && sb.alpha > 0.1f) {
+    private fun drawViewMirror(canvas: Canvas, view: View?) {
+        view?.let { v ->
+            if (v.isAttachedToWindow && v.visibility == View.VISIBLE && v.alpha > 0.01f) {
                 canvas.save()
 
-                val sbLoc = IntArray(2)
-                sb.getLocationOnScreen(sbLoc)
+                val viewLoc = IntArray(2)
+                v.getLocationOnScreen(viewLoc)
 
                 val myLoc = IntArray(2)
                 getLocationOnScreen(myLoc)
 
                 canvas.translate(
-                    (sbLoc[0] - myLoc[0]).toFloat(),
-                    (sbLoc[1] - myLoc[1]).toFloat()
+                    (viewLoc[0] - myLoc[0]).toFloat(),
+                    (viewLoc[1] - myLoc[1]).toFloat()
                 )
 
-                sb.draw(canvas)
+                v.draw(canvas)
 
                 canvas.restore()
             }
         }
+    }
+
+    private fun drawStatusBarMirror(canvas: Canvas) {
+        findKeyguardStatusBar()
+        drawViewMirror(canvas, mStatusBarView)
+    }
+
+    private fun drawDeviceEntryIconMirror(canvas: Canvas) {
+        findDeviceEntryIcon()
+        drawViewMirror(canvas, mDeviceEntryIconView)
+    }
+
+    private fun drawKeyguardIndicationAreaMirror(canvas: Canvas) {
+        findKeyguardIndicationArea()
+        drawViewMirror(canvas, mKeyguardIndicationArea)
+    }
+
+    private fun drawStartButtonMirror(canvas: Canvas) {
+        findStartButton()
+        drawViewMirror(canvas, mStartButton)
+    }
+
+    private fun drawEndButtonMirror(canvas: Canvas) {
+        findEndButton()
+        drawViewMirror(canvas, mEndButton)
     }
 }

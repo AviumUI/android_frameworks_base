@@ -42,6 +42,7 @@ import androidx.core.content.ContextCompat;
 //import org.avium.aviumlockscreenstudio.R;
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 
@@ -343,7 +344,14 @@ public class MediaBlurClockController extends BaseLockscreenController implement
     public void onNotificationStateChanged(boolean hasNotifications) {}
 
     @Override
-    public void applyStyles() {}
+    public void applyStyles() {
+        int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+        int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+        int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
+
+        mDateView.setTextColor(dayColor);
+        mTimeView.setTextColor(minuteColor);
+    }
 
 
     private int dpToPx(int dp) {

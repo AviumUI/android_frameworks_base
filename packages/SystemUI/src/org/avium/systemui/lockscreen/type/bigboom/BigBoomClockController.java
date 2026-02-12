@@ -24,6 +24,7 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
@@ -112,6 +113,12 @@ public class BigBoomClockController extends BaseLockscreenController {
         if (mHour1 == null) {
             return;
         }
+
+        int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+        int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+        int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
+
+        mDateView.setTextColor(dayColor);
 
         ImageView[] hourViews = {mHour1, mHour2};
         ImageView[] minuteViews = {mMinute1, mMinute2};

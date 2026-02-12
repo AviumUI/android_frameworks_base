@@ -26,7 +26,6 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 
 import com.android.systemui.res.R;
-//import org.avium.aviumlockscreenstudio.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
@@ -35,7 +34,6 @@ import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
-
 
 import java.util.Locale;
 
@@ -50,7 +48,6 @@ public class ThinLongClockController extends BaseLockscreenController {
     private DigitalClockDisplayManager mDigitalClockDisplayManager;
     private LockscreenLayoutManager mLayoutManager;
 
-    //Add blur
     private boolean mUseBlurEffect;
     private GlassClockManager mGlassClockManager;
 
@@ -64,14 +61,12 @@ public class ThinLongClockController extends BaseLockscreenController {
     @Override
     public View getView(Context context) {
         mContext = context;
-        //Add blur
         mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
 
         createViews();
         mLayoutManager = new LockscreenLayoutManager(mContainer);
         setupLayout();
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.prepareWallpaper();
         }
@@ -93,7 +88,6 @@ public class ThinLongClockController extends BaseLockscreenController {
         mDateView.setAlpha(0.8f);
         mContainer.addView(mDateView);
 
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -129,7 +123,6 @@ public class ThinLongClockController extends BaseLockscreenController {
     private void setupLayout() {
         ConstraintSet cs = mLayoutManager.getConstraintSet();
         
-        //Add blur
         int[] clockViewIds;
         if (mUseBlurEffect) {
             View[] digitViews = mGlassClockManager.getDigitViews();
@@ -160,7 +153,6 @@ public class ThinLongClockController extends BaseLockscreenController {
     @Override
     public void onTimeTick() {
         String timeString = LockscreenClockUtils.getCurrentTimeString("HHmm");
-        //Add blur
         if (mUseBlurEffect) {
             mGlassClockManager.updateTime(timeString);
         } else {
@@ -174,9 +166,11 @@ public class ThinLongClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        //Add blur
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+            int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+            int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
+
             mDateView.setTextColor(hourColor);
             mDateView.setAlpha(0.8f);
 
@@ -188,7 +182,6 @@ public class ThinLongClockController extends BaseLockscreenController {
 
     @Override
     protected void cleanup() {
-        //Add blur
         if (mGlassClockManager != null) {
             mGlassClockManager.cleanup();
         }

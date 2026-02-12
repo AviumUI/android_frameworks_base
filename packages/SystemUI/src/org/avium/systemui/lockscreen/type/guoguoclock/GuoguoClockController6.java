@@ -16,47 +16,9 @@
 
 package org.avium.systemui.lockscreen.type.guoguoclock;
 
-import android.content.Context;
-import android.graphics.Color;
-import android.graphics.drawable.Drawable;
-import android.view.View;
-import android.widget.ImageView;
-import android.widget.TextView;
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.constraintlayout.widget.ConstraintSet;
-import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
-
-//import org.avium.test.R;
 import com.android.systemui.res.R;
-//import org.avium.aviumlockscreenstudio.R;
 
-import org.avium.systemui.lockscreen.util.BaseLockscreenController;
-import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
-import org.avium.systemui.lockscreen.util.GlassClockManager;
-import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
-import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
-import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
-
-
-import android.view.ViewGroup;
-
-import java.util.Locale;
-
-public class GuoguoClockController6 extends BaseLockscreenController {
-
-    private static final float SCALE_FACTOR = 0.5f;
-
-    private TextView mDateView;
-    private ImageView mHour1, mHour2, mMinute1, mMinute2;
-    private ImageView mDotView;
-    private ImageView[] mDigitViews;
-    private DigitalClockDisplayManager mDigitalClockDisplayManager;
-
-    private boolean mUseBlurEffect;
-    private GlassClockManager mGlassClockManager;
-
-    private LockscreenLayoutManager mLayoutManager;
+public class GuoguoClockController6 extends BaseGuoguoClockController {
 
     private final int[] mDigitResources = new int[]{
             R.drawable.avium_guo_type6_0, R.drawable.avium_guo_type6_1, R.drawable.avium_guo_type6_2,
@@ -67,174 +29,12 @@ public class GuoguoClockController6 extends BaseLockscreenController {
     private final int mDotResource = R.drawable.avium_guo_type5_dot;
 
     @Override
-    public View getView(Context context) {
-        mContext = context;
-        mUseBlurEffect = mContext.getString(R.string.guoguo_blur_effect).equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
-        createViews();
-        mLayoutManager = new LockscreenLayoutManager(mContainer);
-        setupLayout();
-        if (mUseBlurEffect) {
-            mGlassClockManager.prepareWallpaper();
-        }
-        initializeCommonViews();
-        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
-        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
-        return wrapped;
-    }
-
-    private void createViews() {
-        mContainer = new ConstraintLayout(mContext);
-        mContainer.setId(View.generateViewId());
-
-        mDateView = new TextView(mContext);
-        mDateView.setId(View.generateViewId());
-        mDateView.setTextColor(Color.WHITE);
-        mDateView.setTextSize(22f);
-        mDateView.getPaint().setFakeBoldText(true);
-        mContainer.addView(mDateView);
-
-        Drawable sampleDigitDrawable = mContext.getResources().getDrawable(mDigitResources[0], mContext.getTheme());
-        int scaledDigitWidth = (int) (sampleDigitDrawable.getIntrinsicWidth() * SCALE_FACTOR);
-        int scaledDigitHeight = (int) (sampleDigitDrawable.getIntrinsicHeight() * SCALE_FACTOR);
-
-        Drawable dotDrawable = mContext.getResources().getDrawable(mDotResource, mContext.getTheme());
-        int scaledDotWidth = (int) (dotDrawable.getIntrinsicWidth() * SCALE_FACTOR);
-        int scaledDotHeight = (int) (dotDrawable.getIntrinsicHeight() * SCALE_FACTOR);
-
-        if (mUseBlurEffect) {
-            mGlassClockManager = new GlassClockManager(mContext, 4, mDigitResources);
-            mGlassClockManager.setDotResource(mDotResource);
-            View[] digitViews = mGlassClockManager.getDigitViews();
-            for (View iv : digitViews) {
-                iv.setId(View.generateViewId());
-                iv.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDigitWidth, scaledDigitHeight));
-                iv.setAlpha(0.99f);
-
-                if (iv.getParent() != null) {
-                    ((ViewGroup) iv.getParent()).removeView(iv);
-                }
-                mContainer.addView(iv);
-            }
-            
-            View dotView = mGlassClockManager.getDotView();
-            dotView.setId(View.generateViewId());
-            dotView.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDotWidth, scaledDotHeight));
-            dotView.setAlpha(0.99f);
-
-            if (dotView.getParent() != null) {
-                ((ViewGroup) dotView.getParent()).removeView(dotView);
-            }
-            mContainer.addView(dotView);
-        } else {
-            mHour1 = createImageView();
-            mHour2 = createImageView();
-            mMinute1 = createImageView();
-            mMinute2 = createImageView();
-            mDigitViews = new ImageView[]{mHour1, mHour2, mMinute1, mMinute2};
-            for (ImageView iv : mDigitViews) {
-                iv.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDigitWidth, scaledDigitHeight));
-                mContainer.addView(iv);
-            }
-            
-            mDotView = createImageView();
-            mDotView.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDotWidth, scaledDotHeight));
-            mDotView.setImageResource(mDotResource);
-            mContainer.addView(mDotView);
-            
-            mDigitalClockDisplayManager = new DigitalClockDisplayManager(mDigitViews, mDigitResources);
-        }
-    }
-
-    private ImageView createImageView() {
-        ImageView iv = new ImageView(mContext);
-        iv.setId(View.generateViewId());
-        iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        return iv;
-    }
-
-    private void setupLayout() {
-        ConstraintSet cs = mLayoutManager.getConstraintSet();
-        View[] digitViews;
-        View dotView;
-        
-        if (mUseBlurEffect) {
-            digitViews = mGlassClockManager.getDigitViews();
-            dotView = mGlassClockManager.getDotView();
-        } else {
-            digitViews = mDigitViews;
-            dotView = mDotView;
-        }
-
-        int dateId = mDateView.getId();
-        cs.connect(dateId, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START);
-        cs.connect(dateId, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END);
-
-        int[] clockChainIds = {
-                digitViews[0].getId(), digitViews[1].getId(),
-                dotView.getId(),
-                digitViews[2].getId(), digitViews[3].getId()
-        };
-
-        cs.createHorizontalChain(
-                ConstraintSet.PARENT_ID, ConstraintSet.LEFT,
-                ConstraintSet.PARENT_ID, ConstraintSet.RIGHT,
-                clockChainIds, null, ConstraintSet.CHAIN_PACKED
-        );
-
-        cs.connect(clockChainIds[0], ConstraintSet.TOP, dateId, ConstraintSet.BOTTOM, dpToPx(32));
-
-        for (int id : clockChainIds) {
-            cs.connect(id, ConstraintSet.TOP, clockChainIds[0], ConstraintSet.TOP);
-            cs.connect(id, ConstraintSet.BOTTOM, clockChainIds[0], ConstraintSet.BOTTOM);
-        }
-
-        int[] verticalChainIds = {dateId, clockChainIds[0]};
-        cs.createVerticalChain(
-                ConstraintSet.PARENT_ID, ConstraintSet.TOP,
-                ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM,
-                verticalChainIds, null, ConstraintSet.CHAIN_PACKED
-        );
-        cs.setVerticalBias(dateId, 0.18f);
-
-        mLayoutManager.applyLayoutChanges();
+    protected int[] getDigitResources() {
+        return mDigitResources;
     }
 
     @Override
-    public void onTimeTick() {
-        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.guoguo_date_format), Locale.CHINESE));
-        String timeString = LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.guoguo_time_format));
-        if (mUseBlurEffect) {
-            mGlassClockManager.updateTime(timeString);
-        } else {
-            mDigitalClockDisplayManager.updateTimeDisplay(timeString);
-        }
-    }
-
-    @Override
-    public void onNotificationStateChanged(boolean hasNotifications) {
-    }
-
-    @Override
-    public void applyStyles() {
-        if (!mUseBlurEffect) {
-            ImageView[] hourViews = {mHour1, mHour2};
-            ImageView[] minuteViews = {mMinute1, mMinute2};
-            mDigitalClockDisplayManager.applyColorAndEffects(hourViews, minuteViews);
-        }
-    }
-
-    @Override
-    protected void cleanup() {
-        if (mGlassClockManager != null) {
-            mGlassClockManager.cleanup();
-        }
-        mContext = null;
-        mContainer = null;
-        mDateView = null;
-        mDigitalClockDisplayManager = null;
-    }
-
-    private int dpToPx(int dp) {
-        return (int) (dp * mContext.getResources().getDisplayMetrics().density);
+    protected int getDotResource() {
+        return mDotResource;
     }
 }

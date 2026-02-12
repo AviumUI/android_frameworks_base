@@ -29,7 +29,6 @@ import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-//import org.avium.aviumlockscreenstudio.R;
 import com.android.systemui.res.R;
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
@@ -102,7 +101,12 @@ public class ClassicClockController extends BaseLockscreenController {
     @Override
     public void onTimeTick() {
         mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_date_format), Locale.CHINESE));
-        mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
+        if (CustomLockscreenSettings.shouldShowLunar()) {
+            mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
+            mLunarDateView.setVisibility(View.VISIBLE);
+        } else {
+            mLunarDateView.setVisibility(View.GONE);
+        }
         mTimeView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_time_format)));
     }
 
@@ -111,12 +115,13 @@ public class ClassicClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
-        int dateColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
-        int timeColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+        int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+        int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+        int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
         
-        mGregorianDateView.setTextColor(dateColor);
-        mLunarDateView.setTextColor(dateColor);
-        mTimeView.setTextColor(timeColor);
+        mGregorianDateView.setTextColor(dayColor);
+        mLunarDateView.setTextColor(dayColor);
+        mTimeView.setTextColor(minuteColor);
     }
 
     @Override

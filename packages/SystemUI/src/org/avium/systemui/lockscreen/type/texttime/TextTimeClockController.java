@@ -30,7 +30,6 @@ import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.android.systemui.res.R;
-//import org.avium.aviumlockscreenstudio.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;

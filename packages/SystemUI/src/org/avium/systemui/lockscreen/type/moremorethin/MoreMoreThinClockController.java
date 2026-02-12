@@ -176,7 +176,11 @@ public class MoreMoreThinClockController extends BaseLockscreenController {
     public void applyStyles() {
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
-            mDateView.setTextColor(hourColor);
+            int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+            int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
+            int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
+
+            mDateView.setTextColor(dayColor);
             mDateView.setAlpha(0.8f);
 
             ImageView[] hourViews = {mHour1, mHour2};

@@ -25,7 +25,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
-//import org.avium.aviumlockscreenstudio.R;
+
 import com.android.systemui.res.R;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
@@ -33,10 +33,10 @@ import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
 import org.avium.systemui.lockscreen.util.GlassClockManager;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
+
 import java.util.Locale;
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
-
 
 public class RunrunClockController extends BaseLockscreenController {
 
@@ -205,6 +205,8 @@ public class RunrunClockController extends BaseLockscreenController {
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+            int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
+
             mDateView.setTextColor(hourColor);
             mHour1.setColorFilter(hourColor);
             mHour2.setColorFilter(hourColor);

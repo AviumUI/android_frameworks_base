@@ -20,6 +20,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -28,10 +29,7 @@ import androidx.constraintlayout.widget.ConstraintSet;
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
-
 import com.android.systemui.res.R;
-//import org.avium.aviumlockscreenstudio.R;
-
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.DigitalClockDisplayManager;
@@ -173,6 +171,9 @@ public class SmallCuteClockController extends BaseLockscreenController {
     public void applyStyles() {
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
+            int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
+            int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
+
             mDateView.setTextColor(hourColor);
 
             ImageView[] hourViews = {mHour1, mHour2};

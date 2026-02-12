@@ -196,14 +196,21 @@ public class TextTimeClockController extends BaseLockscreenController {
         String daySuffix = mContext.getString(R.string.texttime_day_suffix);
         String weekFormat = mContext.getString(R.string.texttime_week_format);
 
-        String monthChinese = convertToChineseNumber(month) + monthSuffix;
-        String dayChinese = convertToChineseNumber(day) + daySuffix;
+        String monthText, dayText;
+        if (isChinese) {
+            monthText = convertToChineseNumber(month) + monthSuffix;
+            dayText = convertToChineseNumber(day) + daySuffix;
+        } else {
+            SimpleDateFormat sdfMonth = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+            monthText = sdfMonth.format(calendar.getTime());
+            dayText = String.valueOf(day);
+        }
 
         SimpleDateFormat sdfWeek = new SimpleDateFormat(weekFormat, Locale.getDefault());
         String weekStr = sdfWeek.format(calendar.getTime());
 
-        mMonthView.setText(verticalize(monthChinese));
-        mDayView.setText(verticalize(dayChinese));
+        mMonthView.setText(verticalize(monthText));
+        mDayView.setText(verticalize(dayText));
         mWeekView.setText(verticalize(weekStr));
     }
 

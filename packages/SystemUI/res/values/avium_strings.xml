@@ -18,7 +18,6 @@
     <!-- Lockscreen Music -->
     <string name="avium_lockscreen_non_sing">Unknown song</string> 
     <string name="avium_lockscreen_non_artist">Unknown artist</string>
-    
     <!-- Weekday names -->
     <string name="sunday">Sun</string>
     <string name="monday">Mon</string>
@@ -32,13 +31,13 @@
     <string name="date_format">M/d EEEE</string>
     
     <!-- TextTime Clock -->
-    <string name="texttime_month_suffix">月</string>
-    <string name="texttime_day_suffix">日</string>
+    <string name="texttime_month_suffix">month</string>
+    <string name="texttime_day_suffix">day</string>
     <string name="texttime_week_format">EEEE</string>
     <string name="texttime_intro">Now</string>
-    <string name="texttime_hour_unit">时</string>
-    <string name="texttime_minute_unit">分</string>
-    <string name="texttime_oclock">o\'clock</string>
+    <string name="texttime_hour_unit">hour</string>
+    <string name="texttime_minute_unit">minute</string>
+    <string name="texttime_oclock">o'clock</string>
     <string name="texttime_midnight">midnight</string>
     
     <!-- Number words for English -->
@@ -79,11 +78,11 @@
     <string name="runrun_blur_effect">blur</string>
 
     <!-- Classic Clock -->
-    <string name="classic_date_format">M月d日 EEEE</string>
+    <string name="classic_date_format">MMM d, EEEE</string>
     <string name="classic_time_format">HH:mm</string>
 
     <!-- Guoguo Clock -->
-    <string name="guoguo_date_format">M月d日 EEEE</string>
+    <string name="guoguo_date_format">MMM d, EEEE</string>
     <string name="guoguo_time_format">HHmm</string>
     <string name="guoguo_blur_effect">blur</string>
     

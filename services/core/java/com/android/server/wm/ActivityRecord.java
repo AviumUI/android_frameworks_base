@@ -131,6 +131,7 @@ import static android.os.Build.VERSION_CODES.HONEYCOMB;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
 import static android.os.Process.SYSTEM_UID;
+import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.Display.INVALID_DISPLAY;
 import static android.view.WindowManager.ACTIVITY_EMBEDDING_GUARD_WITH_ANDROID_15;
 import static android.view.WindowManager.ENABLE_ACTIVITY_EMBEDDING_FOR_ANDROID_15;
@@ -8668,9 +8669,16 @@ final class ActivityRecord extends WindowToken {
      *        call to getConfigurationChanges.
      */
     private boolean shouldRelaunchLocked(int changes, Configuration changesConfig) {
+        final int currentDisplayId = getDisplayId();
+        final Task task = getTask();
+
         boolean isBetaForceRelaunch = android.os.SystemProperties.getBoolean("persist.avium.beta_force_relaunch", false);
         if(isBetaForceRelaunch) {
-            return false;
+            if (task != null) {
+                if (currentDisplayId != DEFAULT_DISPLAY) {
+                    return false;
+                }
+            }
         }
         int configChanged = info.getRealConfigChanged();
         if (android.content.res.Flags.handleAllConfigChanges()) {

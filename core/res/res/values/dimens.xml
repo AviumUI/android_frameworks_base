@@ -1306,4 +1306,7 @@
 
     <!-- Default height of taskbar for Launcher.   -->
     <dimen name="taskbar_stashed_size">24dp</dimen>
+
+    <!-- Pop-Up View -->
+    <dimen name="mini_window_corner_radius">28dp</dimen>
 </resources>

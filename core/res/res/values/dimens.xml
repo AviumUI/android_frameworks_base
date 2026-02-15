@@ -1306,4 +1306,14 @@
 
     <!-- Default height of taskbar for Launcher.   -->
     <dimen name="taskbar_stashed_size">24dp</dimen>
+<<<<<<< PATCH SET (7becf1571c7fd1007903710eeb8bc9f5dda0c71b Introduce Modded Pop-Up View)
+
+    <!-- Blur radius used by SystemUI -->
+    <dimen name="min_window_blur_radius">1px</dimen>
+    <dimen name="max_window_blur_radius">17.5dp</dimen>
+
+    <!-- Pop-Up View -->
+    <dimen name="mini_window_corner_radius">28dp</dimen>
+=======
+>>>>>>> BASE      (8e16c33b555106540a059e6531cc287247444466 SystemUI: Translate Avium strings to English)
 </resources>

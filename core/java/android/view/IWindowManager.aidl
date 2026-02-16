@@ -83,8 +83,6 @@ import android.window.ScreenCapture;
 import android.window.ScreenCaptureInternal;
 import android.window.TrustedPresentationThresholds;
 import android.window.WindowContextInfo;
-//Ext add
-import android.view.IViewCaptureCallback;
 
 /**
  * System private interface to the window manager.
@@ -1204,11 +1202,6 @@ interface IWindowManager
      * @param deviceId The id of the {@link InputDevice} that will handle the shortcut.
      */
     KeyboardShortcutGroup getApplicationLaunchKeyboardShortcuts(int deviceId);
-
-    // Ext add
-    void captureFocusedWindowDrawables(int requestId);
-    void reportCapturedImages(int requestId, in List<Bitmap> bitmaps);
-    List<Bitmap> checkCaptureResult(int requestId);
 
     /**
      * Returns whether the display with {@code displayId} ignores orientation request.

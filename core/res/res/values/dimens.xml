@@ -1310,4 +1310,7 @@
     <!-- Blur radius used by SystemUI -->
     <dimen name="min_window_blur_radius">1px</dimen>
     <dimen name="max_window_blur_radius">17.5dp</dimen>
+
+    <!-- Pop-Up View -->
+    <dimen name="mini_window_corner_radius">28dp</dimen>
 </resources>

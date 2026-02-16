@@ -7764,4 +7764,9 @@
      <!-- Default value for AVIUM_DISABLE_SENSOR_APPS -->
      <string name="config_avium_disable_sensor_apps_default" translatable="false"></string>
 
+    <!-- Pop-Up View -->
+    <bool name="config_popUpView_defaultNotificationPortJump">false</bool>
+    <bool name="config_popUpView_defaultNotificationLandJump">false</bool>
+    <string-array name="config_popUpView_forceUpdateDpiPackages" translatable="false">
+    </string-array>
 </resources>

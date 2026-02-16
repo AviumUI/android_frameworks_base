@@ -9415,7 +9415,7 @@ public final class ActivityThread extends ClientTransactionHandler
     private native void nInitZygoteChildHeapProfiling();
 
     private static final String TAG_AVIUM = "AviumFrameworkDebug";
-    private static final int MIN_IMAGE_DIMENSION_PX = 101;
+    private static final int MIN_IMAGE_DIMENSION_PX = 100;
 
     //Ext add
     private void handleCaptureViewImages(IBinder token, int requestId) {

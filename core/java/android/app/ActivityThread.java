@@ -7877,30 +7877,31 @@ public final class ActivityThread extends ClientTransactionHandler
         // Pass data directory path to ART. This is used for caching information and
         // should be set before any application code is loaded.
         VMRuntime.setProcessDataDirectory(data.appInfo.dataDir);
-
-        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance();
-        if (pifService.shouldSpoof(data.processName)) {
-            pifService.spoofBuildFields(data.processName);
+        Context context = ActivityThread.currentApplication();
+        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance(context);
+        GamePropsSpoofService gamePropsService = GamePropsSpoofService.getInstance();
+        if (pifService != null) {
+            if (pifService.shouldSpoof(data.processName)) {
+                pifService.spoofBuildFields(data.processName);
+            }
             if (pifService.isSpoofSignatureEnabled()) {
                 pifService.spoofSignature();
             }
-        }
+            if (gamePropsService.isEnabled()) {
+                gamePropsService.spoofForPackage(data.appInfo.packageName);
+            }
 
-        GamePropsSpoofService gamePropsService = GamePropsSpoofService.getInstance();
-        if (gamePropsService.isEnabled()) {
-            gamePropsService.spoofForPackage(data.appInfo.packageName);
-        }
+            if (pifService.shouldSpoofPhotos(data.appInfo.packageName)) {
+                pifService.spoofPhotosProps();
+            }
 
-        if (pifService.shouldSpoofPhotos(data.appInfo.packageName)) {
-            pifService.spoofPhotosProps();
-        }
+            if (pifService.shouldSpoofNetflix(data.appInfo.packageName)) {
+                pifService.spoofNetflixProps();
+            }
 
-        if (pifService.shouldSpoofNetflix(data.appInfo.packageName)) {
-            pifService.spoofNetflixProps();
-        }
-
-        if (pifService.shouldSpoofPixelApps(data.appInfo.packageName)) {
-            pifService.spoofPixelApps();
+            if (pifService.shouldSpoofPixelApps(data.appInfo.packageName)) {
+                pifService.spoofPixelApps();
+            }
         }
 
         if (mProfiler.profileFd != null) {

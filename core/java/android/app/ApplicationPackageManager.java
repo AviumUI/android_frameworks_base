@@ -846,10 +846,12 @@ public class ApplicationPackageManager extends PackageManager {
         //    * IPC-retrieved system features (lazily cached, requires per-feature IPC)
         // TODO(b/375000483): Refactor all of this logic, including flag queries, into
         // the SystemFeaturesCache class after initial rollout and validation.
-        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance();
-        Boolean spoofedResult = pifService.hasSystemFeature(name, version);
-        if (spoofedResult != null) {
-            return spoofedResult;
+        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance(mContext);
+        if (pifService != null) {
+            Boolean spoofedResult = pifService.hasSystemFeature(name, version);
+            if (spoofedResult != null) {
+                return spoofedResult;
+            }
         }
 
         Boolean maybeHasSystemFeature = RoSystemFeatures.maybeHasFeature(name, version);

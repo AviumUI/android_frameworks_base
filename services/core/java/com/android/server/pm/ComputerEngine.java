@@ -1610,7 +1610,7 @@ public class ComputerEngine implements Computer {
 
             if ("android".equals(p.getPackageName())) {
                 try {
-                    PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance();
+                    PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance(mContext);
                     if (pifService.isSpoofSignatureEnabled()) {
                         String[] callingPackages = getPackagesForUid(callingUid);
                         boolean isGms = false;

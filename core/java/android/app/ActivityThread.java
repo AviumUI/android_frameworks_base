@@ -7877,8 +7877,8 @@ public final class ActivityThread extends ClientTransactionHandler
         // Pass data directory path to ART. This is used for caching information and
         // should be set before any application code is loaded.
         VMRuntime.setProcessDataDirectory(data.appInfo.dataDir);
-
-        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance();
+        Context context = ActivityThread.currentApplication();
+        PlayIntegritySpoofService pifService = PlayIntegritySpoofService.getInstance(context);
         if (pifService.shouldSpoof(data.processName)) {
             pifService.spoofBuildFields(data.processName);
             if (pifService.isSpoofSignatureEnabled()) {

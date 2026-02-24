@@ -2,6 +2,7 @@ package android.security.pif;
 
 import android.app.ActivityThread;
 import android.content.Context;
+import android.content.ContentResolver;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -30,6 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /** @hide */
 public final class PlayIntegritySpoofService {
+    private final Context mContext;
+    private final ContentResolver mResolver;
     private static final String TAG = "PIF";
     private static final String CONFIG_PATH = "/data/adb/playintegrityfix";
 
@@ -176,12 +179,15 @@ public final class PlayIntegritySpoofService {
 
     }
 
-    private PlayIntegritySpoofService() {}
+    public PlayIntegritySpoofService(Context context) {
+        if (context == null) return;
+        mContext = context;
+    }
 
-    public static synchronized PlayIntegritySpoofService getInstance() {
+    public static synchronized PlayIntegritySpoofService getInstance(Context context) {
+        if (context == null) return null;
         if (sInstance == null) {
-            sInstance = new PlayIntegritySpoofService();
-            sInstance.loadConfig();
+            sInstance = new PlayIntegritySpoofService(context);
         }
         return sInstance;
     }
@@ -328,8 +334,18 @@ public final class PlayIntegritySpoofService {
         }
     }
 
+    private boolean isSettingsReady() {
+        try {
+            mContext.getContentResolver().acquireProvider("settings");
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
+        }
+    }
+
     public boolean shouldSpoof(String processName) {
-        if (!mConfigLoaded) return false;
+        if (!isSettingsReady()) return false;
+        if (Settings.Secure.getInt(mContext.getContentResolver(),Settings.Secure.PI_ENABLE_SPOOF, 0) == 0) return false;
         return DROIDGUARD_PACKAGE.equals(processName) || VENDING_PACKAGE.equals(processName);
     }
 
@@ -347,8 +363,6 @@ public final class PlayIntegritySpoofService {
     }
 
     public void spoofBuildFields(String processName) {
-        if (!mConfigLoaded) return;
-
         boolean isVending = isVending(processName);
         boolean isDroidGuard = isDroidGuard(processName);
 
@@ -359,8 +373,8 @@ public final class PlayIntegritySpoofService {
                 spoofSdkInt();
             }
             if (mSpoofVendingBuild && !mSpoofVendingSdk) {
-                for (Map.Entry<String, String> entry : mBuildFields.entrySet()) {
-                    spoofField(entry.getKey(), entry.getValue(), "PS");
+                for (Map.Entry<String, Object> entry : PIXEL10_PROXL_PROPS.entrySet()) {
+                    spoofField(entry.getKey(), String.valueOf(entry.getValue()), "PS");
                 }
             }
             return;
@@ -371,8 +385,8 @@ public final class PlayIntegritySpoofService {
             return;
         }
 
-        for (Map.Entry<String, String> entry : mBuildFields.entrySet()) {
-            spoofField(entry.getKey(), entry.getValue(), "DG");
+        for (Map.Entry<String, Object> entry : PIXEL10_PROXL_PROPS.entrySet()) {
+            spoofField(entry.getKey(), String.valueOf(entry.getValue()), "DG");
         }
     }
 
@@ -521,7 +535,7 @@ public final class PlayIntegritySpoofService {
     }
 
     public String getSpoofedProperty(String key) {
-        if (!mSpoofProps || !mConfigLoaded) return null;
+        if (!mSpoofProps) return null;
 
         String value = mSystemProps.get(key);
         if (value != null) return value;
@@ -537,11 +551,11 @@ public final class PlayIntegritySpoofService {
     }
 
     public boolean isSpoofSignatureEnabled() {
-        return mSpoofSignature && mConfigLoaded;
+        return mSpoofSignature;
     }
 
     public boolean isSpoofProviderEnabled() {
-        return mSpoofProvider && mConfigLoaded;
+        return mSpoofProvider;
     }
 
     public int getVerboseLogs() {
@@ -565,15 +579,18 @@ public final class PlayIntegritySpoofService {
     }
 
     public boolean shouldSpoofPhotos(String packageName) {
-        return mConfigLoaded && mSpoofPhotos && TextUtils.equals(GPHOTOS_PACKAGE, packageName);
+        if (!isSettingsReady()) return false;
+        return Settings.Secure.getInt(mContext.getContentResolver(),Settings.Secure.PI_PHOTOS_SPOOF, 0) != 0 && TextUtils.equals(GPHOTOS_PACKAGE, packageName);
     }
 
     public boolean shouldSpoofNetflix(String packageName) {
-        return Settings.Secure.getInt(context.getContentResolver(),Settings.Secure.PI_NETFLIX_SPOOF, 0) !=0 && TextUtils.equals(NETFLIX_PACKAGE, packageName);
+        if (!isSettingsReady()) return false;
+        return Settings.Secure.getInt(mContext.getContentResolver(),Settings.Secure.PI_NETFLIX_SPOOF, 0) != 0 && TextUtils.equals(NETFLIX_PACKAGE, packageName);
     }
 
     public boolean shouldSpoofPixelApps(String packageName) {
-        return Settings.Secure.getInt(context.getContentResolver(),Settings.Secure.PI_SPOOF_MORE_PIXELAPPS, 0) !=0 && PKGS_RECENT_PIXEL.contains(packageName);
+        if (!isSettingsReady()) return false;
+        return Settings.Secure.getInt(mContext.getContentResolver(),Settings.Secure.PI_SPOOF_MORE_PIXELAPPS, 0) != 0 && PKGS_RECENT_PIXEL.contains(packageName);
     }
 
     public void spoofPhotosProps() {
@@ -584,7 +601,7 @@ public final class PlayIntegritySpoofService {
     }
 
     public void spoofNetflixProps() {
-        for (Map.Entry<String, Object> entry : PIXEL_XL_PROPS.entrySet()) {
+        for (Map.Entry<String, Object> entry : PIXEL10_PROXL_PROPS.entrySet()) {
             spoofField(entry.getKey(), String.valueOf(entry.getValue()), "Photos");
         }
         Log.i(TAG, "Netflix spoofing enabled - device appears as Pixel 10 Pro XL");

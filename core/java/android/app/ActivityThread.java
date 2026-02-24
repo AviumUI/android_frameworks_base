@@ -7895,6 +7895,14 @@ public final class ActivityThread extends ClientTransactionHandler
             pifService.spoofPhotosProps();
         }
 
+        if (pifService.shouldSpoofNetflix(data.appInfo.packageName)) {
+            pifService.spoofNetflixProps();
+        }
+
+        if (pifService.shouldSpoofPixelApps(data.appInfo.packageName)) {
+            pifService.spoofPixelApps();
+        }
+
         if (mProfiler.profileFd != null) {
             mProfiler.startProfiling();
         }

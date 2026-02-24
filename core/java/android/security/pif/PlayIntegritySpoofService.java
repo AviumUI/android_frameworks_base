@@ -1,14 +1,17 @@
 package android.security.pif;
 
 import android.app.ActivityThread;
+import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.provider.Settings;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemProperties;
 import android.text.TextUtils;
+import android.util.ArraySet;
 import android.util.Base64;
 import android.util.JsonReader;
 import android.util.Log;
@@ -20,6 +23,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +44,18 @@ public final class PlayIntegritySpoofService {
     private static final String VENDING_PACKAGE = "com.android.vending";
     private static final String GMS_PACKAGE = "com.google.android.gms";
     private static final String GPHOTOS_PACKAGE = "com.google.android.apps.photos";
+    private static final String NETFLIX_PACKAGE = "com.netflix.mediaclient";
+
+    private static final Map<String, Object> PIXEL10_PROXL_PROPS = Map.of(
+        "BRAND", "google",
+        "MANUFACTURER", "Google",
+        "DEVICE", "mustang",
+        "PRODUCT", "mustang",
+        "HARDWARE", "mustang",
+        "ID", "BP4A.260105.004.E1",
+        "MODEL", "Pixel 10 Pro XL",
+        "FINGERPRINT", "google/mustang/mustang:16/BP4A.260105.004.E1/14587043:user/release-keys"
+    );
 
     private static final Map<String, Object> PIXEL_XL_PROPS = Map.of(
         "BRAND", "google",
@@ -112,6 +128,8 @@ public final class PlayIntegritySpoofService {
             "cetYeQvVSqeEmQluWfcunQn9C9Vwi2BJIiVJh4IdWZf5/e2PlSSQ9CJjz2bKI17pzdxOmjQfE0JS" +
             "F7Xt";
 
+    private static final ArraySet<String> PKGS_RECENT_PIXEL = new ArraySet<>();
+
     private static PlayIntegritySpoofService sInstance;
 
     private int mVerboseLogs = 0;
@@ -129,6 +147,34 @@ public final class PlayIntegritySpoofService {
 
     private volatile boolean mConfigLoaded = false;
     private volatile boolean mSignatureSpoofed = false;
+
+    static {
+        Collections.addAll(PKGS_RECENT_PIXEL,
+            "com.google.android.aicore",
+            "com.google.android.apps.aiwallpapers",
+            "com.google.android.apps.bard",
+            "com.google.android.apps.customization.pixel",
+            "com.google.android.apps.emojiwallpaper",
+            "com.google.android.apps.nexuslauncher",
+            "com.google.android.apps.pixel.agent",
+            "com.google.android.apps.pixel.creativeassistant",
+            "com.google.android.apps.pixel.nowplaying",
+            "com.google.android.apps.pixel.psi",
+            "com.google.android.apps.pixel.subzero",
+            "com.google.android.apps.pixel.support",
+            "com.google.android.apps.privacy.wildlife",
+            "com.google.android.apps.wallpaper",
+            "com.google.android.apps.wallpaper.pixel",
+            "com.google.android.apps.weather",
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.pcs",
+            "com.google.android.settings.intelligence",
+            "com.google.android.wallpaper.effects",
+            "com.google.pixel.livewallpaper",
+            "com.nhs.online.nhsonline"
+        );
+
+    }
 
     private PlayIntegritySpoofService() {}
 
@@ -522,11 +568,33 @@ public final class PlayIntegritySpoofService {
         return mConfigLoaded && mSpoofPhotos && TextUtils.equals(GPHOTOS_PACKAGE, packageName);
     }
 
+    public boolean shouldSpoofNetflix(String packageName) {
+        return Settings.Secure.getInt(context.getContentResolver(),Settings.Secure.PI_NETFLIX_SPOOF, 0) !=0 && TextUtils.equals(NETFLIX_PACKAGE, packageName);
+    }
+
+    public boolean shouldSpoofPixelApps(String packageName) {
+        return Settings.Secure.getInt(context.getContentResolver(),Settings.Secure.PI_SPOOF_MORE_PIXELAPPS, 0) !=0 && PKGS_RECENT_PIXEL.contains(packageName);
+    }
+
     public void spoofPhotosProps() {
         for (Map.Entry<String, Object> entry : PIXEL_XL_PROPS.entrySet()) {
             spoofField(entry.getKey(), String.valueOf(entry.getValue()), "Photos");
         }
         Log.i(TAG, "Photos spoofing enabled - device appears as Pixel XL");
+    }
+
+    public void spoofNetflixProps() {
+        for (Map.Entry<String, Object> entry : PIXEL_XL_PROPS.entrySet()) {
+            spoofField(entry.getKey(), String.valueOf(entry.getValue()), "Photos");
+        }
+        Log.i(TAG, "Netflix spoofing enabled - device appears as Pixel 10 Pro XL");
+    }
+
+    public void spoofPixelApps() {
+        for (Map.Entry<String, Object> entry : PIXEL10_PROXL_PROPS.entrySet()) {
+            spoofField(entry.getKey(), String.valueOf(entry.getValue()), "PixelApps");
+        }
+        Log.i(TAG, "Pixel Apps spoofing enabled - device appears as Pixel 10 Pro XL");
     }
 
     public Boolean hasSystemFeature(String name, int version) {

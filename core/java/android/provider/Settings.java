@@ -13360,6 +13360,41 @@ public final class Settings {
                 "com.android.server.display.HBM_SETTING_KEY";
 
         /**
+         * Whether to use PIF spoof for google apps
+         * @hide
+         */
+        @Readable
+        public static final String PI_ENABLE_SPOOF = "pi_enable_spoof";
+
+        /**
+         * Whether to use PIF spoof for More Pixel Apps
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_MORE_PIXELAPPS= "pi_spoof_more_pixelapps";
+
+        /**
+         * Whether to use PIF spoof for games
+         * @hide
+         */
+        @Readable
+        public static final String PI_GAMES_SPOOF = "pi_games_spoof";
+
+        /**
+         * Whether to use PIF spoof for photos
+         * @hide
+         */
+        @Readable
+        public static final String PI_PHOTOS_SPOOF = "pi_photos_spoof";
+
+        /**
+         * Whether to use PIF spoof for netflix
+         * @hide
+         */
+        @Readable
+        public static final String PI_NETFLIX_SPOOF = "pi_netflix_spoof";
+
+        /**
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *

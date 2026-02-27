@@ -66,6 +66,7 @@ public final class PlayIntegritySpoofService {
     private static final String GPHOTOS_PACKAGE = "com.google.android.apps.photos";
     private static final String NETFLIX_PACKAGE = "com.netflix.mediaclient";
 
+    // If user doesn't specify fields to spoof, use Pixel 10 Pro XL as default
     private static final Map<String, Object> PIXEL10_PROXL_PROPS = Map.of(
         "BRAND", "google",
         "MANUFACTURER", "Google",
@@ -167,6 +168,7 @@ public final class PlayIntegritySpoofService {
 
     private volatile boolean mConfigLoaded = false;
     private volatile boolean mSignatureSpoofed = false;
+    private volatile boolean mVendingBuildSpoofApplied = false;
 
     static {
         Collections.addAll(PKGS_RECENT_PIXEL,
@@ -364,8 +366,9 @@ public final class PlayIntegritySpoofService {
 
     public boolean shouldSpoof(String processName) {
         if (!isSettingsReady()) return false;
-        if (Settings.Secure.getInt(mContext.getContentResolver(),Settings.Secure.PI_ENABLE_SPOOF, 0) == 0) return false;
-        return DROIDGUARD_PACKAGE.equals(processName) || VENDING_PACKAGE.equals(processName);
+        if (Settings.Secure.getInt(mContext.getContentResolver(), Settings.Secure.PI_ENABLE_SPOOF, 0) == 0) return false;
+        boolean shouldSpoof = DROIDGUARD_PACKAGE.equals(processName) || VENDING_PACKAGE.equals(processName);
+        return shouldSpoof;
     }
 
     public boolean isGmsProcess(String dataDir) {
@@ -483,7 +486,7 @@ public final class PlayIntegritySpoofService {
             int targetSdk = Math.min(oldValue, 32);
             if (oldValue != targetSdk) {
                 field.set(null, targetSdk);
-                Log.d(TAG + "/Java:PS", "[SDK_INT]: " + oldValue + " -> " + targetSdk);
+                Log.i(TAG, "[Java:PS] SDK_INT: " + oldValue + " -> " + targetSdk);
             }
             field.setAccessible(false);
         } catch (Exception e) {
@@ -539,7 +542,7 @@ public final class PlayIntegritySpoofService {
             field.set(null, newValue);
             field.setAccessible(false);
 
-            Log.d(TAG + "/Java:" + logSuffix, "[" + fieldName + "]: " + oldValue + " -> " + value);
+            Log.i(TAG, "[Java:" + logSuffix + "] " + fieldName + ": " + oldValue + " -> " + value);
 
         } catch (Exception e) {
             Log.e(TAG, "Failed to spoof " + fieldName, e);
@@ -635,6 +638,14 @@ public final class PlayIntegritySpoofService {
 
     public Boolean hasSystemFeature(String name, int version) {
         final String pkgName = ActivityThread.currentPackageName();
+        // Check if we can spoof com.android.vending when it launches.
+        if (TextUtils.equals(VENDING_PACKAGE, pkgName)
+                && !mVendingBuildSpoofApplied
+                && isSettingsReady()
+                && Settings.Secure.getInt(mContext.getContentResolver(), Settings.Secure.PI_ENABLE_SPOOF, 0) != 0) {
+            spoofBuildFields(VENDING_PACKAGE);
+            mVendingBuildSpoofApplied = true;
+        }
         if (shouldSpoofPhotos(pkgName)) {
             if (!isPixelDevice() && PIXEL_FEATURES.contains(name)) return false;
             return NEXUS_FEATURES.contains(name);

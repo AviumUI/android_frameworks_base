@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2025-2026 The AxionAOSP Project
+ * Copyright (C) 2026 The AviumUI Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0 
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package android.security.pif;
 
 import android.app.ActivityThread;
@@ -10,6 +27,7 @@ import android.provider.Settings;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.Process;
 import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.ArraySet;
@@ -333,10 +351,13 @@ public final class PlayIntegritySpoofService {
     }
 
     private boolean isSettingsReady() {
+        if (Process.isIsolated()) {
+            return false;
+        }
         try {
             mContext.getContentResolver().acquireProvider("settings");
             return true;
-        } catch (IllegalStateException e) {
+        } catch (IllegalStateException | SecurityException e) {
             return false;
         }
     }

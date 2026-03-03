@@ -13367,6 +13367,48 @@ public final class Settings {
         public static final String PI_ENABLE_SPOOF = "pi_enable_spoof";
 
         /**
+         * Whether to spoof build fields for Play Integrity Fix.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_BUILD = "pi_spoof_build";
+
+        /**
+         * Whether to spoof system properties for Play Integrity Fix.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_PROPS = "pi_spoof_props";
+
+        /**
+         * Whether to spoof provider information for Play Integrity Fix.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_PROVIDER = "pi_spoof_provider";
+
+        /**
+         * Whether to spoof platform signature for Play Integrity Fix.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_SIGNATURE = "pi_spoof_signature";
+
+        /**
+         * Whether to spoof build fields for Play Store specifically.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_VENDING_BUILD = "pi_spoof_vending_build";
+
+        /**
+         * Whether to spoof SDK_INT for Play Store specifically.
+         * @hide
+         */
+        @Readable
+        public static final String PI_SPOOF_VENDING_SDK = "pi_spoof_vending_sdk";
+
+        /**
          * Whether to use PIF spoof for More Pixel Apps
          * @hide
          */

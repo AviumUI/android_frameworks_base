@@ -19,7 +19,6 @@ package android.security.pif;
 
 import android.app.ActivityThread;
 import android.content.Context;
-import android.content.ContentResolver;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
@@ -32,33 +31,18 @@ import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Base64;
-import android.util.JsonReader;
 import android.util.Log;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** @hide */
 public final class PlayIntegritySpoofService {
     private final Context mContext;
     private static final String TAG = "PIF";
-    private static final String CONFIG_PATH = "/data/adb/playintegrityfix";
-
-    private static final String[] PROP_FILES = {
-        "custom.pif.prop",
-        "custom.pif.json",
-        "pif.prop",
-        "pif.json"
-    };
 
     private static final String DROIDGUARD_PACKAGE = "com.google.android.gms.unstable";
     private static final String VENDING_PACKAGE = "com.android.vending";
@@ -154,19 +138,8 @@ public final class PlayIntegritySpoofService {
     private static PlayIntegritySpoofService sInstance;
 
     private int mVerboseLogs = 0;
-    private boolean mSpoofBuild = true;
-    private boolean mSpoofProps = true;
-    private boolean mSpoofProvider = true;
-    private boolean mSpoofSignature = false;
-    private boolean mSpoofVendingBuild = true;
-    private boolean mSpoofVendingSdk = false;
-    private boolean mSpoofPhotos = false;
     private boolean mDebug = false;
 
-    private final Map<String, String> mBuildFields = new ConcurrentHashMap<>();
-    private final Map<String, String> mSystemProps = new ConcurrentHashMap<>();
-
-    private volatile boolean mConfigLoaded = false;
     private volatile boolean mSignatureSpoofed = false;
     private volatile boolean mVendingBuildSpoofApplied = false;
 
@@ -210,148 +183,6 @@ public final class PlayIntegritySpoofService {
         return sInstance;
     }
 
-    public void loadConfig() {
-        mBuildFields.clear();
-        mSystemProps.clear();
-
-        File configFile = findConfigFile();
-        if (configFile == null) {
-            Log.w(TAG, "No PIF config file found");
-            mConfigLoaded = false;
-            return;
-        }
-
-        try {
-            String content = readFile(configFile);
-            if (content == null || content.isEmpty()) {
-                return;
-            }
-
-            if (configFile.getName().endsWith(".json")) {
-                parseJson(content);
-            } else {
-                parseProp(content);
-            }
-
-            mConfigLoaded = true;
-            Log.i(TAG, "PIF config loaded from " + configFile.getAbsolutePath() 
-                + ", fields=" + mBuildFields.size() + ", props=" + mSystemProps.size());
-
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to load PIF config", e);
-        }
-    }
-
-    private File findConfigFile() {
-        File dir = new File(CONFIG_PATH);
-        if (!dir.exists()) {
-            return null;
-        }
-
-        for (String fileName : PROP_FILES) {
-            File file = new File(dir, fileName);
-            if (file.exists() && file.canRead()) {
-                return file;
-            }
-        }
-        return null;
-    }
-
-    private String readFile(File file) {
-        StringBuilder content = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
-            }
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to read config file", e);
-            return null;
-        }
-        return content.toString();
-    }
-
-    private void parseProp(String content) {
-        String[] lines = content.split("\n");
-        for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty() || line.startsWith("#")) continue;
-
-            int eqIdx = line.indexOf('=');
-            if (eqIdx <= 0) continue;
-
-            String key = line.substring(0, eqIdx).trim();
-            String value = line.substring(eqIdx + 1).trim();
-
-            int commentIdx = value.indexOf('#');
-            if (commentIdx >= 0) {
-                value = value.substring(0, commentIdx).trim();
-            }
-
-            if (value.isEmpty()) continue;
-
-            processKeyValue(key, value);
-        }
-    }
-
-    private void parseJson(String content) {
-        try (JsonReader reader = new JsonReader(new StringReader(content))) {
-            reader.beginObject();
-            while (reader.hasNext()) {
-                String key = reader.nextName();
-                String value = reader.nextString();
-                processKeyValue(key, value);
-            }
-            reader.endObject();
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to parse JSON config", e);
-        }
-    }
-
-    private void processKeyValue(String key, String value) {
-        switch (key) {
-            case "verboseLogs":
-            case "VERBOSE_LOGS":
-                try {
-                    mVerboseLogs = Integer.parseInt(value);
-                } catch (NumberFormatException e) {
-                    mVerboseLogs = 0;
-                }
-                break;
-            case "spoofBuild":
-                mSpoofBuild = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofProps":
-                mSpoofProps = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofProvider":
-                mSpoofProvider = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofSignature":
-                mSpoofSignature = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofVendingBuild":
-                mSpoofVendingBuild = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofVendingSdk":
-                mSpoofVendingSdk = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "spoofPhotos":
-                mSpoofPhotos = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            case "DEBUG":
-                mDebug = "1".equals(value) || "true".equalsIgnoreCase(value);
-                break;
-            default:
-                if (key.contains(".") || key.startsWith("*")) {
-                    mSystemProps.put(key, value);
-                } else {
-                    mBuildFields.put(key, value);
-                }
-                break;
-        }
-    }
-
     private boolean isSettingsReady() {
         if (Process.isIsolated()) {
             return false;
@@ -362,6 +193,41 @@ public final class PlayIntegritySpoofService {
         } catch (IllegalStateException | SecurityException e) {
             return false;
         }
+    }
+
+    private boolean getSecureSetting(String key, boolean defaultValue) {
+        if (!isSettingsReady()) {
+            return defaultValue;
+        }
+        return Settings.Secure.getInt(
+                mContext.getContentResolver(),
+                key,
+                defaultValue ? 1 : 0
+        ) != 0;
+    }
+
+    private boolean isSpoofBuildEnabled() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_BUILD, true);
+    }
+
+    private boolean isSpoofPropsEnabled() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_PROPS, true);
+    }
+
+    private boolean isSpoofProviderEnabledInternal() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_PROVIDER, true);
+    }
+
+    private boolean isSpoofSignatureEnabledInternal() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_SIGNATURE, false);
+    }
+
+    private boolean isSpoofVendingBuildEnabled() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_VENDING_BUILD, true);
+    }
+
+    private boolean isSpoofVendingSdkEnabled() {
+        return getSecureSetting(Settings.Secure.PI_SPOOF_VENDING_SDK, false);
     }
 
     public boolean shouldSpoof(String processName) {
@@ -391,10 +257,10 @@ public final class PlayIntegritySpoofService {
         if (!isDroidGuard && !isVending) return;
 
         if (isVending) {
-            if (mSpoofVendingSdk) {
+            if (isSpoofVendingSdkEnabled()) {
                 spoofSdkInt();
             }
-            if (mSpoofVendingBuild && !mSpoofVendingSdk) {
+            if (isSpoofVendingBuildEnabled() && !isSpoofVendingSdkEnabled()) {
                 for (Map.Entry<String, Object> entry : PIXEL10_PROXL_PROPS.entrySet()) {
                     spoofField(entry.getKey(), String.valueOf(entry.getValue()), "PS");
                 }
@@ -402,7 +268,7 @@ public final class PlayIntegritySpoofService {
             return;
         }
 
-        if (!mSpoofBuild) {
+        if (!isSpoofBuildEnabled()) {
             if (mVerboseLogs > 0) Log.d(TAG, "Build spoofing disabled");
             return;
         }
@@ -413,7 +279,7 @@ public final class PlayIntegritySpoofService {
     }
 
     public void spoofSignature() {
-        if (!mSpoofSignature || mSignatureSpoofed) return;
+        if (!isSpoofSignatureEnabled() || mSignatureSpoofed) return;
 
         Signature spoofedSignature = new Signature(Base64.decode(ROM_SIGNATURE_DATA, Base64.DEFAULT));
         Parcelable.Creator<PackageInfo> originalCreator = PackageInfo.CREATOR;
@@ -556,44 +422,16 @@ public final class PlayIntegritySpoofService {
         return false;
     }
 
-    public String getSpoofedProperty(String key) {
-        if (!mSpoofProps) return null;
-
-        String value = mSystemProps.get(key);
-        if (value != null) return value;
-
-        for (Map.Entry<String, String> entry : mSystemProps.entrySet()) {
-            String pattern = entry.getKey();
-            if (pattern.startsWith("*") && key.endsWith(pattern.substring(1))) {
-                return entry.getValue();
-            }
-        }
-
-        return null;
-    }
-
     public boolean isSpoofSignatureEnabled() {
-        return mSpoofSignature;
+        return isSpoofSignatureEnabledInternal();
     }
 
     public boolean isSpoofProviderEnabled() {
-        return mSpoofProvider;
+        return isSpoofProviderEnabledInternal();
     }
 
     public int getVerboseLogs() {
         return mVerboseLogs;
-    }
-
-    public Map<String, String> getBuildFields() {
-        return mBuildFields;
-    }
-
-    public Map<String, String> getSystemProps() {
-        return mSystemProps;
-    }
-
-    public boolean isConfigLoaded() {
-        return mConfigLoaded;
     }
 
     public byte[] getRomSignatureBytes() {

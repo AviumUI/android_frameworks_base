@@ -1,0 +1,252 @@
+/*
+ * Copyright (C) 2025-2026 The AviumUI Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.avium.systemui.lockscreen.type.webview;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.PixelFormat;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.widget.FrameLayout;
+
+import org.avium.systemui.lockscreen.ICustomLockScreenClock;
+
+import java.io.File;
+
+public class WebViewLockscreenController implements ICustomLockScreenClock {
+    private static final String TAG = "WebViewLockscreen";
+    private static final String ACTION_THEME_CHANGED = "org.avium.lockscreen.THEME_CHANGED";
+    private static final String ACTION_APPLY_THEME = "org.avium.lockscreen.APPLY_THEME";
+    private static final String EXTRA_ZIP_PATH = "zip_path";
+    private static final String EXTRA_ZIP_URI = "zip_uri";
+    private static final String EXTRA_THEME_NAME = "theme_name";
+    private static final String INTERFACE_NAME = "AviumLockscreen";
+
+    private Context mContext;
+    private Context mReceiverContext;
+    private WebView mWebView;
+    private FrameLayout mContainer;
+    private Handler mMainHandler;
+    private Handler mBgHandler;
+    private HandlerThread mBgThread;
+    private ThemeChangeReceiver mThemeReceiver;
+    private ThemeManagerHelper mThemeManager;
+    private LockscreenWebViewClient mWebViewClient;
+    private LockscreenJsInterface mJsInterface;
+    private boolean mIsLoaded = false;
+
+    @Override
+    public View getView(Context context) {
+        mReceiverContext = context;
+        mContext = context.createCredentialProtectedStorageContext();
+        mMainHandler = new Handler(Looper.getMainLooper());
+
+        mBgThread = new HandlerThread("WebViewLockscreenBg");
+        mBgThread.start();
+        mBgHandler = new Handler(mBgThread.getLooper());
+
+        mThemeManager = new ThemeManagerHelper(mContext.getFilesDir());
+
+        createContainer();
+        setupWebView();
+        registerThemeReceiver();
+        loadCurrentTheme();
+
+        return mContainer;
+    }
+
+    private void createContainer() {
+        mContainer = new FrameLayout(mContext);
+        mContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        mContainer.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+    }
+
+    private void setupWebView() {
+        mWebView = new WebView(mContext);
+        mWebView.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        mWebView.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        mWebView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+
+        WebSettings settings = mWebView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        settings.setUseWideViewPort(true);
+        settings.setLoadWithOverviewMode(true);
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
+        settings.setDisplayZoomControls(false);
+
+        mWebView.setWebChromeClient(new WebChromeClient());
+        mWebViewClient = new LockscreenWebViewClient(mThemeManager.getResourceCache());
+        mWebViewClient.setOnPageFinishedCallback(() -> mIsLoaded = true);
+        mWebView.setWebViewClient(mWebViewClient);
+        mJsInterface = new LockscreenJsInterface();
+        mWebView.addJavascriptInterface(mJsInterface, INTERFACE_NAME);
+
+        mWebView.setOnTouchListener((v, event) -> true);
+
+        mContainer.addView(mWebView);
+    }
+
+    private void registerThemeReceiver() {
+        mThemeReceiver = new ThemeChangeReceiver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_THEME_CHANGED);
+        filter.addAction(ACTION_APPLY_THEME);
+        mReceiverContext.registerReceiver(mThemeReceiver, filter, Context.RECEIVER_EXPORTED);
+    }
+
+    private void loadCurrentTheme() {
+        mBgHandler.post(() -> {
+            File indexFile = new File(mThemeManager.getCurrentThemeDir(), "index.html");
+            if (indexFile.exists()) {
+                mThemeManager.cacheThemeResources();
+                mMainHandler.post(() -> {
+                    if (mWebView != null) {
+                        mWebView.loadUrl("file://" + indexFile.getAbsolutePath());
+                    }
+                });
+            } else {
+                mMainHandler.post(() -> loadErrorPage("No theme installed"));
+            }
+        });
+    }
+
+    private void handleThemeZip(String zipPath, String themeName) {
+        if (mBgHandler == null) {
+            return;
+        }
+        mBgHandler.post(() -> {
+            boolean success = mThemeManager.processThemeZip(zipPath, themeName);
+            if (success) {
+                mJsInterface.setThemeName(themeName);
+                reloadTheme();
+            }
+        });
+    }
+
+    private void reloadTheme() {
+        mIsLoaded = false;
+        mThemeManager.cacheThemeResources();
+        loadCurrentTheme();
+    }
+
+    private void loadErrorPage(String message) {
+        String html = "<html><body style='background:transparent;color:white;text-align:center;padding-top:50%;'>" +
+                "<h2>Lockscreen Theme Error</h2>" +
+                "<p>" + message + "</p>" +
+                "</body></html>";
+        mWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+    }
+
+    @Override
+    public void onTimeTick() {
+        if (mWebView != null && mIsLoaded) {
+            mMainHandler.post(() -> {
+                if (mWebView != null) {
+                    mWebView.evaluateJavascript("javascript:if(typeof onTimeTick === 'function') onTimeTick();", null);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onNotificationStateChanged(boolean hasNotifications) {
+        if (mWebView != null && mIsLoaded) {
+            mMainHandler.post(() -> {
+                if (mWebView != null) {
+                    mWebView.evaluateJavascript(
+                            "javascript:if(typeof onNotificationStateChanged === 'function') onNotificationStateChanged(" + hasNotifications + ");",
+                            null
+                    );
+                }
+            });
+        }
+    }
+
+    @Override
+    public void applyStyles() {
+    }
+
+    @Override
+    public void onDestroy() {
+        mIsLoaded = false;
+
+        if (mThemeReceiver != null) {
+            mReceiverContext.unregisterReceiver(mThemeReceiver);
+            mThemeReceiver = null;
+        }
+
+        if (mBgThread != null) {
+            mBgThread.quitSafely();
+            mBgThread = null;
+        }
+        mBgHandler = null;
+
+        if (mWebView != null) {
+            mWebView.stopLoading();
+            mWebView.loadUrl("about:blank");
+            mWebView.removeAllViews();
+            mWebView.destroy();
+            mWebView = null;
+        }
+
+        if (mContainer != null) {
+            mContainer.removeAllViews();
+            mContainer = null;
+        }
+
+        mMainHandler = null;
+    }
+
+    private class ThemeChangeReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null) return;
+
+            String action = intent.getAction();
+            if (ACTION_APPLY_THEME.equals(action)) {
+                String zipPath = intent.getStringExtra(EXTRA_ZIP_PATH);
+                String themeName = intent.getStringExtra(EXTRA_THEME_NAME);
+                if (zipPath != null && themeName != null) {
+                    handleThemeZip(zipPath, themeName);
+                }
+            } else if (ACTION_THEME_CHANGED.equals(action)) {
+                reloadTheme();
+            }
+        }
+    }
+}

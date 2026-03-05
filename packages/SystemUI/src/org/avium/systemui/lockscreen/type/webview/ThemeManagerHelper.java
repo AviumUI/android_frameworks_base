@@ -90,6 +90,8 @@ public class ThemeManagerHelper {
 
     public boolean processThemeZip(String zipPath, String themeName) {
         File savedZipFile = new File(mThemeBaseDir, "theme_" + themeName + ".zip");
+        File themeDir = new File(mThemeBaseDir, themeName);
+
         try {
             File zipFile = new File(zipPath);
 
@@ -107,7 +109,6 @@ public class ThemeManagerHelper {
             fis.close();
             fos.close();
 
-            File themeDir = new File(mThemeBaseDir, themeName);
             if (themeDir.exists()) {
                 deleteDirectory(themeDir);
             }
@@ -138,6 +139,12 @@ public class ThemeManagerHelper {
             }
             zip.close();
 
+            File indexFile = new File(themeDir, "index.html");
+            if (!indexFile.exists()) {
+                deleteDirectory(themeDir);
+                return false;
+            }
+
             File currentLink = new File(mThemeBaseDir, CURRENT_THEME_LINK);
             if (currentLink.exists()) {
                 deleteDirectory(currentLink);
@@ -148,14 +155,12 @@ public class ThemeManagerHelper {
             } catch (Exception e) {
             }
 
-            File indexFile = new File(themeDir, "index.html");
-            if (!indexFile.exists()) {
-                return false;
-            }
-
             return true;
 
         } catch (Exception e) {
+            if (themeDir.exists()) {
+                deleteDirectory(themeDir);
+            }
             return false;
         } finally {
             if (savedZipFile.exists()) {

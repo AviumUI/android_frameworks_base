@@ -26,6 +26,8 @@ import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
 import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 
 class KeyguardMediaViewModel
 @AssistedInject
@@ -38,10 +40,19 @@ constructor(
     private val hydrator = Hydrator("KeyguardMediaViewModel.hydrator")
 
     /** Whether the media notification is active */
+    private val isMediaActiveFlow: Flow<Boolean> =
+        combine(
+            mediaCarouselInteractor.hasActiveMedia,
+            mediaCarouselInteractor.allowMediaOnLockscreen,
+        ) { hasActiveMedia, allowMediaOnLockscreen ->
+            hasActiveMedia && allowMediaOnLockscreen
+        }
+
     val isMediaActive: Boolean by
         hydrator.hydratedStateOf(
             traceName = "isMediaActive",
-            source = mediaCarouselInteractor.hasActiveMedia,
+            initialValue = false,
+            source = isMediaActiveFlow,
         )
 
     val isDozing: Boolean by

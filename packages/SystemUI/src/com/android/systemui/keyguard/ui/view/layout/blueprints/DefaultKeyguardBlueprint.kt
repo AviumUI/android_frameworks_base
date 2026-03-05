@@ -43,6 +43,7 @@ import kotlin.jvm.optionals.getOrNull
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.avium.systemui.lockscreen.CustomLockscreenClockManager
 import org.avium.systemui.lockscreen.sections.CustomClockSection
+import org.avium.systemui.lockscreen.sections.NotificationIconsSection
 import org.avium.systemui.lockscreen.CustomLockscreenRepository
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher
 
@@ -73,6 +74,7 @@ constructor(
     private val udfpsAccessibilityOverlaySection: DefaultUdfpsAccessibilityOverlaySection,
     private val customLockscreenClockManager: CustomLockscreenClockManager,
     private val customClockSection: CustomClockSection,
+    private val notificationIconsSection: NotificationIconsSection,
     private val customLockscreenRepository: CustomLockscreenRepository,
     aodPromotedNotificationSection: AodPromotedNotificationSection,
 ) : KeyguardBlueprint {
@@ -102,7 +104,7 @@ constructor(
                 Log.d("AVIUM_BLUEPRINT", "Custom lockscreen enabled. Replacing native sections.")
                 allSections.filterNot {
                     it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection
-                } + customClockSection
+                } + customClockSection + notificationIconsSection
             } else {
                 allSections
             }

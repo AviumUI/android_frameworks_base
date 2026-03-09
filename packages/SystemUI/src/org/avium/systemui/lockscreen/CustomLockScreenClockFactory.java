@@ -18,6 +18,7 @@ package org.avium.systemui.lockscreen;
 
 import android.content.Context;
 import android.util.Log;
+import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import org.avium.systemui.lockscreen.type.bigboom.BigBoomClockController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.type.smallcuteclock.SmallCuteClockController;
@@ -42,7 +43,7 @@ public class CustomLockScreenClockFactory {
 
     private static final String TAG = "AVIUM_LOCKSCREEN";
 
-    public static ICustomLockScreenClock create(Context context) {
+    public static ICustomLockScreenClock create(Context context, StatusBarStateController statusBarStateController) {
         if (!CustomLockscreenSettings.isEnabled()) {
             return null;
         }
@@ -91,7 +92,7 @@ public class CustomLockScreenClockFactory {
             case 18:
                 return new MediaBlurClockController();
             case 19:
-                return new WebViewLockscreenController();
+                return new WebViewLockscreenController(statusBarStateController);
             default:
                 Log.w(TAG, "Unknown clock type: " + clockType);
                 return new TextTimeClockController();

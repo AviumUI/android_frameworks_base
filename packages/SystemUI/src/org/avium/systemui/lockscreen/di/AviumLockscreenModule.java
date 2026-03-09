@@ -42,11 +42,12 @@ public class AviumLockscreenModule {
     @Provides
     @SysUISingleton
     public CustomLockscreenClockManager provideCustomLockscreenClockManager(
-            Context context, 
+            Context context,
             NativeLockscreenViewHider nativeLockscreenViewHider,
-            SystemPropertiesWatcher propertiesWatcher
+            SystemPropertiesWatcher propertiesWatcher,
+            com.android.systemui.plugins.statusbar.StatusBarStateController statusBarStateController
     ) {
-        return new CustomLockscreenClockManager(context, nativeLockscreenViewHider, propertiesWatcher);
+        return new CustomLockscreenClockManager(context, nativeLockscreenViewHider, propertiesWatcher, statusBarStateController);
     }
 
     @Provides

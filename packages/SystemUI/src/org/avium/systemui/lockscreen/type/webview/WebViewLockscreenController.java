@@ -31,12 +31,16 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import com.android.systemui.plugins.statusbar.StatusBarStateController;
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
 import org.avium.systemui.lockscreen.ICustomLockScreenClock;
 
 import java.io.File;
 
-public class WebViewLockscreenController implements ICustomLockScreenClock {
+public class WebViewLockscreenController implements ICustomLockScreenClock,
+        StatusBarStateController.StateListener {
     private static final String TAG = "WebViewLockscreen";
     private static final String ACTION_THEME_CHANGED = "org.avium.lockscreen.THEME_CHANGED";
     private static final String ACTION_APPLY_THEME = "org.avium.lockscreen.APPLY_THEME";
@@ -56,7 +60,12 @@ public class WebViewLockscreenController implements ICustomLockScreenClock {
     private ThemeManagerHelper mThemeManager;
     private LockscreenWebViewClient mWebViewClient;
     private LockscreenJsInterface mJsInterface;
+    private StatusBarStateController mStatusBarStateController;
     private boolean mIsLoaded = false;
+
+    public WebViewLockscreenController(StatusBarStateController statusBarStateController) {
+        mStatusBarStateController = statusBarStateController;
+    }
 
     @Override
     public View getView(Context context) {
@@ -75,7 +84,28 @@ public class WebViewLockscreenController implements ICustomLockScreenClock {
         registerThemeReceiver();
         loadCurrentTheme();
 
-        return mContainer;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
+
+        if (mStatusBarStateController != null) {
+            mStatusBarStateController.addCallback(this);
+        }
+
+        View wrapped = DepthWallpaperAttacher.INSTANCE.wrapIfNeeded(mContainer);
+        return wrapped;
+    }
+
+    @Override
+    public void onDozingChanged(boolean isDozing) {
+        if (mWebView != null && mIsLoaded) {
+            mMainHandler.post(() -> {
+                if (mWebView != null) {
+                    mWebView.evaluateJavascript(
+                            "javascript:if(typeof onAodStateChanged === 'function') onAodStateChanged(" + isDozing + ");",
+                            null
+                    );
+                }
+            });
+        }
     }
 
     private void createContainer() {
@@ -114,6 +144,7 @@ public class WebViewLockscreenController implements ICustomLockScreenClock {
         mWebViewClient.setOnPageFinishedCallback(() -> mIsLoaded = true);
         mWebView.setWebViewClient(mWebViewClient);
         mJsInterface = new LockscreenJsInterface();
+        mJsInterface.setStatusBarStateController(mStatusBarStateController);
         mWebView.addJavascriptInterface(mJsInterface, INTERFACE_NAME);
 
         mWebView.setOnTouchListener((v, event) -> true);
@@ -204,6 +235,10 @@ public class WebViewLockscreenController implements ICustomLockScreenClock {
     @Override
     public void onDestroy() {
         mIsLoaded = false;
+
+        if (mStatusBarStateController != null) {
+            mStatusBarStateController.removeCallback(this);
+        }
 
         if (mThemeReceiver != null) {
             mReceiverContext.unregisterReceiver(mThemeReceiver);

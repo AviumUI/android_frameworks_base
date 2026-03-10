@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e3a43a12_ac0f3b4e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000017
+      },
+      "writtenOn": "2026-03-10T11:24:21Z",
+      "side": 1,
+      "message": "https://github.com/AviumUI/android_vendor_lineage/blob/avium-16.2/overlay/no-rro/frameworks/base/core/res/res/values/config.xml#L29",
+      "revId": "718f341ff89e59ea80228377b06eac58a4b1d5da",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}

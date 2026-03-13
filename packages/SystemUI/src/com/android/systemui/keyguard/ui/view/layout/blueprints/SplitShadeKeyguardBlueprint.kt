@@ -100,7 +100,7 @@ constructor(
 
         if (customLockscreenRepository.isEnabled.value) {
             allSections.filterNot {
-                it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection
+                it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection || it is SplitShadeMediaSection
             } + customClockSection + notificationIconsSection
         } else {
             allSections

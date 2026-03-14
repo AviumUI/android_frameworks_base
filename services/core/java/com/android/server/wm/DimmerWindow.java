@@ -33,6 +33,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Slog;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -99,6 +100,7 @@ class DimmerWindow {
         private View mResizeHandleTopRight;
 
         private FrameLayout mMenuOverlay;
+        private GestureDetector mGestureDetector;
 
         private int mTopBarHeight;
         private int mTopBarWidth;
@@ -117,6 +119,7 @@ class DimmerWindow {
         private static final int TOUCH_AREA_EXTRA_WIDTH_DP = 20;
 
         private boolean isOrientationChanged = false;
+        private boolean mHasMoved = false;
 
 
         DimView(Context context, float initialScale) {
@@ -147,6 +150,30 @@ class DimmerWindow {
             // Create menu overlay
             mMenuOverlay = new FrameLayout(getContext());
             mMenuOverlay.setVisibility(GONE);
+
+            mGestureDetector = new GestureDetector(getContext(),
+                    new GestureDetector.SimpleOnGestureListener() {
+                        @Override
+                        public boolean onDown(MotionEvent e) {
+                            return true;
+                        }
+
+                        @Override
+                        public void onLongPress(MotionEvent e) {
+                            if (!mHasMoved) {
+                                moveActivityTaskToBack();
+                            }
+                        }
+
+                        @Override
+                        public boolean onDoubleTap(MotionEvent e) {
+                            if (!mHasMoved) {
+                                PopUpWindowController.getInstance().exitMiniWindowingMode();
+                                return true;
+                            }
+                            return false;
+                        }
+                    });
 
             // Create 4 Resize Handles (all corners)
             mResizeHandleBottomLeft = new View(getContext());
@@ -212,6 +239,9 @@ class DimmerWindow {
 
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
+                    if (mGestureDetector != null) {
+                        mGestureDetector.onTouchEvent(event);
+                    }
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
                             initX = (int) event.getRawX();
@@ -219,7 +249,7 @@ class DimmerWindow {
                             lastX = initX; // Initialize last touch position
                             lastY = initY;
                             startBounds = new Rect(mDrawingRect);
-                            hasMoved = false;
+                            mHasMoved = false;
                             PopUpWindowController.getInstance().triggerVibrate();
                             moveDistance = 0; // Reset move distance
                             return true;
@@ -242,10 +272,10 @@ class DimmerWindow {
                             lastY = (int) event.getRawY();
 
                             if (Math.abs(lastX - initX) > 10 || Math.abs(lastY - initY) > 10) {
-                                hasMoved = true;
+                                mHasMoved = true;
                             }
 
-                            if (startBounds != null && hasMoved) {
+                            if (startBounds != null && mHasMoved) {
                                 Rect newBounds = new Rect(startBounds);
                                 newBounds.offset(lastX - initX, lastY - initY);
                                 updateLayout(newBounds);
@@ -254,27 +284,14 @@ class DimmerWindow {
                             return true;
 
                         case MotionEvent.ACTION_UP:
-                            if (!hasMoved) {
-                                if (DEBUG_POP_UP) {
-                                    Slog.d(TAG, "Top bar clicked, showing menu");
-                                }
-                                PopUpWindowController.getInstance().triggerVibrate();
-
-                                post(() -> {
-                                    if (DEBUG_POP_UP) {
-                                        Slog.d(TAG, "Executing showCustomMenu on UI thread");
-                                    }
-                                    showCustomMenu();
-                                });
-                            }
                             startBounds = null;
-                            hasMoved = false;
+                            mHasMoved = false;
                             moveDistance = 0; // Reset distance after drag ends
                             return true;
 
                         case MotionEvent.ACTION_CANCEL:
                             startBounds = null;
-                            hasMoved = false;
+                            mHasMoved = false;
                             moveDistance = 0; // Reset distance on cancel
                             return true;
                     }
@@ -707,7 +724,7 @@ class DimmerWindow {
             lpBar.width = mTopBarWidth;
             lpBar.height = mTopBarHeight;
             lpBar.leftMargin = taskBounds.centerX() - (mTopBarWidth / 2);
-            lpBar.topMargin = taskBounds.top - mTopBarHeight - dpToPx(4);
+            lpBar.topMargin = taskBounds.bottom + dpToPx(4);
             mTopBar.setLayoutParams(lpBar);
 
             // Position touch area
@@ -1047,10 +1064,11 @@ class DimmerWindow {
         int touchHeight = dpToPx(DimView.TOUCH_AREA_HEIGHT_DP);
         int extraWidth = dpToPx(DimView.TOUCH_AREA_EXTRA_WIDTH_DP);
 
-        // Expand top to include the expanded touch area
-        int barVisualTop = mDimView.mDrawingRect.top - barHeight - dpToPx(4); // Visual bar position
+        // Expand bottom to include the expanded touch area
+        int barVisualTop = mDimView.mDrawingRect.bottom + dpToPx(4); // Visual bar position
         int touchTop = barVisualTop - (touchHeight - barHeight) / 2; // Center touch area on visual
-        decoratedBounds.top = touchTop;
+        int touchBottom = touchTop + touchHeight;
+        decoratedBounds.bottom = Math.max(decoratedBounds.bottom, touchBottom);
 
         // Expand left/right to include extra width
         int taskCenterX = mDimView.mDrawingRect.centerX();

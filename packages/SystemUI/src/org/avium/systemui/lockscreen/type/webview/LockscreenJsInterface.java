@@ -19,10 +19,17 @@ package org.avium.systemui.lockscreen.type.webview;
 import android.webkit.JavascriptInterface;
 import android.os.SystemProperties;
 
+import com.android.systemui.plugins.statusbar.StatusBarStateController;
+
 public class LockscreenJsInterface {
     private String mThemeName;
+    private StatusBarStateController mStatusBarStateController;
 
     public LockscreenJsInterface() {
+    }
+
+    public void setStatusBarStateController(StatusBarStateController controller) {
+        mStatusBarStateController = controller;
     }
 
     public void setThemeName(String themeName) {
@@ -52,5 +59,13 @@ public class LockscreenJsInterface {
     @JavascriptInterface
     public String getThemeName() {
         return mThemeName;
+    }
+
+    @JavascriptInterface
+    public boolean isAod() {
+        if (mStatusBarStateController != null) {
+            return mStatusBarStateController.isDozing();
+        }
+        return false;
     }
 }

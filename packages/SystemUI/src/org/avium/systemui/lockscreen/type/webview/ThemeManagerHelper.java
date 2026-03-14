@@ -91,6 +91,7 @@ public class ThemeManagerHelper {
     public boolean processThemeZip(String zipPath, String themeName) {
         File savedZipFile = new File(mThemeBaseDir, "theme_" + themeName + ".zip");
         File themeDir = new File(mThemeBaseDir, themeName);
+        File tempThemeDir = new File(mThemeBaseDir, themeName + "_temp_" + System.currentTimeMillis());
 
         try {
             File zipFile = new File(zipPath);
@@ -109,10 +110,7 @@ public class ThemeManagerHelper {
             fis.close();
             fos.close();
 
-            if (themeDir.exists()) {
-                deleteDirectory(themeDir);
-            }
-            themeDir.mkdirs();
+            tempThemeDir.mkdirs();
 
             ZipFile zip = new ZipFile(savedZipFile);
             Enumeration<? extends ZipEntry> entries = zip.entries();
@@ -120,7 +118,7 @@ public class ThemeManagerHelper {
             while (entries.hasMoreElements()) {
                 ZipEntry entry = entries.nextElement();
                 String entryName = entry.getName();
-                File outFile = new File(themeDir, entryName);
+                File outFile = new File(tempThemeDir, entryName);
 
                 if (entry.isDirectory()) {
                     outFile.mkdirs();
@@ -139,11 +137,16 @@ public class ThemeManagerHelper {
             }
             zip.close();
 
-            File indexFile = new File(themeDir, "index.html");
+            File indexFile = new File(tempThemeDir, "index.html");
             if (!indexFile.exists()) {
-                deleteDirectory(themeDir);
+                deleteDirectory(tempThemeDir);
                 return false;
             }
+
+            if (themeDir.exists()) {
+                deleteDirectory(themeDir);
+            }
+            tempThemeDir.renameTo(themeDir);
 
             File currentLink = new File(mThemeBaseDir, CURRENT_THEME_LINK);
             if (currentLink.exists()) {
@@ -153,13 +156,14 @@ public class ThemeManagerHelper {
             try {
                 java.nio.file.Files.createSymbolicLink(currentLink.toPath(), themeDir.toPath());
             } catch (Exception e) {
+                return false;
             }
 
             return true;
 
         } catch (Exception e) {
-            if (themeDir.exists()) {
-                deleteDirectory(themeDir);
+            if (tempThemeDir.exists()) {
+                deleteDirectory(tempThemeDir);
             }
             return false;
         } finally {

@@ -22,6 +22,7 @@ import android.view.View;
 import android.os.Process;
 import javax.inject.Inject;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.SystemPropertiesWatcher;
 
@@ -34,13 +35,15 @@ public class CustomLockscreenClockManager {
     private ICustomLockScreenClock mCustomClock;
     private final NativeLockscreenViewHider mNativeViewHider;
     private final SystemPropertiesWatcher mPropertiesWatcher;
+    private final StatusBarStateController mStatusBarStateController;
     private View mCustomClockView;
 
     @Inject
-    public CustomLockscreenClockManager(Context context, NativeLockscreenViewHider nativeViewHider, SystemPropertiesWatcher propertiesWatcher) {
+    public CustomLockscreenClockManager(Context context, NativeLockscreenViewHider nativeViewHider, SystemPropertiesWatcher propertiesWatcher, StatusBarStateController statusBarStateController) {
         this.mContext = context;
         this.mNativeViewHider = nativeViewHider;
         this.mPropertiesWatcher = propertiesWatcher;
+        this.mStatusBarStateController = statusBarStateController;
     }
 
     public boolean isEnabled() {
@@ -53,7 +56,7 @@ public class CustomLockscreenClockManager {
 
     public View getView() {
         if (mCustomClockView == null && isEnabled()) {
-            mCustomClock = CustomLockScreenClockFactory.create(mContext);
+            mCustomClock = CustomLockScreenClockFactory.create(mContext, mStatusBarStateController);
             if (mCustomClock != null) {
                 mCustomClockView = mCustomClock.getView(mContext);
             }

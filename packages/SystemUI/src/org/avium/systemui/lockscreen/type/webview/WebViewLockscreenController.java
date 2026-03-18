@@ -21,9 +21,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.PixelFormat;
+import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.UserManager;
+import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,7 +34,9 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
+import com.android.systemui.res.R;
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
@@ -51,17 +56,21 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
 
     private Context mContext;
     private Context mReceiverContext;
+    private Context mCredentialContext;
     private WebView mWebView;
     private FrameLayout mContainer;
+    private TextView mUnlockPromptView;
     private Handler mMainHandler;
     private Handler mBgHandler;
     private HandlerThread mBgThread;
     private ThemeChangeReceiver mThemeReceiver;
+    private UserUnlockReceiver mUserUnlockReceiver;
     private ThemeManagerHelper mThemeManager;
     private LockscreenWebViewClient mWebViewClient;
     private LockscreenJsInterface mJsInterface;
     private StatusBarStateController mStatusBarStateController;
     private boolean mIsLoaded = false;
+    private boolean mWebViewInitialized = false;
 
     public WebViewLockscreenController(StatusBarStateController statusBarStateController) {
         mStatusBarStateController = statusBarStateController;
@@ -70,7 +79,7 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
     @Override
     public View getView(Context context) {
         mReceiverContext = context;
-        mContext = context.createCredentialProtectedStorageContext();
+        mContext = context;
         mMainHandler = new Handler(Looper.getMainLooper());
 
         mBgThread = new HandlerThread("WebViewLockscreenBg");
@@ -80,9 +89,14 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         mThemeManager = new ThemeManagerHelper(mContext.getFilesDir());
 
         createContainer();
-        setupWebView();
         registerThemeReceiver();
-        loadCurrentTheme();
+        
+        UserManager userManager = mContext.getSystemService(UserManager.class);
+        if (userManager != null && userManager.isUserUnlocked()) {
+            initializeWebView();
+        } else {
+            showUnlockPrompt();
+        }
 
         DepthWallpaperSetup.INSTANCE.applyIfNeeded(context);
 
@@ -117,8 +131,42 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         mContainer.setBackgroundColor(android.graphics.Color.TRANSPARENT);
     }
 
+    private void showUnlockPrompt() {
+        mUnlockPromptView = new TextView(mContext);
+        mUnlockPromptView.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+        ));
+        mUnlockPromptView.setText(mContext.getString(R.string.webview_lockscreen_unlock_required));
+        mUnlockPromptView.setTextColor(0xFFFFFFFF);
+        mUnlockPromptView.setTextSize(18);
+        mUnlockPromptView.setTypeface(Typeface.DEFAULT_BOLD);
+        mUnlockPromptView.setGravity(Gravity.CENTER);
+        mContainer.addView(mUnlockPromptView);
+    }
+
+    private void hideUnlockPrompt() {
+        if (mUnlockPromptView != null) {
+            mContainer.removeView(mUnlockPromptView);
+            mUnlockPromptView = null;
+        }
+    }
+
+    private void initializeWebView() {
+        if (mWebViewInitialized) {
+            return;
+        }
+        
+        hideUnlockPrompt();
+        mCredentialContext = mContext.createCredentialProtectedStorageContext();
+        setupWebView();
+        loadCurrentTheme();
+        mWebViewInitialized = true;
+    }
+
     private void setupWebView() {
-        mWebView = new WebView(mContext);
+        mWebView = new WebView(mCredentialContext);
         mWebView.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -158,6 +206,11 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         filter.addAction(ACTION_THEME_CHANGED);
         filter.addAction(ACTION_APPLY_THEME);
         mReceiverContext.registerReceiver(mThemeReceiver, filter, Context.RECEIVER_EXPORTED);
+
+        mUserUnlockReceiver = new UserUnlockReceiver();
+        IntentFilter unlockFilter = new IntentFilter();
+        unlockFilter.addAction(Intent.ACTION_USER_UNLOCKED);
+        mReceiverContext.registerReceiver(mUserUnlockReceiver, unlockFilter, Context.RECEIVER_NOT_EXPORTED);
     }
 
     private void loadCurrentTheme() {
@@ -245,6 +298,11 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
             mThemeReceiver = null;
         }
 
+        if (mUserUnlockReceiver != null) {
+            mReceiverContext.unregisterReceiver(mUserUnlockReceiver);
+            mUserUnlockReceiver = null;
+        }
+
         if (mBgThread != null) {
             mBgThread.quitSafely();
             mBgThread = null;
@@ -281,6 +339,21 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
                 }
             } else if (ACTION_THEME_CHANGED.equals(action)) {
                 reloadTheme();
+            }
+        }
+    }
+
+    private class UserUnlockReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent == null) return;
+            
+            if (Intent.ACTION_USER_UNLOCKED.equals(intent.getAction())) {
+                mMainHandler.post(() -> {
+                    if (!mWebViewInitialized) {
+                        initializeWebView();
+                    }
+                });
             }
         }
     }

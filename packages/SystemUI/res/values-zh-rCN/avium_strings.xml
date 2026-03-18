@@ -117,4 +117,6 @@
     <string name="usb_use_MIDI">MIDI</string>
     <string name="usb_use">将 USB 用于</string>
 
+    <string name="webview_lockscreen_unlock_required">请先解锁您的手机</string>
+
 </resources>

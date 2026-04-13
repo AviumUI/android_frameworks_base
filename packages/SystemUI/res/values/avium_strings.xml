@@ -95,4 +95,9 @@
     <!-- Avium Chip Notifs -->
     <string name="avium_chip_notification_title">Next</string>
     <string name="avium_chip_notification_dismiss_hint">Click to dismiss</string>
+
+    <!-- Mistouch Prevention -->
+    <string name="keyguard_mistouch_description">Remove anything covering this area</string>
+    <string name="keyguard_mistouch_exit_desciption">Press volume up key to exit</string>
+    <string name="keyguard_mistouch_title">Mistouch prevention</string>
 </resources>

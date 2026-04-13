@@ -100,4 +100,9 @@
     <string name="avium_chip_notification_title">接下来</string>
     <string name="avium_chip_notification_dismiss_hint">点击即可移除</string>
 
+    <!-- Mistouch Prevention -->
+    <string name="keyguard_mistouch_description">移除任何遮挡屏幕的物品</string>
+    <string name="keyguard_mistouch_exit_desciption">按音量上键退出</string>
+    <string name="keyguard_mistouch_title">防止误触</string>
+
 </resources>

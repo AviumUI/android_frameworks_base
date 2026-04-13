@@ -119,4 +119,9 @@
 
     <string name="webview_lockscreen_unlock_required">请先解锁您的手机</string>
 
+    <!-- Mistouch Prevention -->
+    <string name="keyguard_mistouch_description">移除任何遮挡屏幕的物品</string>
+    <string name="keyguard_mistouch_exit_desciption">按音量上键退出</string>
+    <string name="keyguard_mistouch_title">防止误触</string>
+
 </resources>

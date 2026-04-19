@@ -23,11 +23,15 @@ import static com.android.wm.shell.Flags.enableTaskbarOnPhones;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.hardware.devicestate.DeviceStateManager;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.os.Trace;
+import android.os.UserHandle;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -66,6 +70,8 @@ import com.android.systemui.util.Utils;
 import com.android.systemui.util.settings.SecureSettings;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.pip.Pip;
+
+import lineageos.providers.LineageSettings;
 
 import dalvik.annotation.optimization.NeverCompile;
 
@@ -111,6 +117,29 @@ public class NavigationBarControllerImpl implements
 
     /** Local cache for {@link IWindowManager#hasNavigationBar(int)}. */
     private SparseBooleanArray mHasNavBarOrTaskbar = new SparseBooleanArray();
+
+    // Observer for runtime force navbar changes.
+    private final ContentObserver mForceNavbarObserver =
+            new ContentObserver(new Handler(Looper.getMainLooper())) {
+                @Override
+                public void onChange(boolean selfChange) {
+                    mForceNavbarRetryCount = 0;
+                    mForceNavbarHandler.removeCallbacks(mHandleForceNavbarChangeRunnable);
+                    mForceNavbarHandler.postDelayed(
+                            mHandleForceNavbarChangeRunnable,
+                            FORCE_NAVBAR_RECHECK_DELAY_MS);
+                }
+            };
+
+    private static final long FORCE_NAVBAR_RECHECK_DELAY_MS = 100;
+
+    private final Handler mForceNavbarHandler = new Handler(Looper.getMainLooper());
+
+    private final Runnable mHandleForceNavbarChangeRunnable =
+            this::handleForceShowNavbarChanged;
+
+    private static final int MAX_FORCE_NAVBAR_RETRIES = 3;
+    private int mForceNavbarRetryCount = 0;
 
     // Tracks config changes that will actually recreate the nav bar
     private final InterestingConfigChanges mConfigChanges = new InterestingConfigChanges(
@@ -162,7 +191,45 @@ public class NavigationBarControllerImpl implements
                 taskStackChangeListeners, displayTracker);
         mIsLargeScreen = isLargeScreen(mContext);
         mIsPhone = determineIfPhone(mContext, deviceStateManager);
+        mContext.getContentResolver().registerContentObserver(
+                LineageSettings.System.getUriFor(LineageSettings.System.FORCE_SHOW_NAVBAR),
+                false, mForceNavbarObserver, UserHandle.USER_ALL);
         dumpManager.registerDumpable(this);
+    }
+
+    private void handleForceShowNavbarChanged() {
+        final int displayId = mDisplayTracker.getDefaultDisplayId();
+        final Display display = mDisplayManager.getDisplay(displayId);
+        if (display == null) {
+            return;
+        }
+
+        final boolean forceShowNavbar = LineageSettings.System.getIntForUser(
+                mContext.getContentResolver(),
+                LineageSettings.System.FORCE_SHOW_NAVBAR,
+                0,
+                UserHandle.USER_CURRENT) == 1;
+
+        mHasNavBarOrTaskbar.delete(displayId);
+
+        final boolean shouldShow = canCreateNavBarOrTaskBar(displayId);
+        final boolean isShowing = mNavigationBars.get(displayId) != null;
+
+        if (shouldShow && !isShowing) {
+            createNavigationBar(display, null, null);
+        } else if (!shouldShow && isShowing) {
+            removeNavigationBar(displayId);
+        }
+
+        if (forceShowNavbar != shouldShow && mForceNavbarRetryCount < MAX_FORCE_NAVBAR_RETRIES) {
+            mForceNavbarRetryCount++;
+            mForceNavbarHandler.removeCallbacks(mHandleForceNavbarChangeRunnable);
+            mForceNavbarHandler.postDelayed(
+                    mHandleForceNavbarChangeRunnable,
+                    FORCE_NAVBAR_RECHECK_DELAY_MS);
+        } else {
+            mForceNavbarRetryCount = 0;
+        }
     }
 
     private boolean determineIfPhone(Context context, DeviceStateManager deviceStateManager) {

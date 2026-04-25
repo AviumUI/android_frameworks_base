@@ -47,8 +47,9 @@ public class LockscreenClockUtils {
         return getCurrentTimeString(pattern, Locale.getDefault());
     }
 
-    public static String getCurrentDateString() {
-        return getCurrentTimeString("M月d日 EEEE", Locale.CHINESE);
+    public static String getCurrentDateString(Context context) {
+        String dateFormat = context.getString(com.android.systemui.res.R.string.date_format);
+        return getCurrentTimeString(dateFormat, Locale.getDefault());
     }
 
     public static String getWeekdayString(Context context, Locale locale) {

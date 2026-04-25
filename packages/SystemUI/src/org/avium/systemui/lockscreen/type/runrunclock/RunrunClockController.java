@@ -100,7 +100,6 @@ public class RunrunClockController extends BaseLockscreenController {
             for (View iv : digitViews) {
                 iv.setId(View.generateViewId());
                 iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
-                iv.setAlpha(0.99f);
                 mInnerContainer.addView(iv);
             }
         } else {
@@ -194,7 +193,7 @@ public class RunrunClockController extends BaseLockscreenController {
         } else {
             mDigitalClockDisplayManager.updateTimeDisplay(timeString);
         }
-        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.runrun_date_format), Locale.CHINESE));
+        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.runrun_date_format), Locale.getDefault()));
     }
 
     @Override

@@ -99,7 +99,6 @@ public abstract class BaseGuoguoClockController extends BaseLockscreenController
             for (View iv : digitViews) {
                 iv.setId(View.generateViewId());
                 iv.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDigitWidth, scaledDigitHeight));
-                iv.setAlpha(0.99f);
                 if (iv.getParent() != null) {
                     ((ViewGroup) iv.getParent()).removeView(iv);
                 }
@@ -109,7 +108,6 @@ public abstract class BaseGuoguoClockController extends BaseLockscreenController
             View dotView = mGlassClockManager.getDotView();
             dotView.setId(View.generateViewId());
             dotView.setLayoutParams(new ConstraintLayout.LayoutParams(scaledDotWidth, scaledDotHeight));
-            dotView.setAlpha(0.99f);
             if (dotView.getParent() != null) {
                 ((ViewGroup) dotView.getParent()).removeView(dotView);
             }
@@ -190,7 +188,7 @@ public abstract class BaseGuoguoClockController extends BaseLockscreenController
 
     @Override
     public void onTimeTick() {
-        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.guoguo_date_format), Locale.CHINESE));
+        mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.guoguo_date_format), Locale.getDefault()));
         String timeString = LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.guoguo_time_format));
         if (mUseBlurEffect) {
             mGlassClockManager.updateTime(timeString);

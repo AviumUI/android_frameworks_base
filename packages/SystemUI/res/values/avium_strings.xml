@@ -120,4 +120,9 @@
     <string name="status_bar_notification_info_overflow" translatable="false">\u221E</string>
     <string name="webview_lockscreen_unlock_required">Please unlock your phone first</string>
 
+    <!-- Mistouch Prevention -->
+    <string name="keyguard_mistouch_description">Remove anything covering this area</string>
+    <string name="keyguard_mistouch_exit_desciption">Press volume up key to exit</string>
+    <string name="keyguard_mistouch_title">Mistouch prevention</string>
+
 </resources>

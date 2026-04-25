@@ -224,7 +224,7 @@ object DeviceEntryIconViewBinder {
                                     )
                             }
                             fgIconView.imageTintList =
-                                ColorStateList.valueOf(viewModel.tint)
+                                viewModel.tint?.let { ColorStateList.valueOf(it) }
                             fgIconView.setPadding(
                                 viewModel.padding,
                                 viewModel.padding,

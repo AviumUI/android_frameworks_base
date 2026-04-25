@@ -65,7 +65,7 @@ object AlternateBouncerUdfpsViewBinder {
                         view.getIconState(fgViewModel.type, fgViewModel.useAodVariant),
                         /* merge */ false,
                     )
-                    fgIconView.imageTintList = ColorStateList.valueOf(fgViewModel.tint)
+                    fgIconView.imageTintList = fgViewModel.tint?.let { ColorStateList.valueOf(it) }
                     fgIconView.setPadding(
                         fgViewModel.padding,
                         fgViewModel.padding,

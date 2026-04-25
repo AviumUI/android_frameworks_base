@@ -61,8 +61,8 @@ constructor(
             startedKeyguardStep.to == KeyguardState.AOD || dozingTransitionValue == 1f
         }
 
-    private fun getColor(usingBackgroundProtection: Boolean): Int {
-        return android.graphics.Color.WHITE
+    private fun getColor(usingBackgroundProtection: Boolean): Int? {
+        return null
     }
 
     // While dozing, the display can show the AOD UI; show the AOD udfps when dozing
@@ -75,7 +75,7 @@ constructor(
             }
         }
 
-    private val color: Flow<Int> =
+    private val color: Flow<Int?> =
         useAodIconVariant
             .flatMapLatest { useAodVariant ->
                 if (useAodVariant) {
@@ -123,7 +123,7 @@ constructor(
     data class ForegroundIconViewModel(
         val type: DeviceEntryIconView.IconType,
         val useAodVariant: Boolean,
-        val tint: Int,
+        val tint: Int?,
         val padding: Int,
     )
 }

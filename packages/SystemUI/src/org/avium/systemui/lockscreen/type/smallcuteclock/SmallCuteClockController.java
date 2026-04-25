@@ -96,7 +96,6 @@ public class SmallCuteClockController extends BaseLockscreenController {
             for (View iv : digitViews) {
                 iv.setId(View.generateViewId());
                 iv.setLayoutParams(new ConstraintLayout.LayoutParams(dpToPx(DIGIT_WIDTH_DP), dpToPx(DIGIT_HEIGHT_DP)));
-                iv.setAlpha(0.99f);
                 mContainer.addView(iv);
             }
         } else {

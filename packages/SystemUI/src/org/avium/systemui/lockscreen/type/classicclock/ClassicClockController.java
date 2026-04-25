@@ -100,7 +100,7 @@ public class ClassicClockController extends BaseLockscreenController {
 
     @Override
     public void onTimeTick() {
-        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_date_format), Locale.CHINESE));
+        mGregorianDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_date_format), Locale.getDefault()));
         if (CustomLockscreenSettings.shouldShowLunar()) {
             mLunarDateView.setText(LockscreenClockUtils.getLunarDateString());
             mLunarDateView.setVisibility(View.VISIBLE);

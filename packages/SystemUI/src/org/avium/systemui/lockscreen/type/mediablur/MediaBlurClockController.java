@@ -203,7 +203,6 @@ public class MediaBlurClockController extends BaseLockscreenController implement
             mNextButton = mediaViews[2];
             for (View v : mediaViews) {
                 v.setId(View.generateViewId());
-                v.setAlpha(0.99f);
                 v.setBackground(null);
                 v.setPadding(0, 0, 0, 0);
             }

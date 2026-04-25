@@ -54,7 +54,7 @@ public abstract class BaseLockscreenController implements ICustomLockScreenClock
 
     protected void updateDateDisplay() {
         if (mDateView != null) {
-            mDateView.setText(LockscreenClockUtils.getCurrentDateString());
+            mDateView.setText(LockscreenClockUtils.getCurrentDateString(mContext));
         }
     }
 

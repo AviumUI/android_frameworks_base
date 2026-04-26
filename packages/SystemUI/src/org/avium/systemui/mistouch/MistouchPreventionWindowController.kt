@@ -31,6 +31,7 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.WakefulnessLifecycle
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.res.R;
 import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import javax.inject.Inject
@@ -57,7 +58,12 @@ class MistouchPreventionWindowController @Inject constructor(
     }
 
     private val sensorManager = context.getSystemService(SensorManager::class.java)
-    private val proximitySensor = sensorManager?.getDefaultSensor(POCKET_SENSOR, true)
+    private val proximitySensor =
+        if (context.resources.getBoolean(R.bool.config_mistouch_prevention_use_proximity_sensor)) {
+            sensorManager?.getDefaultSensor(POCKET_SENSOR, true)
+        } else {
+            null
+        }
     private val accelerometerSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     private val windowManager = context.getSystemService(WindowManager::class.java)
 

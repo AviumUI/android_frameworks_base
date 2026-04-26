@@ -12,4 +12,7 @@
     <bool name="config_statusBarBurnInProtection">@*android:bool/config_enableBurnInProtection</bool>
     <!-- Interval between subsequent shifting of statusbar and navbar contents, in seconds -->
     <integer name="config_statusBarBurnInProtectionShiftInterval">60</integer>
+
+    <!-- Whether mistouch prevention should use proximity sensor -->
+    <bool name="config_mistouch_prevention_use_proximity_sensor">true</bool>
 </resources>

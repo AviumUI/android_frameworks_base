@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6b230991_2e03441f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 4
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000017
+      },
+      "writtenOn": "2026-04-26T09:58:36Z",
+      "side": 1,
+      "message": "ps4 works fine on sagit ㄟ(▔ ,▔)ㄏ",
+      "revId": "f21f89881e422fd83f8b8d3a3d11e7cee1dece76",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    }
+  ]
+}

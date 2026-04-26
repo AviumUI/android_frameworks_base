@@ -54,9 +54,12 @@ import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+
+import org.avium.packageinstaller.InstallSourceFileUtil;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -89,6 +92,8 @@ public class PackageInstallerActivity extends Activity {
     static final String EXTRA_IS_TRUSTED_SOURCE = "EXTRA_IS_TRUSTED_SOURCE";
     private static final String ALLOW_UNKNOWN_SOURCES_KEY =
             PackageInstallerActivity.class.getName() + "ALLOW_UNKNOWN_SOURCES_KEY";
+    private static final String DELETE_SOURCE_PACKAGE_KEY =
+            PackageInstallerActivity.class.getName() + "DELETE_SOURCE_PACKAGE_KEY";
 
     private int mSessionId = -1;
     private Uri mPackageURI;
@@ -127,6 +132,7 @@ public class PackageInstallerActivity extends Activity {
 
     // Buttons to indicate user acceptance
     private Button mOk;
+    private CheckBox mDeleteSourcePackage;
 
     private PackageUtil.AppSnippet mAppSnippet;
 
@@ -142,6 +148,7 @@ public class PackageInstallerActivity extends Activity {
 
     // If unknown sources are temporary allowed
     private boolean mAllowUnknownSources;
+    private boolean mDeleteSourcePackageChecked;
 
     // Would the mOk button be enabled if this activity would be resumed
     private boolean mEnableOk = false;
@@ -175,7 +182,14 @@ public class PackageInstallerActivity extends Activity {
         }
 
         viewToEnable.setVisibility(View.VISIBLE);
+        ((View) viewToEnable.getParent()).setVisibility(View.VISIBLE);
         viewToEnable.setMovementMethod(new ScrollingMovementMethod());
+
+        if (mDeleteSourcePackage != null) {
+            mDeleteSourcePackage.setVisibility(
+                    InstallSourceFileUtil.canOfferDeleteSourcePackage(getIntent())
+                            ? View.VISIBLE : View.GONE);
+        }
 
         mEnableOk = true;
         mOk.setEnabled(true);
@@ -372,6 +386,7 @@ public class PackageInstallerActivity extends Activity {
 
         if (icicle != null) {
             mAllowUnknownSources = icicle.getBoolean(ALLOW_UNKNOWN_SOURCES_KEY);
+            mDeleteSourcePackageChecked = icicle.getBoolean(DELETE_SOURCE_PACKAGE_KEY);
         }
         setFinishOnTouchOutside(true);
 
@@ -488,6 +503,7 @@ public class PackageInstallerActivity extends Activity {
         super.onSaveInstanceState(outState);
 
         outState.putBoolean(ALLOW_UNKNOWN_SOURCES_KEY, mAllowUnknownSources);
+        outState.putBoolean(DELETE_SOURCE_PACKAGE_KEY, mDeleteSourcePackageChecked);
     }
 
     @Override
@@ -533,6 +549,11 @@ public class PackageInstallerActivity extends Activity {
 
         mOk = mDialog.getButton(DialogInterface.BUTTON_POSITIVE);
         mOk.setEnabled(false);
+        mDeleteSourcePackage = mDialog.requireViewById(R.id.delete_source_package_checkbox);
+        mDeleteSourcePackage.setChecked(mDeleteSourcePackageChecked);
+        mDeleteSourcePackage.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            mDeleteSourcePackageChecked = isChecked;
+        });
 
         if (!mOk.isInTouchMode()) {
             mDialog.getButton(DialogInterface.BUTTON_NEGATIVE).requestFocus();
@@ -738,6 +759,9 @@ public class PackageInstallerActivity extends Activity {
         }
         if (mAppSnippet != null) {
             newIntent.putExtra(EXTRA_APP_SNIPPET, mAppSnippet);
+        }
+        if (mDeleteSourcePackageChecked) {
+            InstallSourceFileUtil.putDeleteSourcePackageExtras(getIntent(), newIntent);
         }
         newIntent.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
         if (mLocalLOGV) Log.i(TAG, "downloaded app uri=" + mPackageURI);

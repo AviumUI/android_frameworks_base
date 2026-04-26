@@ -70,23 +70,41 @@
 
   </LinearLayout>
 
-  <TextView
-      android:id="@+id/install_confirm_question"
+  <LinearLayout
+      android:id="@+id/install_confirm_container"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
-      android:text="@string/install_confirm_question"
+      android:orientation="vertical"
       android:visibility="invisible"
-      android:scrollbars="vertical" />
+      android:scrollbars="vertical">
 
-  <TextView
-      android:id="@+id/install_confirm_question_update"
-      android:layout_width="match_parent"
-      android:layout_height="wrap_content"
-      style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
-      android:text="@string/install_confirm_question_update"
-      android:visibility="invisible"
-      android:scrollbars="vertical" />
+    <TextView
+        android:id="@+id/install_confirm_question"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
+        android:text="@string/install_confirm_question"
+        android:visibility="gone"
+        android:scrollbars="vertical" />
+
+    <TextView
+        android:id="@+id/install_confirm_question_update"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
+        android:text="@string/install_confirm_question_update"
+        android:visibility="gone"
+        android:scrollbars="vertical" />
+
+    <CheckBox
+        android:id="@+id/delete_source_package_checkbox"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/delete_install_source_package"
+        android:visibility="gone" />
+
+  </LinearLayout>
 
   <TextView
       android:id="@+id/install_success"

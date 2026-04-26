@@ -43,6 +43,8 @@ import android.widget.ProgressBar;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.avium.packageinstaller.InstallSourceFileUtil;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -370,6 +372,7 @@ public class InstallStaging extends Activity {
             // Pass the staged session to the installer.
             Intent installIntent = new Intent(getIntent());
             installIntent.setClass(InstallStaging.this, DeleteStagedFileOnResult.class);
+            InstallSourceFileUtil.putOriginalPackageUri(installIntent, getIntent().getData());
             installIntent.setData(Uri.fromFile(new File(sessionInfo.getResolvedBaseApkPath())));
 
             installIntent.putExtra(EXTRA_STAGED_SESSION_ID, mStagedSessionId);

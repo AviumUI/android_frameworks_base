@@ -35,6 +35,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -81,6 +82,7 @@ public class InstallationFragment extends DialogFragment {
     private View mMoreDetailsExpandedLayout = null;
     private boolean mIsMoreDetailsExpanded = false;
     private View mButtonPanel = null;
+    private CheckBox mDeleteSourcePackageCheckbox = null;
 
     private TextView mInstallWithoutVerifyingTextView = null;
     private TextView mMoreDetailsExpandedTextView = null;
@@ -108,6 +110,8 @@ public class InstallationFragment extends DialogFragment {
         mProgressBar = dialogView.requireViewById(R.id.progress_bar);
         mCustomMessageTextView = dialogView.requireViewById(R.id.custom_message);
         mCustomMessageTextView.setTextDirection(View.TEXT_DIRECTION_LOCALE);
+        mDeleteSourcePackageCheckbox = dialogView.requireViewById(
+                R.id.delete_source_package_checkbox);
         mMoreDetailsClickableLayout = dialogView.requireViewById(
                 R.id.more_details_clickable_layout);
         mMoreDetailsExpandedLayout = dialogView.requireViewById(
@@ -197,6 +201,8 @@ public class InstallationFragment extends DialogFragment {
         // hide the more details layout by default
         mMoreDetailsClickableLayout.setVisibility(View.GONE);
         mMoreDetailsExpandedLayout.setVisibility(View.GONE);
+        mDeleteSourcePackageCheckbox.setVisibility(View.GONE);
+        mDeleteSourcePackageCheckbox.setOnCheckedChangeListener(null);
 
         // Reset the paddings of the custom view panel
         final int paddingHorizontal = mCustomViewPanel.getPaddingStart();
@@ -618,6 +624,15 @@ public class InstallationFragment extends DialogFragment {
         // Set the app icon and label
         mAppIcon.setImageDrawable(installStage.getAppIcon());
         mAppLabelTextView.setText(installStage.getAppLabel());
+
+        if (installStage.getCanDeleteSourcePackage()) {
+            mDeleteSourcePackageCheckbox.setVisibility(View.VISIBLE);
+            mDeleteSourcePackageCheckbox.setChecked(
+                    mInstallActionListener.isDeleteSourcePackageSelected());
+            mDeleteSourcePackageCheckbox.setOnCheckedChangeListener(
+                    (buttonView, isChecked) ->
+                            mInstallActionListener.onDeleteSourcePackageChanged(isChecked));
+        }
 
         // Set the title and the message
         String title = null;

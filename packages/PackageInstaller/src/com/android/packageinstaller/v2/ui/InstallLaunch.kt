@@ -346,6 +346,14 @@ class InstallLaunch : FragmentActivity(), InstallActionListener {
         installViewModel!!.onRetryVerificationUserResponse()
     }
 
+    override fun onDeleteSourcePackageChanged(deleteSourcePackage: Boolean) {
+        installViewModel!!.setDeleteSourcePackage(deleteSourcePackage)
+    }
+
+    override fun isDeleteSourcePackageSelected(): Boolean {
+        return installViewModel!!.isDeleteSourcePackageSelected()
+    }
+
     override fun sendUnknownAppsIntent(sourcePackageName: String) {
         if (localLogv) {
             Log.d(LOG_TAG, "Launching unknown-apps settings intent for $sourcePackageName")

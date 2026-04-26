@@ -49,6 +49,7 @@ data class InstallUserActionRequired(
     val actionReason: Int,
     val appSnippet: PackageUtil.AppSnippet? = null,
     val isAppUpdating: Boolean = false,
+    val canDeleteSourcePackage: Boolean = false,
     val existingUpdateOwnerPackageName: CharSequence? = null,
     val requestedUpdateOwnerPackageName: CharSequence? = null,
     val unknownSourcePackageName: String? = null,

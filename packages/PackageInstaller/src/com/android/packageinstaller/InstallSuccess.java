@@ -31,6 +31,8 @@ import android.widget.Button;
 
 import androidx.annotation.Nullable;
 
+import org.avium.packageinstaller.InstallSourceFileUtil;
+
 import java.util.List;
 
 /**
@@ -49,6 +51,7 @@ public class InstallSuccess extends Activity {
     private Intent mLaunchIntent;
 
     private AlertDialog mDialog;
+    private boolean mSourcePackageDeleted;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -57,6 +60,7 @@ public class InstallSuccess extends Activity {
         setFinishOnTouchOutside(true);
 
         if (getIntent().getBooleanExtra(Intent.EXTRA_RETURN_RESULT, false)) {
+            deleteSourcePackageIfNeeded();
             // Return result if requested
             Intent result = new Intent();
             result.putExtra(Intent.EXTRA_INSTALL_RESULT, PackageManager.INSTALL_SUCCEEDED);
@@ -72,6 +76,7 @@ public class InstallSuccess extends Activity {
 
             mLaunchIntent = getPackageManager().getLaunchIntentForPackage(mAppPackageName);
 
+            deleteSourcePackageIfNeeded();
             bindUi();
         }
     }
@@ -141,5 +146,13 @@ public class InstallSuccess extends Activity {
         }
         return getPackageManager().getComponentEnabledSetting(intent.getComponent())
             != PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
+    }
+
+    private void deleteSourcePackageIfNeeded() {
+        if (mSourcePackageDeleted) {
+            return;
+        }
+        mSourcePackageDeleted = true;
+        InstallSourceFileUtil.deleteSourcePackageIfRequested(this, getIntent());
     }
 }

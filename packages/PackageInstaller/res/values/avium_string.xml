@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="delete_install_source_package">Delete installation package after install</string>
+    <string name="message_delete_install_source_package">Delete installation package after install</string>
+</resources>

@@ -41,6 +41,11 @@ interface InstallActionListener {
      */
     fun onRetryResponse()
 
+    //Ext add for delete source package after install
+    fun onDeleteSourcePackageChanged(deleteSourcePackage: Boolean)
+
+    fun isDeleteSourcePackageSelected(): Boolean
+
     /**
      * Launch the intent to open the newly installed / updated app.
      */

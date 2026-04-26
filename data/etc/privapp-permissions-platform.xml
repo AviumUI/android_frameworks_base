@@ -126,6 +126,7 @@ applications that come with the platform
         <permission name="android.permission.PACKAGE_USAGE_STATS"/>
         <permission name="android.permission.READ_SYSTEM_GRAMMATICAL_GENDER"/>
         <permission name="android.permission.RESOLVE_COMPONENT_FOR_UID"/>
+        <permission name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
     </privapp-permissions>
 
     <privapp-permissions package="com.android.phone">

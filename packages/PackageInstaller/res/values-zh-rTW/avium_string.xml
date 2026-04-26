@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="delete_install_source_package">安裝後刪除安裝包</string>
+    <string name="message_delete_install_source_package">安裝後刪除安裝包</string>
+</resources>

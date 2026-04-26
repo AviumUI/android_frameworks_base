@@ -44,6 +44,8 @@ import androidx.annotation.Nullable;
 
 import com.android.packageinstaller.v2.ui.InstallLaunch;
 
+import org.avium.packageinstaller.InstallSourceFileUtil;
+
 import java.util.Arrays;
 
 /**
@@ -73,6 +75,9 @@ public class InstallStart extends Activity {
             int flags = Intent.FLAG_ACTIVITY_FORWARD_RESULT;
             if ((piaV2.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
                 flags = flags | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            }
+            if ((piaV2.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) {
+                flags = flags | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             }
 
             piaV2.setFlags(flags);
@@ -217,6 +222,9 @@ public class InstallStart extends Activity {
         Intent nextActivity = new Intent(intent);
         nextActivity.setFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT
                 | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if ((intent.getFlags() & Intent.FLAG_GRANT_WRITE_URI_PERMISSION) != 0) {
+            nextActivity.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        }
 
         // The the installation source as the nextActivity thinks this activity is the source, hence
         // set the originating UID and sourceInfo explicitly
@@ -259,6 +267,7 @@ public class InstallStart extends Activity {
 
         android.util.Log.d(TAG, "nextActivity = " + nextActivity);
         if (nextActivity != null) {
+            InstallSourceFileUtil.putOriginalPackageUri(nextActivity, intent.getData());
             try {
                 startActivity(nextActivity);
             } catch (SecurityException e) {

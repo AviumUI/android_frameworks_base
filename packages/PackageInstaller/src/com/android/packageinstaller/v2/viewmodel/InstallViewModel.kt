@@ -127,6 +127,14 @@ class InstallViewModel(application: Application, val repository: InstallReposito
         repository.initiateInstall()
     }
 
+    fun setDeleteSourcePackage(deleteSourcePackage: Boolean) {
+        repository.setDeleteSourcePackage(deleteSourcePackage)
+    }
+
+    fun isDeleteSourcePackageSelected(): Boolean {
+        return repository.isDeleteSourcePackageSelected()
+    }
+
     fun abortStaging() {
         repository.abortStaging()
     }

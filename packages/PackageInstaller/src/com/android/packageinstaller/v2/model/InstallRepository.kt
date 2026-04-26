@@ -75,6 +75,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.avium.packageinstaller.InstallSourceFileUtil
 
 @SuppressLint("MissingPermission")
 class InstallRepository(private val context: Context) : EventResultPersister.EventResultObserver {
@@ -88,6 +89,8 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
     private var isSessionInstall = false
     private var isTrustedSource = false
     private var isAppUpdating = false
+    private var deleteSourcePackage = false
+    private var sourcePackageDeleted = false
     private val _stagingResult = MutableLiveData<InstallStage>()
     val stagingResult: LiveData<InstallStage>
         get() = _stagingResult
@@ -735,8 +738,14 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
         val (existingUpdateOwner, requestedUpdateOwner) =
             getUpdateOwners(newPackageInfo, userActionReason, isAppUpdating)
 
-        return InstallUserActionRequired(USER_ACTION_REASON_INSTALL_CONFIRMATION, appSnippet,
-            isAppUpdating, existingUpdateOwner, requestedUpdateOwner)
+        return InstallUserActionRequired(
+            actionReason = USER_ACTION_REASON_INSTALL_CONFIRMATION,
+            appSnippet = appSnippet,
+            isAppUpdating = isAppUpdating,
+            canDeleteSourcePackage = InstallSourceFileUtil.canOfferDeleteSourcePackage(intent),
+            existingUpdateOwnerPackageName = existingUpdateOwner,
+            requestedUpdateOwnerPackageName = requestedUpdateOwner
+        )
     }
 
     /**
@@ -752,8 +761,13 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
         val (existingUpdateOwner, requestedUpdateOwner) =
             getUpdateOwners(newPackageInfo, userActionReason, isAppUpdating)
 
-        return InstallUserActionRequired(USER_ACTION_REASON_INSTALL_CONFIRMATION, appSnippet,
-            isAppUpdating, existingUpdateOwner, requestedUpdateOwner)
+        return InstallUserActionRequired(
+            actionReason = USER_ACTION_REASON_INSTALL_CONFIRMATION,
+            appSnippet = appSnippet,
+            isAppUpdating = isAppUpdating,
+            existingUpdateOwnerPackageName = existingUpdateOwner,
+            requestedUpdateOwnerPackageName = requestedUpdateOwner
+        )
     }
 
     private fun getUpdateOwners(
@@ -1114,6 +1128,7 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
         val shouldReturnResult = intent.getBooleanExtra(Intent.EXTRA_RETURN_RESULT, false)
 
         if (statusCode == PackageInstaller.STATUS_SUCCESS) {
+            deleteSourcePackageIfNeeded()
             val resultIntent = if (shouldReturnResult) {
                 Intent().putExtra(Intent.EXTRA_INSTALL_RESULT, PackageManager.INSTALL_SUCCEEDED)
             } else {
@@ -1152,6 +1167,23 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
                 _installResult.value = InstallFailed(appSnippet, legacyStatus, statusCode, message)
             }
         }
+    }
+
+    fun setDeleteSourcePackage(deleteSourcePackage: Boolean) {
+        this.deleteSourcePackage = deleteSourcePackage
+    }
+
+    fun isDeleteSourcePackageSelected(): Boolean = deleteSourcePackage
+
+    private fun deleteSourcePackageIfNeeded() {
+        if (sourcePackageDeleted || !deleteSourcePackage) {
+            return
+        }
+        sourcePackageDeleted = true
+        InstallSourceFileUtil.deleteSourcePackageIfRequested(
+            context,
+            Intent(intent).putExtra(InstallSourceFileUtil.EXTRA_DELETE_SOURCE_PACKAGE, true)
+        )
     }
 
     private fun isLauncherActivityEnabled(intent: Intent?): Boolean {

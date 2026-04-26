@@ -58,6 +58,14 @@
             android:layout_marginTop="@dimen/dialog_inter_element_margin"
             android:visibility="gone" />
 
+        <CheckBox
+            android:id="@+id/delete_source_package_checkbox"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/dialog_inter_element_margin"
+            android:text="@string/message_delete_install_source_package"
+            android:visibility="gone" />
+
         <LinearLayout
             android:id="@+id/more_details_clickable_layout"
             android:layout_width="wrap_content"

@@ -249,18 +249,7 @@ class TaskWindowSurfaceInfo {
     }
 
     void setWindowBoundaryGap(int left, int top, int right, int bottom) {
-        if (left > 0) {
-            mWindowBoundaryGap.left = left;
-        }
-        if (top > 0) {
-            mWindowBoundaryGap.top = top;
-        }
-        if (right > 0) {
-            mWindowBoundaryGap.right = right;
-        }
-        if (bottom > 0) {
-            mWindowBoundaryGap.bottom = bottom;
-        }
+        mWindowBoundaryGap.set(left, top, right, bottom);
     }
 
     Rect getWindowBoundaryGap() {
@@ -673,6 +662,14 @@ class TaskWindowSurfaceInfo {
     private android.view.VelocityTracker mVelocityTracker;
 
     void startMoving(float x, float y) {
+        final Rect bounds = getTaskWindowSurfaceBounds();
+        final int[] animXY = new int[2];
+        final float[] animScale = new float[1];
+        if (mPopUpAnimationController.getCurrentAnimPosition(animXY, animScale)) {
+            bounds.offsetTo(animXY[0], animXY[1]);
+            mPopUpAnimationController.clearAnimPosition();
+        }
+        cancelPopUpViewAnimation();
         mIsDragging = true;
         mDragStartX = x;
         mDragStartY = y;
@@ -689,7 +686,6 @@ class TaskWindowSurfaceInfo {
                 now, now, MotionEvent.ACTION_DOWN, x, y, 0);
         mVelocityTracker.addMovement(syntheticEvent);
         syntheticEvent.recycle();
-        final Rect bounds = getTaskWindowSurfaceBounds();
         mDragStartLeft = bounds.left;
         mDragStartTop = bounds.top;
         if (DEBUG_POP_UP) {

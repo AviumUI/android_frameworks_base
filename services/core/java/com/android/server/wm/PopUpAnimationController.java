@@ -86,6 +86,7 @@ class PopUpAnimationController {
     private boolean mIsCancelling;
     private boolean mIsFromLeaveButton;
     private float mLastAnimatingScale;
+    private int mRunningSpringAnimations;
 
     private SpringAnimation mSpringAnimationX;
     private SpringAnimation mSpringAnimationY;
@@ -502,6 +503,7 @@ class PopUpAnimationController {
     private void startAnimations() {
         mSpringAnimationX = createSpringAnimation(mValueHolderX, mEndPos.x, mVelX);
         mSpringAnimationY = createSpringAnimation(mValueHolderY, mEndPos.y, mVelY);
+        mRunningSpringAnimations = 2;
         mSpringAnimationX.start();
         mSpringAnimationY.start();
         updateSpringAnimationPosition();
@@ -527,9 +529,17 @@ class PopUpAnimationController {
         final SpringAnimation springAnimation = new SpringAnimation(valueHolder, velocity);
         springAnimation.setStartVelocity(velocity).setSpring(springForce)
                 .addEndListener((anim, canceled, val, vel) -> {
-                    final int x = (int) mValueHolderX.getValue();
-                    final int y = (int) mValueHolderY.getValue();
+                    final boolean finished;
                     synchronized (mLock) {
+                        if (mRunningSpringAnimations > 0) {
+                            mRunningSpringAnimations--;
+                        }
+                        finished = mRunningSpringAnimations == 0;
+                        if (!finished) {
+                            return;
+                        }
+                        final int x = mEndPos.x;
+                        final int y = mEndPos.y;
                         if (DEBUG_POP_UP) {
                             Slog.d(TAG, "SpringAnimation: onAnimationEnd mIsAnimating=" + mIsAnimating);
                         }
@@ -549,7 +559,7 @@ class PopUpAnimationController {
                     }
                     if (!mIsCancelling) {
                         PinnedWindowOverlayController.getInstance().updateOverlayPosition(
-                                x, y, mBoundWidth, mBoundHeight, mWindowScale);
+                                mEndPos.x, mEndPos.y, mBoundWidth, mBoundHeight, mWindowScale);
                     }
                 });
         return springAnimation;

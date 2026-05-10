@@ -6784,6 +6784,15 @@ public final class Settings {
         public static final String STATUSBAR_NOTIF_COUNT = "statusbar_notif_count";
 
         /**
+         * Per-package shake sensor block config.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String SHAKE_SENSORS_BLACKLIST_CONFIG =
+                "shake_sensors_blacklist_config";
+
+        /**
          * IMPORTANT: If you add a new public settings you also have to add it to
          * PUBLIC_SETTINGS below. If the new setting is hidden you have to add
          * it to PRIVATE_SETTINGS below. Also add a validator that can validate
@@ -6868,6 +6877,7 @@ public final class Settings {
         public static final Set<String> PRIVATE_SETTINGS = new ArraySet<>();
         static {
             PRIVATE_SETTINGS.add(WIFI_USE_STATIC_IP);
+            PRIVATE_SETTINGS.add(SHAKE_SENSORS_BLACKLIST_CONFIG);
             PRIVATE_SETTINGS.add(END_BUTTON_BEHAVIOR);
             PRIVATE_SETTINGS.add(ADVANCED_SETTINGS);
             PRIVATE_SETTINGS.add(ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE);
@@ -13936,7 +13946,7 @@ public final class Settings {
          */
         @Readable
         public static final String AVIUM_DISABLE_SENSOR_APPS = "avium_disable_sensor_apps";
-        
+
         /**
          * String property which contains the package name of the contextual
          * search provider supplied by individual OEM's

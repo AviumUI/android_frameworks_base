@@ -38,6 +38,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.MemoryFile;
 import android.os.MessageQueue;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -56,6 +57,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import org.avium.hardware.SensorBlockManager;
 
 /**
  * Sensor manager implementation that communicates with the built-in
@@ -143,6 +146,12 @@ public class SystemSensorManager extends SensorManager {
     private final long mNativeInstance;
     private VirtualDeviceManager mVdm;
 
+    private final SensorBlockManager mSensorBlockManager;
+    private final String mOpPackageName;
+    private final boolean mSystemApp;
+    private long mLastSensorBlockCheckTime = -1;
+    private boolean mLastSensorBlockCheckResult = false;
+
     private Optional<Boolean> mHasHighSamplingRateSensorsPermission = Optional.empty();
 
     /** @hide */
@@ -160,6 +169,11 @@ public class SystemSensorManager extends SensorManager {
         mContext = context;
         mNativeInstance = nativeCreate(context.getOpPackageName());
         mIsPackageDebuggable = (0 != (appInfo.flags & ApplicationInfo.FLAG_DEBUGGABLE));
+
+        mSensorBlockManager = context.getSystemService(SensorBlockManager.class);
+        mOpPackageName = context.getOpPackageName();
+        mSystemApp = (appInfo.flags &
+                (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0;
 
         // initialize the sensor list
         if (getSensorPolicy(mContext.getDeviceId()) == DEVICE_POLICY_CUSTOM) {
@@ -234,6 +248,18 @@ public class SystemSensorManager extends SensorManager {
             }
         }
         return fullList;
+    }
+
+    public SensorBlockManager getSensorBlockManager() {
+        return mSensorBlockManager;
+    }
+
+    public String getPackageName() {
+        return mOpPackageName;
+    }
+
+    public boolean isSystemApp() {
+        return mSystemApp;
     }
 
     /** @hide */
@@ -1042,6 +1068,12 @@ public class SystemSensorManager extends SensorManager {
                 return;
             }
 
+            if (!mManager.isSystemApp()) {
+                if (BlockStateChecker.shouldBlockSensorUpdate(mManager, sensor.getType())) {
+                    return;
+                }
+            }
+
             SensorEvent t = null;
             synchronized (mSensorsEvents) {
                 t = mSensorsEvents.get(handle);
@@ -1258,5 +1290,23 @@ public class SystemSensorManager extends SensorManager {
         }
 
         return mHasHighSamplingRateSensorsPermission.get();
+    }
+
+    static final class BlockStateChecker {
+
+        static boolean shouldBlockSensorUpdate(SystemSensorManager manager, int sensorType) {
+            if (!SensorBlockManager.isShakeSensor(sensorType)) {
+                return false;
+            }
+            final long now = SystemClock.uptimeMillis();
+            if (now - manager.mLastSensorBlockCheckTime
+                    <= SensorBlockManager.SHAKE_SENSORS_CHECK_INTERVAL) {
+                return manager.mLastSensorBlockCheckResult;
+            }
+            manager.mLastSensorBlockCheckResult = manager.getSensorBlockManager()
+                    .shouldBlockShakeSensorsNow(manager.getPackageName());
+            manager.mLastSensorBlockCheckTime = now;
+            return manager.mLastSensorBlockCheckResult;
+        }
     }
 }

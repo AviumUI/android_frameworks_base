@@ -320,6 +320,8 @@ import com.android.server.wm.WindowManagerService;
 import dalvik.system.VMDebug;
 import dalvik.system.VMRuntime;
 
+import org.avium.server.AviumSystemServer;
+
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -1452,6 +1454,9 @@ public final class SystemServer implements Dumpable {
         t.traceBegin("StartSensorService");
         mSystemServiceManager.startService(SensorService.class);
         t.traceEnd();
+
+        AviumSystemServer.startBootstrapServices(mSystemServiceManager, t);
+
         t.traceEnd(); // startBootstrapServices
     }
 

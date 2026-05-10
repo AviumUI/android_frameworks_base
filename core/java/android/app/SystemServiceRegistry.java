@@ -311,6 +311,10 @@ import com.android.modules.utils.ravenwood.RavenwoodHelper;
 import java.util.Map;
 import java.util.Objects;
 
+import org.avium.content.ContextExt;
+import org.avium.hardware.ISensorBlockService;
+import org.avium.hardware.SensorBlockManager;
+
 /**
  * Manages all of the system services that can be returned by {@link Context#getSystemService}.
  * Used by {@link ContextImpl}.
@@ -757,6 +761,16 @@ public final class SystemServiceRegistry {
                         return SensorPrivacyManager.getInstance(
                                 ctx, ISensorPrivacyManager.Stub.asInterface(b));
                     }});
+
+        registerService(ContextExt.SENSOR_BLOCK_MANAGER_SERVICE, SensorBlockManager.class,
+                new CachedServiceFetcher<SensorBlockManager>() {
+            @Override
+            public SensorBlockManager createService(ContextImpl ctx) {
+                IBinder binder = ServiceManager.getService(
+                        ContextExt.SENSOR_BLOCK_MANAGER_SERVICE);
+                ISensorBlockService service = ISensorBlockService.Stub.asInterface(binder);
+                return new SensorBlockManager(ctx.getOuterContext(), service);
+            }});
 
         registerService(Context.STATUS_BAR_SERVICE, StatusBarManager.class,
                 new CachedServiceFetcher<StatusBarManager>() {

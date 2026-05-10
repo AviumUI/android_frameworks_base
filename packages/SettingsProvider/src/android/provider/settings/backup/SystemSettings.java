@@ -132,7 +132,8 @@ public class SystemSettings {
                 Settings.System.CV_PREFERRED_INTENSITY,
                 Settings.System.POP_UP_NOTIFICATION_JUMP_PORTRAIT,
                 Settings.System.POP_UP_NOTIFICATION_JUMP_LANDSCAPE,
-                Settings.System.POP_UP_NOTIFICATION_BLACKLIST
+                Settings.System.POP_UP_NOTIFICATION_BLACKLIST,
+                Settings.System.SHAKE_SENSORS_BLACKLIST_CONFIG
         ));
         if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.PEAK_REFRESH_RATE);

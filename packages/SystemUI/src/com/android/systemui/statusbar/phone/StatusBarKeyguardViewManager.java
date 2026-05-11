@@ -27,6 +27,7 @@ import static com.android.systemui.statusbar.phone.BiometricUnlockController.MOD
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.hardware.biometrics.BiometricSourceType;
+import android.media.session.MediaSessionManager;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.os.Trace;
@@ -121,6 +122,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import javax.inject.Inject;
+
+import org.avium.systemui.keyguard.AviumMusicLockscreenController;
+import org.avium.systemui.keyguard.AviumMusicLockscreenManager;
 
 /**
  * Manages creating, showing, hiding and resetting the keyguard within the status bar. Calls back
@@ -368,6 +372,8 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
     private final JavaAdapter mJavaAdapter;
     private StatusBarKeyguardViewManagerInteractor mStatusBarKeyguardViewManagerInteractor;
 
+    private AviumMusicLockscreenManager mAviumMusicLockscreenManager;
+
     @Inject
     public StatusBarKeyguardViewManager(
             Context context,
@@ -403,7 +409,10 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
             DismissCallbackRegistry dismissCallbackRegistry,
             Lazy<BouncerInteractor> bouncerInteractor,
             CommunalSceneInteractor communalSceneInteractor,
-            Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor
+            Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor,
+            AviumMusicLockscreenController aviumMusicController,
+            MediaSessionManager mediaSessionManager,
+            @Main Handler handler
     ) {
         mContext = context;
         mExecutor = executor;
@@ -440,6 +449,15 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
         mDismissCallbackRegistry = dismissCallbackRegistry;
         mCommunalSceneInteractor = communalSceneInteractor;
         mSecureLockDeviceInteractor = secureLockDeviceInteractor;
+
+        mAviumMusicLockscreenManager = new AviumMusicLockscreenManager(
+                context,
+                handler,
+                aviumMusicController,
+                mediaSessionManager,
+                sysuiStatusBarStateController,
+                notificationShadeWindowController
+        );
     }
 
     KeyguardTransitionInteractor mKeyguardTransitionInteractor;
@@ -757,6 +775,9 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
         SysUiStatsLog.write(SysUiStatsLog.KEYGUARD_STATE_CHANGED,
                 SysUiStatsLog.KEYGUARD_STATE_CHANGED__STATE__SHOWN);
         Trace.endSection();
+        if (mAviumMusicLockscreenManager != null) {
+            mAviumMusicLockscreenManager.onKeyguardShowing();
+        }
     }
 
     /**
@@ -1131,6 +1152,9 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
     @Override
     public void onFinishedGoingToSleep() {
         mPrimaryBouncerInteractor.hide();
+        if (mAviumMusicLockscreenManager != null) {
+            mAviumMusicLockscreenManager.onFinishedGoingToSleep();
+        }
     }
 
     @Override
@@ -1784,6 +1808,7 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
     @Override
     public void onDozingChanged(boolean isDozing) {
         setDozing(isDozing);
+        mAviumMusicController.onDozingChanged(isDozing);
     }
 
     @Override

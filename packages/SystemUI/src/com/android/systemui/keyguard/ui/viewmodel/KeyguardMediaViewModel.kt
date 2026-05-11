@@ -55,6 +55,22 @@ constructor(
     /** Whether the media notification can be visible on keyguard. */
     val isMediaVisible: Boolean by isMediaVisibleFlow.hydratedStateOf(initialValue = false)
 
+    /** Whether the media notification is active */
+    private val isMediaActiveFlow: Flow<Boolean> =
+        combine(
+            mediaCarouselInteractor.hasActiveMedia,
+            mediaCarouselInteractor.allowMediaOnLockscreen,
+        ) { hasActiveMedia, allowMediaOnLockscreen ->
+            hasActiveMedia && allowMediaOnLockscreen
+        }
+
+    val isMediaActive: Boolean by
+        hydrator.hydratedStateOf(
+            traceName = "isMediaActive",
+            initialValue = false,
+            source = isMediaActiveFlow,
+        )
+
     val shadeMode: ShadeMode by shadeModeInteractor.shadeMode.hydratedStateOf()
 
     val isDozing: Boolean by keyguardInteractor.isDozing.hydratedStateOf()

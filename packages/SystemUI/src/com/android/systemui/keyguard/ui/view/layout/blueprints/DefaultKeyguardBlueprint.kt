@@ -17,6 +17,7 @@
 
 package com.android.systemui.keyguard.ui.view.layout.blueprints
 
+import android.util.Log
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardBlueprint
 import com.android.systemui.keyguard.shared.model.KeyguardSection
@@ -40,6 +41,12 @@ import java.util.Optional
 import javax.inject.Inject
 import javax.inject.Named
 import kotlin.jvm.optionals.getOrNull
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import org.avium.systemui.lockscreen.CustomLockscreenClockManager
+import org.avium.systemui.lockscreen.sections.CustomClockSection
+import org.avium.systemui.lockscreen.sections.NotificationIconsSection
+import org.avium.systemui.lockscreen.CustomLockscreenRepository
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher
 
 /**
  * Positions elements of the lockscreen to the default position.
@@ -51,46 +58,62 @@ import kotlin.jvm.optionals.getOrNull
 class DefaultKeyguardBlueprint
 @Inject
 constructor(
-    accessibilityActionsSection: AccessibilityActionsSection,
-    defaultIndicationAreaSection: DefaultIndicationAreaSection,
-    defaultDeviceEntrySection: DefaultDeviceEntrySection,
-    defaultShortcutsSection: DefaultShortcutsSection,
+    private val accessibilityActionsSection: AccessibilityActionsSection,
+    private val defaultIndicationAreaSection: DefaultIndicationAreaSection,
+    private val defaultDeviceEntrySection: DefaultDeviceEntrySection,
+    private val defaultShortcutsSection: DefaultShortcutsSection,
     @Named(KEYGUARD_AMBIENT_INDICATION_AREA_SECTION)
-    defaultAmbientIndicationAreaSection: Optional<KeyguardSection>,
-    defaultSettingsPopupMenuSection: DefaultSettingsPopupMenuSection,
+    private val defaultAmbientIndicationAreaSection: Optional<KeyguardSection>,
+    private val defaultSettingsPopupMenuSection: DefaultSettingsPopupMenuSection,
     @Named(KEYGUARD_BATTERY_CHARGING_SECTION)
-    batteryChargingPopupMenuSection: Optional<KeyguardSection>,
-    defaultStatusBarSection: DefaultStatusBarSection,
-    defaultNotificationStackScrollLayoutSection: DefaultNotificationStackScrollLayoutSection,
+    private val batteryChargingPopupMenuSection: Optional<KeyguardSection>,
+    private val defaultStatusBarSection: DefaultStatusBarSection,
+    private val defaultNotificationStackScrollLayoutSection: DefaultNotificationStackScrollLayoutSection,
+    private val aodNotificationIconsSection: AodNotificationIconsSection,
+    private val aodBurnInSection: AodBurnInSection,
+    private val clockSection: ClockSection,
+    private val smartspaceSection: SmartspaceSection,
+    private val keyguardSliceViewSection: KeyguardSliceViewSection,
+    private val udfpsAccessibilityOverlaySection: DefaultUdfpsAccessibilityOverlaySection,
+    private val customLockscreenClockManager: CustomLockscreenClockManager,
+    private val customClockSection: CustomClockSection,
+    private val notificationIconsSection: NotificationIconsSection,
+    private val customLockscreenRepository: CustomLockscreenRepository,
     aodPromotedNotificationSection: AodPromotedNotificationSection,
-    aodNotificationIconsSection: AodNotificationIconsSection,
-    aodBurnInSection: AodBurnInSection,
-    clockSection: ClockSection,
-    smartspaceSection: SmartspaceSection,
-    keyguardSliceViewSection: KeyguardSliceViewSection,
-    udfpsAccessibilityOverlaySection: DefaultUdfpsAccessibilityOverlaySection,
 ) : KeyguardBlueprint {
     override val id: String = DEFAULT
 
-    override val sections =
-        listOfNotNull(
-            accessibilityActionsSection,
-            defaultIndicationAreaSection,
-            defaultShortcutsSection,
-            defaultAmbientIndicationAreaSection.getOrNull(),
-            defaultSettingsPopupMenuSection,
-            batteryChargingPopupMenuSection.getOrNull(),
-            defaultStatusBarSection,
-            defaultNotificationStackScrollLayoutSection,
-            aodNotificationIconsSection,
-            aodPromotedNotificationSection,
-            smartspaceSection,
-            aodBurnInSection,
-            clockSection,
-            keyguardSliceViewSection,
-            defaultDeviceEntrySection,
-            udfpsAccessibilityOverlaySection, // Add LAST: Intentionally has z-order above others
-        )
+    override val sections: List<KeyguardSection>
+        get() {
+            val allSections =
+                listOfNotNull(
+                    accessibilityActionsSection,
+                    defaultIndicationAreaSection,
+                    defaultShortcutsSection,
+                    defaultAmbientIndicationAreaSection.getOrNull(),
+                    defaultSettingsPopupMenuSection,
+                    batteryChargingPopupMenuSection.getOrNull(),
+                    defaultStatusBarSection,
+                    defaultNotificationStackScrollLayoutSection,
+                    aodNotificationIconsSection,
+                    aodPromotedNotificationSection,
+                    smartspaceSection,
+                    aodBurnInSection,
+                    clockSection,
+                    keyguardSliceViewSection,
+                    defaultDeviceEntrySection,
+                    udfpsAccessibilityOverlaySection, // Add LAST: Intentionally has z-order above others
+                )
+
+            return if (customLockscreenRepository.isEnabled.value) {
+                Log.d("AVIUM_BLUEPRINT", "Custom lockscreen enabled. Replacing native sections.")
+                allSections.filterNot {
+                    it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection
+                } + customClockSection + notificationIconsSection
+            } else {
+                allSections
+            }
+        }
 
     companion object {
         const val DEFAULT = "default"

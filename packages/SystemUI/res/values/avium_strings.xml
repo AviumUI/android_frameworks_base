@@ -15,6 +15,80 @@
      limitations under the License.
 -->
 <resources>
+    <!-- Lockscreen Music -->
     <string name="avium_lockscreen_non_sing">Unknown song</string> 
     <string name="avium_lockscreen_non_artist">Unknown artist</string>
+    <!-- Weekday names -->
+    <string name="sunday">Sun</string>
+    <string name="monday">Mon</string>
+    <string name="tuesday">Tue</string>
+    <string name="wednesday">Wed</string>
+    <string name="thursday">Thu</string>
+    <string name="friday">Fri</string>
+    <string name="saturday">Sat</string>
+    
+    <!-- Date/Time formats -->
+    <string name="date_format">M/d EEEE</string>
+    
+    <!-- TextTime Clock -->
+    <string name="texttime_month_suffix">month</string>
+    <string name="texttime_day_suffix">day</string>
+    <string name="texttime_week_format">EEEE</string>
+    <string name="texttime_intro">Now</string>
+    <string name="texttime_hour_unit">hour</string>
+    <string name="texttime_minute_unit">minute</string>
+    <string name="texttime_oclock">o\'clock</string>
+    <string name="texttime_midnight">midnight</string>
+    
+    <!-- Number words for English -->
+    <string-array name="number_words">
+        <item>zero</item>
+        <item>one</item>
+        <item>two</item>
+        <item>three</item>
+        <item>four</item>
+        <item>five</item>
+        <item>six</item>
+        <item>seven</item>
+        <item>eight</item>
+        <item>nine</item>
+        <item>ten</item>
+        <item>eleven</item>
+        <item>twelve</item>
+        <item>thirteen</item>
+        <item>fourteen</item>
+        <item>fifteen</item>
+        <item>sixteen</item>
+        <item>seventeen</item>
+        <item>eighteen</item>
+        <item>nineteen</item>
+    </string-array>
+    <string-array name="tens_words">
+        <item></item>
+        <item></item>
+        <item>twenty</item>
+        <item>thirty</item>
+        <item>forty</item>
+        <item>fifty</item>
+    </string-array>
+    
+    <!-- RunRun Clock -->
+    <string name="runrun_time_format">HHmm</string>
+    <string name="runrun_date_format">M/d\nE</string>
+    <string name="runrun_blur_effect">blur</string>
+
+    <!-- Classic Clock -->
+    <string name="classic_date_format">MMM d, EEEE</string>
+    <string name="classic_time_format">HH:mm</string>
+
+    <!-- Guoguo Clock -->
+    <string name="guoguo_date_format">MMM d, EEEE</string>
+    <string name="guoguo_time_format">HHmm</string>
+    <string name="guoguo_blur_effect">blur</string>
+    
+    <!-- Media Blur Clock -->
+    <string name="media_blur_clock_title">Music Blur Clock</string>
+    <string name="default_song_title">Enjoy Your Time</string>
+    <string name="default_song_artist">Waiting for You</string>
+    <string name="webview_lockscreen_unlock_required">Please unlock your phone first</string>
 </resources>

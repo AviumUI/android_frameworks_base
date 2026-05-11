@@ -28,7 +28,10 @@
 
     <!--ext add : timeout not to sleep broadcasts -->
     <protected-broadcast android:name="org.avium.action.SCREEN_NEED_RELIGHT" />
-
+    <protected-broadcast android:name="org.avium.systemui.lockscreen.SETTINGS_CHANGED" />
+    <protected-broadcast android:name="org.avium.lockscreen.THEME_CHANGED" />
+    <protected-broadcast android:name="org.avium.lockscreen.APPLY_THEME" />
+    
     <protected-broadcast android:name="android.intent.action.SCREEN_OFF" />
     <protected-broadcast android:name="android.intent.action.SCREEN_ON" />
     <protected-broadcast android:name="android.intent.action.USER_PRESENT" />

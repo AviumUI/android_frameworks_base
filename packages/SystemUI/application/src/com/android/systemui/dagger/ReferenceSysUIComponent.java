@@ -26,6 +26,7 @@ import com.android.systemui.statusbar.QsFrameTranslateModule;
 import com.android.systemui.unfold.SysUIUnfoldModule;
 import com.android.systemui.util.StartBinderLoggerModule;
 import com.android.systemui.wallpapers.dagger.WallpaperModule;
+import org.avium.systemui.di.AviumSystemUIModule;
 
 import dagger.Subcomponent;
 
@@ -36,6 +37,7 @@ import dagger.Subcomponent;
 @Subcomponent(modules = {
         DefaultComponentBinder.class,
         DependencyProvider.class,
+        AviumSystemUIModule.class,
         MultiUserUtilsModule.class,
         NotificationInsetsModule.class,
         NotificationRulesDefaultModule.class,

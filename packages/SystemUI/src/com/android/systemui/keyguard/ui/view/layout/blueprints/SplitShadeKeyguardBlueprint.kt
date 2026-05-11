@@ -41,6 +41,9 @@ import com.android.systemui.util.kotlin.getOrNull
 import java.util.Optional
 import javax.inject.Inject
 import javax.inject.Named
+import org.avium.systemui.lockscreen.CustomLockscreenRepository
+import org.avium.systemui.lockscreen.sections.CustomClockSection
+import org.avium.systemui.lockscreen.sections.NotificationIconsSection
 
 /**
  * Split-shade layout, mostly used for larger devices like foldables and tablets when in landscape
@@ -68,12 +71,15 @@ constructor(
     smartspaceSection: SmartspaceSection,
     mediaSection: SplitShadeMediaSection,
     keyguardSliceViewSection: KeyguardSliceViewSection,
+    private val customLockscreenRepository: CustomLockscreenRepository,
+    private val customClockSection: CustomClockSection,
+    private val notificationIconsSection: NotificationIconsSection,
 ) : KeyguardBlueprint {
     override val id: String = ID
 
     override val sections by lazy {
         SceneContainerFlag.assertInLegacyMode()
-        listOfNotNull(
+        val allSections = listOfNotNull(
             accessibilityActionsSection,
             defaultIndicationAreaSection,
             defaultShortcutsSection,
@@ -91,6 +97,14 @@ constructor(
             mediaSection,
             defaultDeviceEntrySection, // Add LAST: Intentionally has z-order above other views.
         )
+
+        if (customLockscreenRepository.isEnabled.value) {
+            allSections.filterNot {
+                it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection || it is SplitShadeMediaSection
+            } + customClockSection + notificationIconsSection
+        } else {
+            allSections
+        }
     }
 
     companion object {

@@ -29,6 +29,7 @@ import android.content.res.ColorStateList;
 import android.hardware.biometrics.BiometricSourceType;
 import android.media.session.MediaSessionManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.util.Log;
@@ -373,6 +374,7 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
     private StatusBarKeyguardViewManagerInteractor mStatusBarKeyguardViewManagerInteractor;
 
     private AviumMusicLockscreenManager mAviumMusicLockscreenManager;
+    private AviumMusicLockscreenController mAviumMusicController;
 
     @Inject
     public StatusBarKeyguardViewManager(
@@ -449,6 +451,8 @@ public class StatusBarKeyguardViewManager implements RemoteInputController.Callb
         mDismissCallbackRegistry = dismissCallbackRegistry;
         mCommunalSceneInteractor = communalSceneInteractor;
         mSecureLockDeviceInteractor = secureLockDeviceInteractor;
+
+        mAviumMusicController = aviumMusicController;
 
         mAviumMusicLockscreenManager = new AviumMusicLockscreenManager(
                 context,

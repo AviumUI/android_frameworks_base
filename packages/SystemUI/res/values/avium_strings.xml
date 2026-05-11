@@ -91,4 +91,8 @@
     <string name="default_song_title">Enjoy Your Time</string>
     <string name="default_song_artist">Waiting for You</string>
     <string name="webview_lockscreen_unlock_required">Please unlock your phone first</string>
+
+    <!-- Avium Chip Notifs -->
+    <string name="avium_chip_notification_title">Next</string>
+    <string name="avium_chip_notification_dismiss_hint">Click to dismiss</string>
 </resources>

@@ -85,6 +85,8 @@ import android.view.KeyboardShortcutGroup;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.view.WindowManagerPolicyConstants;
+import android.view.animation.Animation;
+import android.view.MotionEvent;
 
 import com.android.internal.policy.IKeyguardDismissCallback;
 import com.android.internal.policy.IShortcutService;
@@ -151,6 +153,14 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     int FINISH_LAYOUT_REDO_ANIM = 0x0008;
     /** Layer for the screen off animation */
     int COLOR_FADE_LAYER = 0x40000001;
+
+    //Ext add
+    int SYSTEM_GESTURE_NONE = 0x01;
+    int SYSTEM_GESTURE_DOWN = 0x02;
+    int SYSTEM_GESTURE_MOVE = 0x04;
+    int SYSTEM_GESTURE_MOVE_TRIGGERED = 0x08;
+    int SYSTEM_GESTURE_RESET = 0x10;
+    int SYSTEM_GESTURE_CANCELED = 0x20;
 
     /**
      * Register shortcuts for window manager to dispatch.
@@ -1252,4 +1262,11 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * @param singleKeyRule The rule to inject.
      */
     void addSingleKeyRule(@NonNull SingleKeyGestureDetector.SingleKeyRule singleKeyRule);
+
+    //Ext add
+    default void notifySystemGestureState(boolean down) {}
+
+    default int interceptMotionBeforeQueueing(MotionEvent event) {
+        return SYSTEM_GESTURE_NONE;
+    }
 }

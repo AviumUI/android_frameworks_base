@@ -230,6 +230,12 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.autofill.AutofillManagerInternal;
 import android.widget.Toast;
+import android.graphics.PointF;
+import android.graphics.Point;
+import android.content.ComponentName;
+import android.app.PendingIntent;
+import android.window.DesktopExperienceFlags;
+import android.os.SystemProperties;
 
 import com.android.internal.R;
 import com.android.internal.annotations.SystemServerLock;
@@ -423,6 +429,27 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     private static final String ACTION_TORCH_OFF =
             "com.android.server.policy.PhoneWindowManager.ACTION_TORCH_OFF";
+
+    //Ext add
+    private static final String TAG_GESTURE = "AviumGesture";
+    private static final String ACTION_WINDOWMODE_LEFT = "org.avium.WINDOWMODE_LEFT";
+    private static final String ACTION_WINDOWMODE_RIGHT = "org.avium.WINDOWMODE_RIGHT";
+    private static float GESTURE_AREA_HEIGHT_DP = 20.0f; 
+    private static float GESTURE_AREA_WIDTH_DP = 30.0f; 
+
+    private static final boolean AVIUM_DEBUG = false;
+
+    private static final float TRIGGER_MIN_DISTANCE_DP = 30.0f; 
+    private static final float TRIGGER_MAX_ANGLE_RAD = (float) Math.toRadians(80.0); 
+
+    private boolean mIsTrackingSystemGesture = false; 
+    private boolean mIsTrackingSideGesture = false;
+    private boolean mGestureTriggered = false;
+    private final PointF mGestureStartPoint = new PointF();
+    private int mDisplayWidth, mDisplayHeight;
+    private float mMinGestureDistancePx;
+    private float mGestureAreaHeightPx;
+    private float mGestureAreaWidthPx;
 
     /**
      * Keyguard stuff
@@ -6025,6 +6052,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     };
 
+    BroadcastReceiver mGestureSettingsReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if ("org.avium.UPDATE_GESTURE_SETTINGS".equals(intent.getAction())) {
+                if (AVIUM_DEBUG) {
+                    Slog.d(TAG_GESTURE, "Received gesture settings update broadcast");
+                }
+                updateGestureParams();
+            }
+        }
+    };
+
     @Override
     public void startedWakingUpGlobal(@WakeReason int reason) {
 
@@ -6657,13 +6696,179 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         bindKeyguard();
     }
 
+    //Ext add
+    @Override
+    public void notifySystemGestureState(boolean down) {
+        if(AVIUM_DEBUG){
+            Slog.d("AviumGesture", "notifySystemGestureState called with: " + down);
+        }
+        mIsTrackingSystemGesture = down;
+        if (!down) {
+            mGestureTriggered = false;
+        }
+    }
+
+    @Override
+    public int interceptMotionBeforeQueueing(MotionEvent event) {
+        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", false);
+        if(!isPopupViewEnable){
+            return SYSTEM_GESTURE_NONE;
+        }
+        final int action = event.getActionMasked();
+        final float x = event.getRawX();
+        final float y = event.getRawY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                mGestureTriggered = false;
+                boolean inGestureArea = y > (mDisplayHeight - mGestureAreaHeightPx) &&
+                                        (x < mGestureAreaWidthPx || x > (mDisplayWidth - mGestureAreaWidthPx));
+                if (inGestureArea) {
+                    mIsTrackingSideGesture = true;
+                    mGestureStartPoint.set(x, y);
+                    if(AVIUM_DEBUG){
+                        Slog.d("AviumGesture", "interceptMotionBeforeQueueing ACTION_DOWN inGestureArea: " + inGestureArea);
+                    }
+                    return SYSTEM_GESTURE_DOWN;
+                }
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (mIsTrackingSideGesture || mGestureTriggered) {
+                    final float dx = x - mGestureStartPoint.x;
+                    final float dy = y - mGestureStartPoint.y;
+                    final float distance = (float) Math.hypot(dx, dy);
+                    if (!mGestureTriggered && distance > mMinGestureDistancePx) {
+                        final float absDx = Math.abs(dx);
+                        final float absDy = Math.abs(dy);
+                        final float angle = (float) Math.atan2(absDy, absDx);
+
+                        if (dy < 0 && angle < TRIGGER_MAX_ANGLE_RAD) {
+                            boolean isLeftSwipe = mGestureStartPoint.x < mGestureAreaWidthPx && dx > 0;
+                            boolean isRightSwipe = mGestureStartPoint.x > (mDisplayWidth - mGestureAreaWidthPx) && dx < 0;
+
+                            if (isLeftSwipe || isRightSwipe) {
+                                onSideGestureDetected(isRightSwipe, mGestureStartPoint.x, mGestureStartPoint.y); 
+                                mGestureTriggered = true;
+                                mIsTrackingSideGesture = false; 
+                            }
+                        }
+                        if (!mGestureTriggered) {
+                            mIsTrackingSideGesture = false;
+                            return SYSTEM_GESTURE_RESET;
+                        }
+                    }
+                    if (mGestureTriggered) {
+                        sendTouchCoordinatesToApp(x, y, false);
+                        return SYSTEM_GESTURE_MOVE;
+                    }
+                    
+                    return mGestureTriggered ? SYSTEM_GESTURE_MOVE : SYSTEM_GESTURE_RESET; 
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (mGestureTriggered) {
+                    sendTouchCoordinatesToApp(x, y, true);
+                    mGestureTriggered = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
+                if (mIsTrackingSideGesture) {
+                    mIsTrackingSideGesture = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
+                break;
+        }
+
+        return SYSTEM_GESTURE_NONE;
+    }
+
+    private void sendTouchCoordinatesToApp(float x, float y, boolean isUp) {
+        Intent intent = new Intent("org.avium.systemuiex.TOUCH_COORDINATES");
+        intent.putExtra("x", x);
+        intent.putExtra("y", y);
+        intent.putExtra("isUp", isUp);
+        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mContext.sendBroadcast(intent);
+    }
+
+    private void onSideGestureDetected(boolean fromRight, float startX, float startY) {
+        if(AVIUM_DEBUG){
+            Slog.d("AviumGesture", "onSideGestureDetected called with: " + fromRight + ", startX: " + startX + ", startY: " + startY); 
+        }
+    
+        Intent intent = new Intent(); 
+        intent.setComponent(new ComponentName( 
+            "org.avium.systemuiex", 
+            "org.avium.systemuiex.service.GestureService" 
+        )); 
+        intent.putExtra("isLeft", !fromRight); 
+        intent.putExtra("startX", startX);
+        intent.putExtra("startY", startY);
+        
+        PendingIntent pendingIntent;
+        pendingIntent = PendingIntent.getForegroundService(
+            mContext, 0, intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        try {
+            pendingIntent.send();
+        } catch (Exception e) {
+            //do nothing
+        }
+    }
+
+    private final DisplayManager.DisplayListener mDisplayListener =
+        new DisplayManager.DisplayListener() {
+        @Override
+        public void onDisplayAdded(int displayId) {}
+
+        @Override
+        public void onDisplayRemoved(int displayId) {}
+
+        @Override
+        public void onDisplayChanged(int displayId) {
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                updateGestureParams();
+                mIsTrackingSideGesture = false;
+                mGestureTriggered = false;
+            }
+        }
+    };
+
+    private void updateGestureParams() {
+        Display display = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY);
+        if (display != null) {
+            Point size = new Point();
+            display.getRealSize(size);
+            mDisplayWidth = size.x;
+            mDisplayHeight = size.y;
+        }
+        float density = mContext.getResources().getDisplayMetrics().density;
+        GESTURE_AREA_HEIGHT_DP = Float.parseFloat(
+        SystemProperties.get("persist.avium.gesture_area_height_dp", String.valueOf(GESTURE_AREA_HEIGHT_DP)));
+        GESTURE_AREA_WIDTH_DP = Float.parseFloat(
+            SystemProperties.get("persist.avium.gesture_area_width_dp", String.valueOf(GESTURE_AREA_WIDTH_DP)));
+        mMinGestureDistancePx = TRIGGER_MIN_DISTANCE_DP * density;
+        mGestureAreaHeightPx  = GESTURE_AREA_HEIGHT_DP  * density;
+        mGestureAreaWidthPx   = GESTURE_AREA_WIDTH_DP   * density;
+    }
+
+
+
     /** {@inheritDoc} */
     @Override
     public void systemReady() {
         // In normal flow, systemReady is called before other system services are ready.
         // So it is better not to bind keyguard here.
         mKeyguardDelegate.onSystemReady();
-
+        //Ext add
+        updateGestureParams();
+        IntentFilter gestureSettingsFilter = new IntentFilter("org.avium.UPDATE_GESTURE_SETTINGS");
+        mContext.registerReceiver(mGestureSettingsReceiver, gestureSettingsFilter,
+                Context.RECEIVER_NOT_EXPORTED);
+        mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
             mVrManagerInternal.addPersistentVrModeStateListener(mPersistentVrModeListener);

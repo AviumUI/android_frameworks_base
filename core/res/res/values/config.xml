@@ -7770,7 +7770,7 @@
     <bool name="config_popUpView_defaultShareJump">true</bool>
 
     <!-- Default value for AVIUM_HIDE_SYSAPP_NOTIFS -->
-     <string name="config_avium_hide_sysapp_notifs_default" translatable="false">org.avium.systemuiex,com.sunshine.freeform,org.exthm.exthmuseful,org.avium.alivenotifscore</string>
+     <string name="config_avium_hide_sysapp_notifs_default" translatable="false">org.avium.systemuiex,com.sunshine.freeform,org.avium.exthmuseful,org.avium.alivenotifscore</string>
      
      <!-- Default value for AVIUM_DISABLE_SENSOR_APPS -->
      <string name="config_avium_disable_sensor_apps_default" translatable="false"></string>

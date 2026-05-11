@@ -154,6 +154,8 @@ import com.android.server.power.batterysaver.BatterySaverPolicy;
 import com.android.server.power.batterysaver.BatterySaverStateMachine;
 import com.android.server.power.batterysaver.BatterySavingStats;
 import com.android.server.power.feature.PowerManagerFlags;
+//Ext add
+import android.os.HandlerThread;
 import com.android.server.wm.WindowManagerInternal;
 
 import dalvik.annotation.optimization.NeverCompile;
@@ -1261,6 +1263,10 @@ public final class PowerManagerService extends SystemService
     private SensorEventListener mProximityListener;
     private PowerManager.WakeLock mProximityWakeLock;
 
+    //Ext add
+    private final HandlerThread mBroadcastThread;
+    private final Handler mBroadcastHandler;
+
     public PowerManagerService(Context context) {
         this(context, new Injector());
     }
@@ -1382,6 +1388,11 @@ public final class PowerManagerService extends SystemService
             mNativeWrapper.nativeSetPowerMode(Mode.INTERACTIVE, true);
             mNativeWrapper.nativeSetPowerMode(Mode.DOUBLE_TAP_TO_WAKE, false);
             mInjector.invalidateIsInteractiveCaches();
+
+            //Ext add
+            mBroadcastThread = new HandlerThread("ScreenBroadcastThread");
+            mBroadcastThread.start(); 
+            mBroadcastHandler = new Handler(mBroadcastThread.getLooper());
         }
     }
 
@@ -3251,6 +3262,23 @@ public final class PowerManagerService extends SystemService
     }
 
     /**
+     * Ext add :
+     * Send the broadcast when User timeout not to sleep
+     */
+
+    private void sendTimeoutBroadcast() {
+        mBroadcastHandler.post(() -> {
+            try {
+                Intent extTimeoutIntent = new Intent("org.exthm.action.SCREEN_NEED_RELIGHT");
+                extTimeoutIntent.putExtra("state", 1);
+                mContext.sendBroadcast(extTimeoutIntent);
+            } catch (Exception e) {
+                Slog.e(TAG, "Failed to send SCREEN_NEED_RELIGHT broadcast", e);
+            }
+        });
+    }
+
+    /**
      * Updates the value of mUserActivitySummary to summarize the user requested
      * state of the system such as whether the screen should be bright or dim.
      * Note that user activity is ignored when the system is asleep.
@@ -3449,7 +3477,15 @@ public final class PowerManagerService extends SystemService
                 }
             }
 
+            //ext add timeout not to sleep
+            final int oldSummary = powerGroup.getUserActivitySummaryLocked();
             powerGroup.setUserActivitySummaryLocked(groupUserActivitySummary);
+
+            if (oldSummary == USER_ACTIVITY_SCREEN_DIM &&
+                    groupUserActivitySummary == USER_ACTIVITY_SCREEN_BRIGHT) {
+                sendTimeoutBroadcast();
+            }
+
 
             if (DEBUG_SPEW) {
                 Slog.d(TAG, "updateUserActivitySummaryLocked: groupId=" + powerGroup.getGroupId()

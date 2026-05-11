@@ -3269,7 +3269,7 @@ public final class PowerManagerService extends SystemService
     private void sendTimeoutBroadcast() {
         mBroadcastHandler.post(() -> {
             try {
-                Intent extTimeoutIntent = new Intent("org.exthm.action.SCREEN_NEED_RELIGHT");
+                Intent extTimeoutIntent = new Intent("org.avium.aviumuseful.SCREEN_NEED_RELIGHT");
                 extTimeoutIntent.putExtra("state", 1);
                 mContext.sendBroadcast(extTimeoutIntent);
             } catch (Exception e) {

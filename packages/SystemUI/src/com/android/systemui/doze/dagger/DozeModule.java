@@ -37,6 +37,7 @@ import com.android.systemui.doze.DozeWallpaperState;
 import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.util.wakelock.DelayedWakeLock;
 import com.android.systemui.util.wakelock.WakeLock;
+import org.avium.systemui.aod.AviumAodDozePart;
 
 import dagger.Module;
 import dagger.Provides;
@@ -75,7 +76,8 @@ public abstract class DozeModule {
             DozeScreenBrightness dozeScreenBrightness, DozeWallpaperState dozeWallpaperState,
             DozeDockHandler dozeDockHandler, DozeMinMode dozeMinMode,
             DozeAuthRemover dozeAuthRemover,
-            DozeSuppressor dozeSuppressor, DozeTransitionListener dozeTransitionListener) {
+            DozeSuppressor dozeSuppressor, DozeTransitionListener dozeTransitionListener,
+            AviumAodDozePart aviumAodDozePart) {
         List<DozeMachine.Part> parts = new ArrayList<>();
         parts.add(dozePauser);
         parts.add(dozeFalsingManagerAdapter);
@@ -88,6 +90,7 @@ public abstract class DozeModule {
         parts.add(dozeAuthRemover);
         parts.add(dozeSuppressor);
         parts.add(dozeTransitionListener);
+        parts.add(aviumAodDozePart);
 
         if (Flags.enableMinmode()) {
             parts.add(dozeMinMode);

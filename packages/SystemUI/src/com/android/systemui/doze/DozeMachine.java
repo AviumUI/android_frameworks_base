@@ -38,6 +38,7 @@ import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.util.Assert;
 import com.android.systemui.util.wakelock.WakeLock;
+import org.avium.systemui.aod.AviumAodController;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -174,17 +175,28 @@ public class DozeMachine {
     private final Optional<MinModeManager> mMinModeManager;
     private final Part[] mParts;
     private final UserTracker mUserTracker;
+    private final AviumAodController mAviumAodController;
     private final ArrayList<State> mQueuedRequests = new ArrayList<>();
     private State mState = State.UNINITIALIZED;
     private int mPulseReason;
     private boolean mWakeLockHeldForCurrentState = false;
+
+    public DozeMachine(@WrappedService Service service,
+            AmbientDisplayConfiguration ambientDisplayConfig,
+            WakeLock wakeLock, WakefulnessLifecycle wakefulnessLifecycle,
+            DozeLog dozeLog, DockManager dockManager, Optional<MinModeManager> minModeManager,
+            DozeHost dozeHost, Part[] parts, UserTracker userTracker) {
+        this(service, ambientDisplayConfig, wakeLock, wakefulnessLifecycle, dozeLog, dockManager,
+                minModeManager, dozeHost, parts, userTracker, null);
+    }
 
     @Inject
     public DozeMachine(@WrappedService Service service,
             AmbientDisplayConfiguration ambientDisplayConfig,
             WakeLock wakeLock, WakefulnessLifecycle wakefulnessLifecycle,
             DozeLog dozeLog, DockManager dockManager, Optional<MinModeManager> minModeManager,
-            DozeHost dozeHost, Part[] parts, UserTracker userTracker) {
+            DozeHost dozeHost, Part[] parts, UserTracker userTracker,
+            AviumAodController aviumAodController) {
         mDozeService = service;
         mAmbientDisplayConfig = ambientDisplayConfig;
         mWakefulnessLifecycle = wakefulnessLifecycle;
@@ -195,6 +207,7 @@ public class DozeMachine {
         mDozeHost = dozeHost;
         mParts = parts;
         mUserTracker = userTracker;
+        mAviumAodController = aviumAodController;
         for (Part part : parts) {
             part.setDozeMachine(this);
         }
@@ -417,6 +430,10 @@ public class DozeMachine {
             mDozeLog.traceAlwaysOnSuppressed(requestedState, "batterySaver");
             return State.DOZE;
         }
+        if (requestedState.isAlwaysOn() && !isAviumAodAllowed(isBaseAlwaysOnAllowed(
+                requestedState))) {
+            return State.DOZE;
+        }
         if ((mState == State.DOZE_AOD_PAUSED || mState == State.DOZE_AOD_PAUSING
                 || mState == State.DOZE_AOD || mState == State.DOZE
                 || mState == State.DOZE_AOD_MINMODE
@@ -430,6 +447,13 @@ public class DozeMachine {
             return mState;
         }
         return requestedState;
+    }
+
+    private boolean isBaseAlwaysOnAllowed(State requestedState) {
+        if (requestedState == State.DOZE_AOD_DOCKED || requestedState == State.DOZE_AOD_MINMODE) {
+            return true;
+        }
+        return mAmbientDisplayConfig.alwaysOnEnabled(mUserTracker.getUserId());
     }
 
     private void updateWakeLockState(State newState) {
@@ -458,7 +482,8 @@ public class DozeMachine {
                     nextState = State.FINISH;
                 } else if (mDockManager.isDocked()) {
                     nextState = mDockManager.isHidden() ? State.DOZE : State.DOZE_AOD_DOCKED;
-                } else if (mAmbientDisplayConfig.alwaysOnEnabled(mUserTracker.getUserId())) {
+                } else if (isAviumAodAllowed(
+                        mAmbientDisplayConfig.alwaysOnEnabled(mUserTracker.getUserId()))) {
                     nextState = State.DOZE_AOD;
                 } else {
                     nextState = State.DOZE;
@@ -469,6 +494,11 @@ public class DozeMachine {
             default:
                 break;
         }
+    }
+
+    private boolean isAviumAodAllowed(boolean baseAlwaysOn) {
+        return mAviumAodController == null
+                || mAviumAodController.shouldShowAodForBaseConfig(baseAlwaysOn);
     }
 
     /** Dumps the current state */

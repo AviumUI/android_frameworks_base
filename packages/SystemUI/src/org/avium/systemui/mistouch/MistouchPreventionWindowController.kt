@@ -69,6 +69,7 @@ class MistouchPreventionWindowController @Inject constructor(
     private var sensorNearWhenSleep = false
     private var isProxNear = false
     private var isAccelInPocket = false
+    private var mistouchWindowVisible = false
 
     private val mistouchPreventionEnabled: Boolean
         get() = Settings.Secure.getIntForUser(
@@ -231,6 +232,7 @@ class MistouchPreventionWindowController @Inject constructor(
         if (windowAdded) {
             windowManager?.removeView(preventionView)
             windowAdded = false
+            notifyMistouchVisibilityChanged(false)
         }
     }
 
@@ -238,11 +240,19 @@ class MistouchPreventionWindowController @Inject constructor(
         preventionView.addCallback(volumeKeyCallback)
         preventionView.visibility = View.VISIBLE
         preventionView.requestFocus()
+        notifyMistouchVisibilityChanged(true)
     }
 
     private fun hideWindow() {
         preventionView.visibility = View.INVISIBLE
         preventionView.removeCallback(volumeKeyCallback)
+        notifyMistouchVisibilityChanged(false)
+    }
+
+    private fun notifyMistouchVisibilityChanged(visible: Boolean) {
+        if (mistouchWindowVisible == visible) return
+        mistouchWindowVisible = visible
+        MistouchInteractor.get().handleMistouchVisibilityChanged(visible)
     }
 
     override fun onDoubleTapPowerGesture() {

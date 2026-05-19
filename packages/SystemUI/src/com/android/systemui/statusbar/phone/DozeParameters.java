@@ -60,6 +60,7 @@ import com.android.systemui.tuner.TunerService;
 import com.android.systemui.unfold.FoldAodAnimationController;
 import com.android.systemui.unfold.SysUIUnfoldComponent;
 import com.android.systemui.util.settings.SecureSettings;
+import org.avium.systemui.aod.AviumAodController;
 
 import java.io.PrintWriter;
 import java.util.Optional;
@@ -95,6 +96,7 @@ public class DozeParameters implements
     private final UserTracker mUserTracker;
     private final SecureSettings mSecureSettings;
     private final Optional<MinModeManager> mMinModeManager;
+    private final AviumAodController mAviumAodController;
 
     private boolean mDozeAlwaysOn;
     private boolean mControlScreenOffAnimation;
@@ -142,7 +144,8 @@ public class DozeParameters implements
             DozeInteractor dozeInteractor,
             KeyguardTransitionInteractor transitionInteractor,
             SecureSettings secureSettings,
-            Optional<MinModeManager> minModeManager) {
+            Optional<MinModeManager> minModeManager,
+            AviumAodController aviumAodController) {
         mResources = resources;
         mAmbientDisplayConfiguration = ambientDisplayConfiguration;
         mAlwaysOnPolicy = alwaysOnDisplayPolicy;
@@ -159,6 +162,7 @@ public class DozeParameters implements
         mTransitionInteractor = transitionInteractor;
         mSecureSettings = secureSettings;
         mMinModeManager = minModeManager;
+        mAviumAodController = aviumAodController;
 
         keyguardUpdateMonitor.registerCallback(mKeyguardVisibilityCallback);
         tunerService.addTunable(
@@ -289,7 +293,12 @@ public class DozeParameters implements
      * @return {@code true} if enabled and available.
      */
     public boolean getAlwaysOn() {
-        return (mDozeAlwaysOn && !mBatteryController.isAodPowerSave()) || isMinModeActive();
+        return isAviumAodAllowed(
+                (mDozeAlwaysOn && !mBatteryController.isAodPowerSave()) || isMinModeActive());
+    }
+
+    private boolean isAviumAodAllowed(boolean baseAlwaysOn) {
+        return mAviumAodController == null || mAviumAodController.isAodAllowed(baseAlwaysOn);
     }
 
     /**
@@ -457,6 +466,35 @@ public class DozeParameters implements
         dispatchAlwaysOnEvent();
     }
 
+    protected DozeParameters(
+            Context context,
+            @Background Handler handler,
+            @Main Resources resources,
+            AmbientDisplayConfiguration ambientDisplayConfiguration,
+            AlwaysOnDisplayPolicy alwaysOnDisplayPolicy,
+            PowerManager powerManager,
+            BatteryController batteryController,
+            TunerService tunerService,
+            DumpManager dumpManager,
+            ScreenOffAnimationController screenOffAnimationController,
+            Optional<SysUIUnfoldComponent> sysUiUnfoldComponent,
+            UnlockedScreenOffAnimationController unlockedScreenOffAnimationController,
+            KeyguardUpdateMonitor keyguardUpdateMonitor,
+            ConfigurationController configurationController,
+            StatusBarStateController statusBarStateController,
+            UserTracker userTracker,
+            DozeInteractor dozeInteractor,
+            KeyguardTransitionInteractor transitionInteractor,
+            SecureSettings secureSettings,
+            Optional<MinModeManager> minModeManager) {
+        this(context, handler, resources, ambientDisplayConfiguration, alwaysOnDisplayPolicy,
+                powerManager, batteryController, tunerService, dumpManager,
+                screenOffAnimationController, sysUiUnfoldComponent,
+                unlockedScreenOffAnimationController, keyguardUpdateMonitor,
+                configurationController, statusBarStateController, userTracker, dozeInteractor,
+                transitionInteractor, secureSettings, minModeManager, null);
+    }
+
     @Override
     public void onConfigChanged(Configuration newConfig) {
         updateControlScreenOff();
@@ -494,7 +532,6 @@ public class DozeParameters implements
     private void dispatchAlwaysOnEvent() {
         mScreenOffAnimationController.onAlwaysOnChanged(getAlwaysOn());
         mDozeInteractor.setAodAvailable(getAlwaysOn());
-
     }
 
     private boolean getPostureSpecificBool(

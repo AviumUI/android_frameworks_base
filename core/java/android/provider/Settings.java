@@ -10717,6 +10717,43 @@ public final class Settings {
         public static final String DOZE_ALWAYS_ON = "doze_always_on";
 
         /**
+         * Whether AOD schedule control is enabled.
+         * Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String AVIUM_AOD_SCHEDULE_ENABLED = "avium_aod_schedule_enabled";
+
+        /**
+         * AOD schedule start time in HH:mm format.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String AVIUM_AOD_SCHEDULE_START_TIME =
+                "avium_aod_schedule_start_time";
+
+        /**
+         * AOD schedule end time in HH:mm format.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String AVIUM_AOD_SCHEDULE_END_TIME =
+                "avium_aod_schedule_end_time";
+
+        /**
+         * Whether AOD shake-to-show is enabled.
+         * <p>
+         * Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String AVIUM_AOD_SHAKE_ENABLED = "avium_aod_shake_enabled";
+
+        /**
          * Indicates whether ambient wallpaper is visible with AOD.
          * <p>
          * Type: int (0 for false, 1 for true)

@@ -200,6 +200,12 @@ public class SecureSettingsValidators {
         VALIDATORS.put(Secure.STATUS_BAR_SHOW_VIBRATE_ICON, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Secure.DOZE_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Secure.DOZE_ALWAYS_ON, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Secure.AVIUM_AOD_SCHEDULE_ENABLED, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Secure.AVIUM_AOD_SCHEDULE_START_TIME,
+                value -> value != null && value.matches("([01][0-9]|2[0-3]):[0-5][0-9]"));
+        VALIDATORS.put(Secure.AVIUM_AOD_SCHEDULE_END_TIME,
+                value -> value != null && value.matches("([01][0-9]|2[0-3]):[0-5][0-9]"));
+        VALIDATORS.put(Secure.AVIUM_AOD_SHAKE_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Secure.DOZE_ALWAYS_ON_WALLPAPER_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Secure.DOZE_PICK_UP_GESTURE, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Secure.DOZE_DOUBLE_TAP_GESTURE, BOOLEAN_VALIDATOR);

@@ -26,12 +26,14 @@ import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import dagger.Lazy
 import dagger.Module
 import dagger.Provides
+import org.avium.systemui.aod.di.AviumAodModule
 import org.avium.systemui.chips.di.AviumChipsModule
 import org.avium.systemui.keyguard.AviumMusicLockscreenController
 import org.avium.systemui.lockscreen.di.AviumLockscreenModule
 import org.avium.systemui.mistouch.di.MistouchModule
 
 @Module(includes = [
+    AviumAodModule::class,
     AviumChipsModule::class,
     AviumLockscreenModule::class,
     MistouchModule::class

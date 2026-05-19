@@ -232,6 +232,12 @@ constructor(
         resources.getStringArray(com.android.internal.R.array.vendor_stoppable_fgs_system_apps)
     }
 
+    //Ext add
+    private val hideSysAppNotifs by lazy {
+        resources.getString(com.android.internal.R.string.config_avium_hide_sysapp_notifs_default)
+            .split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+    }
+
     override fun init() {
         synchronized(lock) {
             if (initialized) {
@@ -727,6 +733,12 @@ constructor(
             private set
 
         fun updateUiControl() {
+            if (hideSysAppNotifs.contains(packageName)) {
+                uiControl = UIControl.HIDE_ENTRY
+                uiControlInitialized = true
+                return
+            }
+
             backgroundRestrictionExemptionReason =
                 activityManager.getBackgroundRestrictionExemptionReason(uid)
             uiControl =

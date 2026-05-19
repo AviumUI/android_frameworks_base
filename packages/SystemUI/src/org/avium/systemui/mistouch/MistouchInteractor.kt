@@ -25,6 +25,7 @@ class MistouchInteractor private constructor() {
         fun onAffordanceLongClick() {}
         fun onDoubleTapPowerGesture() {}
         fun onEmergencyButtonClick() {}
+        fun onMistouchVisibilityChanged(visible: Boolean) {}
     }
 
     private val listeners = CopyOnWriteArrayList<WeakReference<MistouchEvents>>()
@@ -60,6 +61,10 @@ class MistouchInteractor private constructor() {
 
     fun handleAffordanceLongClick() {
         notifyListeners { it.onAffordanceLongClick() }
+    }
+
+    fun handleMistouchVisibilityChanged(visible: Boolean) {
+        notifyListeners { it.onMistouchVisibilityChanged(visible) }
     }
 
     companion object {

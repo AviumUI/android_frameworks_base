@@ -41,6 +41,7 @@ import java.util.function.Consumer
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
@@ -109,6 +110,8 @@ constructor(
         requestCallback: RequestCallback,
     ) {
         if (SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE.isTrue) {
+            clearScreenshotController()
+            delay(50L)
             val display = getDisplayToScreenshot(screenshotRequest)
             val screenshotHandler = getScreenshotController(display)
             dispatchToController(
@@ -123,6 +126,9 @@ constructor(
             if (displays.isEmpty()) {
                 Log.e(TAG, "No displays found for screenshot.")
             }
+
+            clearScreenshotController()
+            delay(50L)
 
             displays.forEach { display ->
                 val displayId = display.displayId
@@ -145,6 +151,11 @@ constructor(
                 )
             }
         }
+    }
+
+    private fun clearScreenshotController() {
+        screenshotController?.onDestroy()
+        screenshotController = null
     }
 
     /** All logging should be triggered only by this method. */

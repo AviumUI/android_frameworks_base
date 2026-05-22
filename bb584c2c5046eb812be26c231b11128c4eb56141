@@ -16,6 +16,23 @@
       "message": "works fine on chiron",
       "revId": "bb584c2c5046eb812be26c231b11128c4eb56141",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f5e2dc6b_b829898a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000017
+      },
+      "writtenOn": "2026-05-22T14:35:31Z",
+      "side": 1,
+      "message": "ping",
+      "revId": "bb584c2c5046eb812be26c231b11128c4eb56141",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71"
     }
   ]
 }

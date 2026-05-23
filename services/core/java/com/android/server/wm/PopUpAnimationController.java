@@ -44,11 +44,11 @@ class PopUpAnimationController {
     private final WindowManagerService mService;
     private final Handler mSurfaceAnimationHandler;
 
+    private final Choreographer.FrameCallback mFrameCallback;
     private final Choreographer.FrameCallback mFrameCancelCallback;
     private final Choreographer.FrameCallback mFrameCrossOverCallback;
     private final Choreographer.FrameCallback mFrameExitCallback;
     private final Choreographer.FrameCallback mFrameToggleResizeCallback;
-    private final Choreographer.FrameCallback mSpringUpdateCallback;
 
     private final Object mLock = new Object();
     private final Object mCancelLock = new Object();
@@ -101,7 +101,9 @@ class PopUpAnimationController {
     PopUpAnimationController(WindowManagerService wms) {
         mSurfaceAnimationHandler = SurfaceAnimationThread.getHandler();
 
-
+        mFrameCallback = frameTimeNanos -> {
+            startAnimations();
+        };
         mFrameExitCallback = frameTimeNanos -> {
             startExitAnimation();
         };
@@ -110,9 +112,6 @@ class PopUpAnimationController {
         };
         mFrameCrossOverCallback = frameTimeNanos -> {
             startCrossOverAnimation();
-        };
-        mSpringUpdateCallback = frameTimeNanos -> {
-            updateSpringAnimationPosition();
         };
         mFrameCancelCallback = frameTimeNanos -> {
             if (isAnimating()) {
@@ -497,16 +496,13 @@ class PopUpAnimationController {
         mWindowScale = winScale;
         mVelX = velX;
         mVelY = velY;
-        startAnimations();
+        mChoreographer.postFrameCallback(mFrameCallback);
     }
 
     private void startAnimations() {
-        mSpringAnimationX = createSpringAnimation(mValueHolderX, mEndPos.x, mVelX);
-        mSpringAnimationY = createSpringAnimation(mValueHolderY, mEndPos.y, mVelY);
         mRunningSpringAnimations = 2;
-        mSpringAnimationX.start();
-        mSpringAnimationY.start();
-        updateSpringAnimationPosition();
+        mSpringAnimationX = startSpringAnimation(mValueHolderX, mEndPos.x, mVelX);
+        mSpringAnimationY = startSpringAnimation(mValueHolderY, mEndPos.y, mVelY);
     }
 
     private void updateValueHolder(float valueX, float valueY) {
@@ -519,7 +515,7 @@ class PopUpAnimationController {
         mValueHolderY.setValue(valueY);
     }
 
-    private SpringAnimation createSpringAnimation(FloatValueHolder valueHolder, float endValue,
+    private SpringAnimation startSpringAnimation(FloatValueHolder valueHolder, float endValue,
             float velocity) {
         final SpringForce springForce = new SpringForce();
         springForce.setStiffness(STPRING_STIFFNESS);
@@ -528,6 +524,29 @@ class PopUpAnimationController {
 
         final SpringAnimation springAnimation = new SpringAnimation(valueHolder, velocity);
         springAnimation.setStartVelocity(velocity).setSpring(springForce)
+                .addUpdateListener((anim, val, vel) -> {
+                    final int x;
+                    final int y;
+                    final int boundWidth;
+                    final int boundHeight;
+                    final float windowScale;
+                    synchronized (mLock) {
+                        synchronized (mCancelLock) {
+                            if (mIsCancelling) {
+                                return;
+                            }
+                            x = (int) mValueHolderX.getValue();
+                            y = (int) mValueHolderY.getValue();
+                            boundWidth = mBoundWidth;
+                            boundHeight = mBoundHeight;
+                            windowScale = mWindowScale;
+                            setTaskPosition(x, y, windowScale, boundWidth, boundHeight);
+                        }
+                        scheduleApplyTransaction();
+                    }
+                    PinnedWindowOverlayController.getInstance().updateOverlayPosition(
+                            x, y, boundWidth, boundHeight, windowScale);
+                })
                 .addEndListener((anim, canceled, val, vel) -> {
                     final boolean finished;
                     synchronized (mLock) {
@@ -544,24 +563,25 @@ class PopUpAnimationController {
                             Slog.d(TAG, "SpringAnimation: onAnimationEnd mIsAnimating=" + mIsAnimating);
                         }
                         synchronized (mCancelLock) {
-                            if (!mIsCancelling) {
+                            if (!mIsCancelling && !canceled) {
                                 setTaskPosition(x, y, mWindowScale, mBoundWidth, mBoundHeight);
                             }
                         }
-                        if (mFrameTransaction != null) {
+                        if (!canceled && mFrameTransaction != null) {
                             mFrameTransaction.apply();
                         }
                         final OnAnimationEndCallback cb = mCallback;
                         mIsAnimating = false;
-                        if (!mIsCancelling && cb != null) {
+                        if (!mIsCancelling && !canceled && cb != null) {
                             mService.mAnimationHandler.post(cb::onAnimationEnded);
                         }
                     }
-                    if (!mIsCancelling) {
+                    if (!mIsCancelling && !canceled) {
                         PinnedWindowOverlayController.getInstance().updateOverlayPosition(
                                 mEndPos.x, mEndPos.y, mBoundWidth, mBoundHeight, mWindowScale);
                     }
                 });
+        springAnimation.start();
         return springAnimation;
     }
 
@@ -751,25 +771,4 @@ class PopUpAnimationController {
         }
     }
 
-    private void updateSpringAnimationPosition() {
-        if (!mIsAnimating || mIsCancelling) return;
-        final int x = (int) mValueHolderX.getValue();
-        final int y = (int) mValueHolderY.getValue();
-        synchronized (mLock) {
-            setTaskPosition(x, y, mWindowScale, mBoundWidth, mBoundHeight);
-            if (mFrameTransaction != null) {
-                mFrameTransaction.apply();
-            }
-        }
-        PinnedWindowOverlayController.getInstance().updateOverlayPosition(
-                x, y, mBoundWidth, mBoundHeight, mWindowScale);
-        if (isSpringAnimating()) {
-            mChoreographer.postFrameCallback(mSpringUpdateCallback);
-        }
-    }
-
-    private boolean isSpringAnimating() {
-        return (mSpringAnimationX != null && mSpringAnimationX.isRunning())
-                || (mSpringAnimationY != null && mSpringAnimationY.isRunning());
-    }
 }

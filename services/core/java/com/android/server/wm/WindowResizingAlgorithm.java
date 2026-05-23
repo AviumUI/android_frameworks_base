@@ -107,6 +107,41 @@ class WindowResizingAlgorithm {
         return out;
     }
 
+    static Rect getPinnedBoundaryGapAfterMoving(Rect displayBound,
+            Rect windowBound, float velX, float velY) {
+        final Rect out = new Rect();
+        if (displayBound == null || displayBound.isEmpty()
+                || windowBound == null || windowBound.isEmpty()) {
+            return out;
+        }
+
+        final boolean isWindowOnLeftSide = windowBound.centerX() < displayBound.centerX();
+        final boolean shouldSpringLeft = isWindowOnLeftSide
+                ? velX < VELOCITY_X_SPEED_THRESHOLD : velX < -VELOCITY_X_SPEED_THRESHOLD;
+        if (shouldSpringLeft) {
+            out.left = BOUNDARY_GAP;
+        } else {
+            out.right = BOUNDARY_GAP;
+        }
+
+        if (velY < -VELOCITY_Y_SPEED_THRESHOLD
+                || windowBound.top <= displayBound.top + BOUNDARY_GAP) {
+            out.top = BOUNDARY_GAP;
+        } else if (velY > VELOCITY_Y_SPEED_THRESHOLD
+                || windowBound.bottom >= displayBound.bottom - BOUNDARY_GAP) {
+            out.bottom = BOUNDARY_GAP;
+        }
+
+        if (DEBUG_POP_UP) {
+            Slog.d(TAG, "pinnedBoundaryGap: " + out + ", vel X = " + velX
+                    + ", vel Y = " + velY + ", windowBound: " + windowBound
+                    + ", displayBound: " + displayBound
+                    + ", isWindowOnLeftSide: " + isWindowOnLeftSide
+                    + ", shouldSpringLeft: " + shouldSpringLeft);
+        }
+        return out;
+    }
+
     static void getCenterByBoundaryGap(Rect bound, Rect displayBound, Rect boundaryGap,
             float verticalPosRatio, Point center, float scale, Point outPos) {
         outPos.set(center);

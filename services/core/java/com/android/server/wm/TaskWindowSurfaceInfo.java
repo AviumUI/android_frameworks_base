@@ -715,6 +715,11 @@ class TaskWindowSurfaceInfo {
         final int scaledHeight = (int) (mTask.getBounds().height() * scale);
         mWindowCenterPosition.set(newLeft + scaledWidth / 2, newTop + scaledHeight / 2);
         if (isPinned) {
+            final Rect displayBound = new Rect();
+            if (mTask.mDisplayContent != null) {
+                mTask.mDisplayContent.getBounds(displayBound);
+            }
+            setPinnedWindowVerticalPosRatio(mWindowCenterPosition, displayBound, true);
             PinnedWindowOverlayController.getInstance().updateOverlayPosition(newLeft, newTop,
                     mTask.getBounds().width(), mTask.getBounds().height(), scale);
         }
@@ -747,8 +752,6 @@ class TaskWindowSurfaceInfo {
         if (mTask.mDisplayContent != null) {
             mTask.mDisplayContent.getBounds(displayBound);
         }
-        final int displayWidth = displayBound.width();
-
         final Point startPos = new Point(surfaceBounds.left, surfaceBounds.top);
         final Point currentCenterPos = new Point(
                 surfaceBounds.left + surfaceBounds.width() / 2,
@@ -756,17 +759,22 @@ class TaskWindowSurfaceInfo {
 
         final float winScale = getWindowSurfaceScale();
         final Rect bounds = mTask.getBounds();
+        final boolean isPinned = mTask.getWindowConfiguration().isPinnedExtWindowMode();
 
-        if (mTask.getWindowConfiguration().isPinnedExtWindowMode()) {
+        if (isPinned) {
+            setPinnedWindowVerticalPosRatio(currentCenterPos, displayBound, true);
             if (shouldSlideToEdge(surfaceBounds, displayBound, xVelocity, yVelocity)) {
                 dockToEdge(surfaceBounds, displayBound, xVelocity);
                 return;
             }
         }
 
-        final Rect boundaryGap = WindowResizingAlgorithm.getBoundaryGapAfterMoving(
-                displayWidth, displayBound, surfaceBounds,
-                currentCenterPos.x, currentCenterPos.y, xVelocity, yVelocity);
+        final Rect boundaryGap = isPinned
+                ? WindowResizingAlgorithm.getPinnedBoundaryGapAfterMoving(
+                        displayBound, surfaceBounds, xVelocity, yVelocity)
+                : WindowResizingAlgorithm.getBoundaryGapAfterMoving(
+                        displayBound.width(), displayBound, surfaceBounds,
+                        currentCenterPos.x, currentCenterPos.y, xVelocity, yVelocity);
 
         setWindowBoundaryGap(boundaryGap.left, boundaryGap.top, boundaryGap.right, boundaryGap.bottom);
 
@@ -775,7 +783,6 @@ class TaskWindowSurfaceInfo {
                 getPinnedWindowVerticalPosRatio(displayBound), currentCenterPos, winScale, endPos);
 
         setWindowCenterPosition(endPos);
-        final boolean isPinned = mTask.getWindowConfiguration().isPinnedExtWindowMode();
         if (isPinned) {
             setPinnedWindowVerticalPosRatio(endPos, displayBound, true);
         }

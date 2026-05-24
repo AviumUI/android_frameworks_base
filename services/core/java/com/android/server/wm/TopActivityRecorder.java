@@ -291,10 +291,10 @@ public class TopActivityRecorder {
         }
     }
 
-    boolean moveTopPinnedToMini() {
+    Task moveTopPinnedToMini() {
         synchronized (mFocusLock) {
             if (mTopPinnedWindowActivity == null) {
-                return false;
+                return null;
             }
             final Task prevMiniTask = getTopMiniWindowTaskLocked();
             final Task pinnedTask = mTopPinnedWindowActivity.task;
@@ -304,13 +304,10 @@ public class TopActivityRecorder {
             DimmerWindow.getInstance().setTask(pinnedTask);
             mTopPinnedWindowActivity = null;
             PinnedWindowOverlayController.getInstance().setTask(null);
-            mHandler.postDelayed(() -> {
-                if (prevMiniTask != null && prevMiniTask != pinnedTask) {
-                    PopUpWindowController.getInstance().moveActivityTaskToBack(prevMiniTask,
-                            PopUpWindowController.MOVE_TO_BACK_NEW_MINI);
-                }
-            }, WindowChangeAnimationSpecExt.ANIMATION_DURATION_MODE_CHANGING);
-            return prevMiniTask != null;
+            if (prevMiniTask == pinnedTask) {
+                return null;
+            }
+            return prevMiniTask;
         }
     }
 

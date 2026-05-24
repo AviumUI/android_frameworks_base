@@ -589,8 +589,9 @@ public class PopUpWindowController {
                     info.cancelPopUpViewAnimation();
                 }
                 if (rootTask.getWindowConfiguration().isPinnedExtWindowMode()) {
-                    if (!TopActivityRecorder.getInstance().moveTopPinnedToMini()) {
-                        rootTask.mWindowContainerExt.prepareTransition();
+                    final Task prevMiniTask = TopActivityRecorder.getInstance().moveTopPinnedToMini();
+                    if (prevMiniTask != null) {
+                        moveActivityTaskToBack(prevMiniTask, MOVE_TO_BACK_NEW_MINI);
                     }
                 } else {
                     final Task existingMiniTask = TopActivityRecorder.getInstance()
@@ -598,8 +599,8 @@ public class PopUpWindowController {
                     if (existingMiniTask != null) {
                         moveActivityTaskToBack(existingMiniTask, MOVE_TO_BACK_NEW_MINI);
                     }
-                    rootTask.mWindowContainerExt.prepareTransition();
                 }
+                rootTask.mWindowContainerExt.prepareTransition();
                 rootTask.setWindowingMode(WINDOWING_MODE_MINI_WINDOW_EXT);
                 mAtmService.setFocusedTask(rootTask.mTaskId);
                 rootTask.mWindowContainerExt.scheduleTransition();
@@ -753,8 +754,9 @@ public class PopUpWindowController {
                 info.cancelPopUpViewAnimation();
             }
             if (rootTask.getWindowConfiguration().isPinnedExtWindowMode()) {
-                if (!TopActivityRecorder.getInstance().moveTopPinnedToMini()) {
-                    rootTask.mWindowContainerExt.prepareTransition();
+                final Task prevMiniTask = TopActivityRecorder.getInstance().moveTopPinnedToMini();
+                if (prevMiniTask != null) {
+                    moveActivityTaskToBack(prevMiniTask, MOVE_TO_BACK_NEW_MINI);
                 }
             } else {
                 final Task existingMiniTask = TopActivityRecorder.getInstance()
@@ -762,8 +764,8 @@ public class PopUpWindowController {
                 if (existingMiniTask != null) {
                     moveActivityTaskToBack(existingMiniTask, MOVE_TO_BACK_NEW_MINI);
                 }
-                rootTask.mWindowContainerExt.prepareTransition();
             }
+            rootTask.mWindowContainerExt.prepareTransition();
             rootTask.setWindowingMode(WINDOWING_MODE_MINI_WINDOW_EXT);
             rootTask.mWindowContainerExt.scheduleTransition();
             DimmerWindow.getInstance().setTask(rootTask);
@@ -823,7 +825,10 @@ public class PopUpWindowController {
                         ? existingPinnedTask.getRootTask() : null;
                 if (existingPinnedTask != null
                         && (existingPinnedTask == task || existingPinnedRootTask == rootTask)) {
-                    skipPrepareTransition = TopActivityRecorder.getInstance().moveTopPinnedToMini();
+                    final Task prevMiniTask = TopActivityRecorder.getInstance().moveTopPinnedToMini();
+                    if (prevMiniTask != null) {
+                        moveActivityTaskToBack(prevMiniTask, MOVE_TO_BACK_NEW_MINI);
+                    }
                     PinnedWindowOverlayController.getInstance().setTask(null);
                 } else {
                     final Task existingMiniTask = TopActivityRecorder.getInstance()
@@ -1313,14 +1318,16 @@ public class PopUpWindowController {
                 Slog.d(TAG, "enterMiniWindowingModeFromPinned: task=" + task);
             }
             final TaskWindowSurfaceInfo surfaceInfo = rootTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
-            if (!TopActivityRecorder.getInstance().moveTopPinnedToMini()) {
-                rootTask.mWindowContainerExt.prepareTransition();
-                rootTask.mWindowContainerExt.setPreFreezedWindowingMode(
-                        rootTask.getWindowConfiguration().getWindowingMode());
-                final Rect startBounds = new Rect();
-                rootTask.getBounds(startBounds);
-                rootTask.mWindowContainerExt.getFreezerExt().transitionFreeze(startBounds, surfaceInfo);
+            final Task prevMiniTask = TopActivityRecorder.getInstance().moveTopPinnedToMini();
+            if (prevMiniTask != null) {
+                moveActivityTaskToBack(prevMiniTask, MOVE_TO_BACK_NEW_MINI);
             }
+            rootTask.mWindowContainerExt.prepareTransition();
+            rootTask.mWindowContainerExt.setPreFreezedWindowingMode(
+                    rootTask.getWindowConfiguration().getWindowingMode());
+            final Rect startBounds = new Rect();
+            rootTask.getBounds(startBounds);
+            rootTask.mWindowContainerExt.getFreezerExt().transitionFreeze(startBounds, surfaceInfo);
             final Rect displayBound = new Rect();
             if (rootTask.mDisplayContent != null) {
                 rootTask.mDisplayContent.getBounds(displayBound);

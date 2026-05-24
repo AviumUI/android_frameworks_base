@@ -559,6 +559,10 @@ class TaskWindowSurfaceInfo {
         }
         if (isPinned && !hasAnimationLeash && !isWindowPositioningLocked() && !mIsDragging
                 && mTask.mSurfaceControl != null && mTask.mSurfaceControl.isValid()) {
+            if (mIsDockedToEdge) {
+                applyDockedSurfaceState(t);
+                return;
+            }
             final Rect surfaceBounds = getTaskWindowSurfaceBounds();
             if (surfaceBounds.left != mLastSurfaceX || surfaceBounds.top != mLastSurfaceY
                     || mLastSurfaceScale != mWindowSurfaceScale) {
@@ -576,6 +580,38 @@ class TaskWindowSurfaceInfo {
                 mLastSurfaceScale = mWindowSurfaceScale;
             }
         }
+    }
+
+    private void applyDockedSurfaceState(SurfaceControl.Transaction t) {
+        final Rect displayBound = new Rect();
+        if (mTask.mDisplayContent != null) {
+            mTask.mDisplayContent.getBounds(displayBound);
+        }
+        final Rect bounds = mOriginalBoundsBeforeDock.isEmpty()
+                ? mTask.getBounds() : mOriginalBoundsBeforeDock;
+        final float realScale = mOriginalScaleBeforeDock > 0.0f
+                ? mOriginalScaleBeforeDock : mWindowSurfaceScale;
+        if (displayBound.isEmpty() || bounds.isEmpty() || realScale <= 0.0f) {
+            return;
+        }
+
+        final int visibleWidth = Math.max(1, (int) (displayBound.width() * DOCKED_WIDTH_RATIO));
+        final int visibleHeight = Math.max(1, (int) (bounds.height() * realScale * 0.5f));
+        final int dockedLeft = mIsDockedLeft ? 0 : displayBound.width() - visibleWidth;
+        final int dockedTop = Math.max(0, Math.min(
+                (int) (mWindowCenterPosition.y - visibleHeight / 2),
+                displayBound.height() - visibleHeight));
+        final int cropWidth = Math.max(1, (int) (visibleWidth / realScale));
+        final int cropHeight = Math.max(1, (int) (bounds.height() * 0.5f));
+
+        t.setPosition(mTask.mSurfaceControl, dockedLeft, dockedTop)
+                .setWindowCrop(mTask.mSurfaceControl, cropWidth, cropHeight)
+                .setCornerRadius(mTask.mSurfaceControl, 0)
+                .setScale(mTask.mSurfaceControl, realScale, realScale)
+                .setAlpha(mTask.mSurfaceControl, DOCKED_ALPHA)
+                .show(mTask.mSurfaceControl);
+        PinnedWindowOverlayController.getInstance().updateOverlayPosition(
+                dockedLeft, dockedTop, visibleWidth, visibleHeight, 1.0f);
     }
 
     void scheduleTransition(TaskWindowSurfaceInfo freezeTaskWindowSurfaceInfo, DisplayInfo displayInfo) {
@@ -667,6 +703,16 @@ class TaskWindowSurfaceInfo {
         final float[] animScale = new float[1];
         if (mPopUpAnimationController.getCurrentAnimPosition(animXY, animScale)) {
             bounds.offsetTo(animXY[0], animXY[1]);
+            final Point pos = new Point(bounds.left + bounds.width() / 2,
+                    bounds.top + bounds.height() / 2);
+            setWindowCenterPosition(pos);
+            if (mTask.getWindowConfiguration().isPinnedExtWindowMode()) {
+                final Rect displayBound = new Rect();
+                if (mTask.mDisplayContent != null) {
+                    mTask.mDisplayContent.getBounds(displayBound);
+                }
+                setPinnedWindowVerticalPosRatio(pos, displayBound, true);
+            }
             mPopUpAnimationController.clearAnimPosition();
         }
         cancelPopUpViewAnimation();
@@ -764,7 +810,7 @@ class TaskWindowSurfaceInfo {
         if (isPinned) {
             setPinnedWindowVerticalPosRatio(currentCenterPos, displayBound, true);
             if (shouldSlideToEdge(surfaceBounds, displayBound, xVelocity, yVelocity)) {
-                dockToEdge(surfaceBounds, displayBound, xVelocity);
+                dockToEdge(surfaceBounds, displayBound);
                 return;
             }
         }
@@ -815,8 +861,9 @@ class TaskWindowSurfaceInfo {
         return isHorizontalSwipe && isOutwardSwipe && (surfaceBounds.left < 0 || surfaceBounds.right > displayBound.width());
     }
 
-    private void dockToEdge(Rect surfaceBounds, Rect displayBound, float xVelocity) {
+    private void dockToEdge(Rect surfaceBounds, Rect displayBound) {
         cancelPopUpViewAnimation();
+        mPopUpAnimationController.clearAnimPosition();
 
         final boolean toLeft = surfaceBounds.centerX() < displayBound.width() / 2;
         mIsDockedLeft = toLeft;
@@ -825,7 +872,6 @@ class TaskWindowSurfaceInfo {
         mOriginalBoundsBeforeDock.set(mTask.getBounds());
         mOriginalScaleBeforeDock = getWindowSurfaceScale();
         mOriginalAlphaBeforeDock = NORMAL_ALPHA;
-        mOriginalCenterPositionBeforeDock.set(getWindowCenterPosition());
         mOriginalCornerRadiusBeforeDock = getCornerRadius();
 
         final float realScale = mWindowSurfaceScale;
@@ -837,6 +883,15 @@ class TaskWindowSurfaceInfo {
         final int dockedLeft = toLeft ? 0 : displayBound.width() - windowWidth;
         final int dockedTop = Math.max(0, Math.min(surfaceBounds.top + (windowHeight - visibleHeight) / 2,
                 displayBound.height() - visibleHeight));
+        final Point currentCenterPos = new Point(dockedLeft + windowWidth / 2,
+                dockedTop + visibleHeight / 2);
+        final int topGap = dockedTop == 0 ? BOUNDARY_GAP : 0;
+        final int bottomGap = dockedTop == displayBound.height() - visibleHeight ? BOUNDARY_GAP : 0;
+
+        setWindowBoundaryGap(toLeft ? BOUNDARY_GAP : 0, topGap,
+                toLeft ? 0 : BOUNDARY_GAP, bottomGap);
+        setPinnedWindowVerticalPosRatio(currentCenterPos, displayBound, true);
+        mOriginalCenterPositionBeforeDock.set(currentCenterPos);
 
         final int startX = surfaceBounds.left;
         final int startY = surfaceBounds.top;
@@ -854,7 +909,7 @@ class TaskWindowSurfaceInfo {
                 startCropWidth, startCropHeight, endCropWidth, endCropHeight,
                 startAlpha, endAlpha, realScale, mTask, this);
 
-        mWindowCenterPosition.set(dockedLeft + windowWidth / 2, dockedTop + visibleHeight / 2);
+        mWindowCenterPosition.set(currentCenterPos);
 
         PinnedWindowOverlayController.getInstance().updateOverlayPosition(
                 toLeft ? 0 : displayBound.width() - visibleWidth, dockedTop,
@@ -878,6 +933,7 @@ class TaskWindowSurfaceInfo {
         final float realScale = mOriginalScaleBeforeDock;
         final Rect bounds = mOriginalBoundsBeforeDock;
         final Point centerPos = mOriginalCenterPositionBeforeDock;
+        final Point startCenterPos = getWindowCenterPosition();
 
         final Point endPos = new Point();
         WindowResizingAlgorithm.getCenterByBoundaryGap(bounds, displayBound, getWindowBoundaryGap(),
@@ -892,7 +948,7 @@ class TaskWindowSurfaceInfo {
         final int currentVisibleWidth = (int) (displayBound.width() * DOCKED_WIDTH_RATIO);
         final int currentVisibleHeight = (int) (bounds.height() * realScale * 0.5f);
         final int startX = mIsDockedLeft ? 0 : displayBound.width() - currentVisibleWidth;
-        final int startY = (int) (mWindowCenterPosition.y - currentVisibleHeight / 2);
+        final int startY = (int) (startCenterPos.y - currentVisibleHeight / 2);
         final int startCropWidth = (int) (currentVisibleWidth / realScale);
         final int startCropHeight = (int) (bounds.height() * 0.5f);
         final int endCropWidth = bounds.width();

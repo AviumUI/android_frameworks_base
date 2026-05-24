@@ -42,6 +42,7 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.Vibrator;
 import android.os.VibrationEffect;
+import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Slog;
 import android.view.IWindow;
@@ -1136,6 +1137,21 @@ public class PopUpWindowController {
         final String currentTopMiniPackage = TopActivityRecorder.getInstance().getTopMiniWindowPackage();
         final String currentTopPinnedPackage = TopActivityRecorder.getInstance().getTopPinnedWindowPackage();
 
+        if (!TextUtils.isEmpty(targetPackage)
+                && request.activityOptions != null
+                && request.activityOptions.isPopUpWindowMode()
+                && !request.activityOptions.isFromNotification()
+                && (targetPackage.equals(currentTopFullscreenPackage)
+                        || targetPackage.equals(currentTopMiniPackage)
+                        || targetPackage.equals(currentTopPinnedPackage))) {
+            if (DEBUG_POP_UP) {
+                Slog.d(TAG, "computeBeforeExecuteRequest, skip: " + targetPackage
+                        + " already visible, refusing to open itself in pop-up");
+            }
+            request.activityOptions.setLaunchWindowingMode(WINDOWING_MODE_UNDEFINED);
+            return;
+        }
+
         if (request.activityOptions != null && request.activityOptions.isFromNotification()
                 && request.activityOptions.isMiniWindowingMode()) {
             if (currentTopMiniPackage.equals(targetPackage)) {
@@ -1162,6 +1178,17 @@ public class PopUpWindowController {
         }
 
         if (currentTopMiniPackage.equals(callerPackage)) {
+            if (!TextUtils.isEmpty(targetPackage) && targetPackage.equals(callerPackage)) {
+                if (DEBUG_POP_UP) {
+                    Slog.d(TAG, "computeBeforeExecuteRequest, skip: in-mini caller "
+                            + callerPackage + " launching itself");
+                }
+                if (request.activityOptions != null
+                        && request.activityOptions.isPopUpWindowMode()) {
+                    request.activityOptions.setLaunchWindowingMode(WINDOWING_MODE_UNDEFINED);
+                }
+                return;
+            }
             if (DEBUG_POP_UP) {
                 Slog.d(TAG, "computeBeforeExecuteRequest, configure: starting outside activity from mini-window");
             }
@@ -1232,6 +1259,7 @@ public class PopUpWindowController {
     public void exitMiniWindowingMode() {
         final Task task = DimmerWindow.getInstance().getTask();
         if (task != null) {
+            TopActivityRecorder.getInstance().moveTopMiniToFull();
             setTryExitWindowingMode(true);
             tryExitPopUpView(task, false, true, true);
             setTryExitWindowingMode(false);
@@ -1257,8 +1285,7 @@ public class PopUpWindowController {
             if (DEBUG_POP_UP) {
                 Slog.d(TAG, "exitPinnedWindowingMode: task=" + task);
             }
-            TopActivityRecorder.getInstance().clearPinnedWindow();
-            PinnedWindowOverlayController.getInstance().setTask(null);
+            TopActivityRecorder.getInstance().moveTopPinnedToFull();
             DimmerWindow.getInstance().setTask(null);
             setTryExitWindowingMode(true);
             tryExitPopUpView(rootTask, false, false, true);

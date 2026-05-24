@@ -322,6 +322,18 @@ public class TopActivityRecorder {
         }
     }
 
+    void moveTopPinnedToFull() {
+        synchronized (mFocusLock) {
+            logD("moveTopPinnedToFull");
+            if (mTopPinnedWindowActivity != null) {
+                mTopFullscreenActivity = new ActivityInfo(mTopPinnedWindowActivity);
+                logD("Top fullscreen window activity changed to " + mTopFullscreenActivity);
+            }
+            mTopPinnedWindowActivity = null;
+            PinnedWindowOverlayController.getInstance().setTask(null);
+        }
+    }
+
     Task getTopPinnedWindowTask() {
         synchronized (mFocusLock) {
             return mTopPinnedWindowActivity != null ? mTopPinnedWindowActivity.task : null;

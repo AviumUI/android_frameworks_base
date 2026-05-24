@@ -39,7 +39,7 @@ class WindowChangeAnimationSpecExt implements LocalAnimationAdapter.AnimationSpe
 
     private static final String TAG = "WindowChangeAnimationSpecExt";
 
-    private static final int ANIMATION_DURATION = 336;
+    static final int ANIMATION_DURATION_MODE_CHANGING = 336;
 
     private static final Interpolator INTERPOLATOR_MODE_CHANGING =
             new PathInterpolator(0.2f, 0.0f, 0.0f, 1.0f);
@@ -101,7 +101,8 @@ class WindowChangeAnimationSpecExt implements LocalAnimationAdapter.AnimationSpe
         mIsThumbnail = isThumbnail;
         mIsPivotCenter = isPivotCenter;
         initBounds();
-        createAnimationInner((int) (ANIMATION_DURATION * durationScale), displayInfo, shareInterpolator, callBack);
+        createAnimationInner((int) (ANIMATION_DURATION_MODE_CHANGING * durationScale),
+                displayInfo, shareInterpolator, callBack);
     }
 
     private void initBounds() {

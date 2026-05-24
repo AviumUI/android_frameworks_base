@@ -522,6 +522,10 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         if (mWmService.mAssistantOnTopOfDream && rootTask.isActivityTypeAssistant()) return 4;
         if (rootTask.isActivityTypeDream()) return 3;
         if (rootTask.inPinnedWindowingMode()) return 2;
+        if (rootTask.getWindowConfiguration().isPinnedExtWindowMode()
+                && rootTask.isAlwaysOnTop()) {
+            return 2;
+        }
         if (rootTask.isAlwaysOnTop()) return 1;
         return 0;
     }

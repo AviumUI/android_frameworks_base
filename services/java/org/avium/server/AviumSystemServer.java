@@ -10,6 +10,7 @@ import android.annotation.NonNull;
 import com.android.server.SystemServiceManager;
 import com.android.server.utils.TimingsTraceAndSlog;
 
+import ink.kaleidoscope.server.GmsManagerService;
 import org.avium.server.sensors.SensorBlockController;
 
 public final class AviumSystemServer {
@@ -18,6 +19,10 @@ public final class AviumSystemServer {
 
     public static void startBootstrapServices(@NonNull SystemServiceManager serviceManager,
             @NonNull TimingsTraceAndSlog t) {
+        t.traceBegin("StartGmsManagerService");
+        serviceManager.startService(GmsManagerService.class);
+        t.traceEnd();
+
         t.traceBegin("StartSensorBlockController");
         serviceManager.startService(SensorBlockController.class);
         t.traceEnd();

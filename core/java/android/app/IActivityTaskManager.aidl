@@ -131,6 +131,7 @@ interface IActivityTaskManager {
             in String callingFeatureId, int callingPid, int callingUid, in Intent intent,
             int taskId, int userId);
     int startActivityFromRecents(int taskId, in Bundle options);
+    Bundle getPinnedLayoutInfo(int taskId);
     int startActivityAsCaller(in IApplicationThread caller, in String callingPackage,
             in Intent intent, in String resolvedType, in IBinder resultTo, in String resultWho,
             int requestCode, int flags, in ProfilerInfo profilerInfo, in Bundle options,

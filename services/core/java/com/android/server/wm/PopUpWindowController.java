@@ -28,6 +28,7 @@ import static org.rising.view.PopUpViewManager.FEATURE_SUPPORTED;
 
 import android.app.ActivityOptions;
 import android.app.WindowConfiguration;
+import android.os.Bundle;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -113,6 +114,7 @@ public class PopUpWindowController {
     private boolean mTryExitWindowingModeByDrag;
     private boolean mLaunchPopUpViewFromRecents;
     private boolean mNextRecentIsPin;
+    private boolean mFromQuickStep;
 
     private WindowState mDimWinState = null;
 
@@ -225,6 +227,11 @@ public class PopUpWindowController {
             flags |= FLAG_SCHEDULE_POP_UP_VIEW;
             if (mLaunchPopUpViewFromRecents) {
                 flags |= FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS;
+                // Skip transition animation when launched from QuickStep gesture
+                if (mFromQuickStep) {
+                    info.mFlags |= FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS;
+                    mFromQuickStep = false;
+                }
             }
             if (mTryExitWindowingModeByDrag) {
                 flags |= FLAG_EXIT_POP_UP_VIEW_BY_DRAG;
@@ -506,10 +513,66 @@ public class PopUpWindowController {
                 mNextRecentIsPin = false;
                 mAtmService.focusTopTask(DEFAULT_DISPLAY);
             } else {
+                // Check if this is from QuickStep gesture — skip transition animation
+                final Bundle optsBundle = activityOptions.toBundle();
+                final boolean fromQuickStep = optsBundle != null
+                        && optsBundle.getBoolean("avium_from_quickstep", false);
+                if (fromQuickStep) {
+                    if (DEBUG_POP_UP) {
+                        Slog.d(TAG, "fromQuickStep=true, skip transition");
+                    }
+                    mFromQuickStep = true;
+                    mLaunchPopUpViewFromRecents = true;
+                    return true;
+                }
                 mLaunchPopUpViewFromRecents = true;
             }
         }
         return false;
+    }
+
+    Bundle computePinnedLayoutInfo(int taskId) {
+        synchronized (mAtmService.mGlobalLock) {
+            Task task = mAtmService.mRootWindowContainer.anyTaskForId(taskId);
+            if (task == null) return null;
+            TaskWindowSurfaceInfo info = task.mWindowContainerExt.getTaskWindowSurfaceInfo();
+            if (info == null) return null;
+
+            Rect displayBounds = new Rect();
+            if (task.mDisplayContent != null) {
+                task.mDisplayContent.getBounds(displayBounds);
+            }
+            if (displayBounds.isEmpty()) return null;
+
+            Rect taskBounds = new Rect();
+            task.getBounds(taskBounds);
+
+            int orientation = task.getConfiguration().orientation;
+            boolean isSmall = info.isPinnedWindowSmall();
+            Rect boundaryGap = info.getWindowBoundaryGap();
+            // If boundaryGap was reset to empty, use default (right-aligned pinned position)
+            if (boundaryGap.isEmpty()) {
+                boundaryGap = new Rect(0, WindowResizingAlgorithm.BOUNDARY_GAP * 2, WindowResizingAlgorithm.BOUNDARY_GAP, 0);
+            }
+            Point centerPos = info.getWindowCenterPosition();
+            // If centerPosition is uninitialized (0,0), use display center as fallback
+            if (centerPos.x == 0 && centerPos.y == 0) {
+                centerPos = new Point(displayBounds.centerX(), (int)(displayBounds.height() * 0.2f));
+            }
+            float vertRatio = info.getPinnedWindowVerticalPosRatio(displayBounds);
+            boolean isMiniScaled = task.getWindowConfiguration().isMiniExtWindowMode();
+            float cornerRadius = isMiniScaled
+                    ? info.getMiniWindowCornerRadius()
+                    : info.getPinnedWindowCornerRadius();
+            int displayRotation = task.mDisplayContent != null
+                    ? task.mDisplayContent.getRotation() : Surface.ROTATION_0;
+
+            Bundle result = new Bundle();
+            WindowResizingAlgorithm.computePinnedVisualRect(
+                    taskBounds, displayBounds, orientation, isSmall, displayRotation,
+                    boundaryGap, centerPos, vertRatio, cornerRadius, isMiniScaled, result);
+            return result;
+        }
     }
 
     boolean tryExitPopUpView(Task task, boolean skipAnim, boolean removeMini, boolean removePin) {
@@ -530,6 +593,15 @@ public class PopUpWindowController {
                         rootTask.mWindowContainerExt.setFreezerSkipAnim(skipAnim);
                         if (!skipAnim) {
                             rootTask.mWindowContainerExt.prepareTransition();
+                            // Save freeze info for custom animation fallback
+                            rootTask.mWindowContainerExt.setPreFreezedWindowingMode(
+                                    rootTask.getWindowConfiguration().getWindowingMode());
+                            final Rect startBounds = new Rect();
+                            rootTask.getBounds(startBounds);
+                            final TaskWindowSurfaceInfo exitInfo = rootTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                            if (exitInfo != null) {
+                                rootTask.mWindowContainerExt.getFreezerExt().transitionFreeze(startBounds, exitInfo);
+                            }
                         }
                         rootTask.setAlwaysOnTop(false);
                         rootTask.setWindowingMode(WINDOWING_MODE_UNDEFINED);

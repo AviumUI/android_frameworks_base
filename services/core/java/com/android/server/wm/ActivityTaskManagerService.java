@@ -1870,6 +1870,11 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
     }
 
     @Override
+    public Bundle getPinnedLayoutInfo(int taskId) {
+        return PopUpWindowController.getInstance().computePinnedLayoutInfo(taskId);
+    }
+
+    @Override
     public int startActivityFromGameSession(IApplicationThread caller, String callingPackage,
             String callingFeatureId, int callingPid, int callingUid, Intent intent, int taskId,
             int userId) {

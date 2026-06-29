@@ -12,6 +12,7 @@ import static org.rising.DebugConstants.DEBUG_POP_UP;
 import android.content.res.Configuration;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.util.Slog;
 import android.view.Surface;
 
@@ -208,7 +209,43 @@ class WindowResizingAlgorithm {
                 ratio = disW / POPUP_VIEW_DEFALUT_RATIO;
             }
         }
-        return (delta >= 0.0f ? delta : 0.0f) / (ratio / 2.0f);
+        return (Math.max(delta, 0.0f)) / (ratio / 2.0f);
+    }
+
+    /**
+     * Computes the visual rect (in display coordinates) where a pinned window
+     * would appear for the given task.
+     */
+    public static void computePinnedVisualRect(
+            Rect taskBounds, Rect displayBounds,
+            int taskOrientation, boolean isSmall, int displayRotation,
+            Rect boundaryGap, Point centerPosition, float verticalPosRatio,
+            float cornerRadius, boolean isMiniScaled, Bundle outBundle) {
+        final Rect bounds16x9 = new Rect(taskBounds);
+        getPopUpViewDefalutBounds(bounds16x9);
+
+        final float scale;
+        final Point center = new Point();
+        if (isMiniScaled) {
+            scale = getDefaultMiniWindowScale(taskOrientation, displayRotation);
+            center.set(centerPosition.x, centerPosition.y);
+        } else {
+            scale = getDefaultPinnedWindowScale(taskOrientation, isSmall);
+            getCenterByBoundaryGap(bounds16x9, displayBounds, boundaryGap,
+                    verticalPosRatio, centerPosition, scale, center);
+        }
+
+        final int visualW = (int) (bounds16x9.width() * scale);
+        final int visualH = (int) (bounds16x9.height() * scale);
+        final Rect visualRect = new Rect(
+                center.x - visualW / 2,
+                center.y - visualH / 2,
+                center.x + visualW / 2,
+                center.y + visualH / 2);
+
+        outBundle.putParcelable("visualRect", visualRect);
+        outBundle.putFloat("cornerRadius", cornerRadius);
+        outBundle.putBoolean("isMiniScaled", isMiniScaled);
     }
 
     static void getPopUpViewDefalutBounds(Rect outBounds) {
@@ -217,7 +254,7 @@ class WindowResizingAlgorithm {
             final int w = outBounds.width();
             final int x = outBounds.left;
             final int y = outBounds.top;
-            final float oriRatio = Math.max(h, w) / Math.min(h, w);
+            final float oriRatio = (float) Math.max(h, w) / Math.min(h, w);
             if (Math.abs(oriRatio - POPUP_VIEW_DEFALUT_RATIO) > 0.01f) {
                 if (h > w) {
                     outBounds.set(0, 0, w, (int) (w * POPUP_VIEW_DEFALUT_RATIO));

@@ -370,6 +370,11 @@ class TaskWindowSurfaceInfo {
         } else if (mTask.getWindowConfiguration().isPinnedExtWindowMode()) {
             mCornerRadius = mPinnedWindowCornerRadius;
             if (!isPrevPopUpWindow) {
+                // Force 16:9 bounds for pinned window (fix recents direct launch)
+                final Rect pinnedBounds = new Rect();
+                mTask.getBounds(pinnedBounds);
+                WindowResizingAlgorithm.getPopUpViewDefalutBounds(pinnedBounds);
+                mTask.setBounds(pinnedBounds);
                 resetWindowBoundaryGapToOrigin();
                 final Rect displayBound = new Rect();
                 if (mTask.mDisplayContent != null) {
@@ -387,6 +392,24 @@ class TaskWindowSurfaceInfo {
                             getWindowSurfaceScale(), pos);
                     setWindowCenterPosition(pos);
                     setWindowSurfaceScaleFactor(1.0f);
+                }
+                // Apply surface transform immediately so pinned window doesn't flash
+                // full-screen before onPrepareSurfaces runs (which may be skipped due
+                // to hasAnimationLeash during transition).
+                final SurfaceControl surfaceControl = mTask.getSurfaceControl();
+                if (surfaceControl != null && surfaceControl.isValid()) {
+                    final Rect sb = getTaskWindowSurfaceBounds();
+                    mService.mTransactionFactory.get()
+                            .setPosition(surfaceControl, sb.left, sb.top)
+                            .setWindowCrop(surfaceControl, mTask.getBounds().width(),
+                                    mTask.getBounds().height())
+                            .setCornerRadius(surfaceControl, mCornerRadius)
+                            .setScale(surfaceControl, mWindowSurfaceScale, mWindowSurfaceScale)
+                            .show(surfaceControl)
+                            .apply();
+                    mLastSurfaceX = sb.left;
+                    mLastSurfaceY = sb.top;
+                    mLastSurfaceScale = mWindowSurfaceScale;
                 }
             }
         }
@@ -506,6 +529,21 @@ class TaskWindowSurfaceInfo {
                     && mTask.mDisplayContent != null) {
                 setWindowSurfaceScale(WindowResizingAlgorithm.getDefaultMiniWindowScale(
                         mTask.getConfiguration().orientation, mTask.mDisplayContent.getRotation()));
+            }
+            if (mTask.getWindowConfiguration().isPinnedExtWindowMode()) {
+                final Rect pinnedBounds = new Rect();
+                mTask.getBounds(pinnedBounds);
+                final Rect defaultBounds = new Rect(pinnedBounds);
+                WindowResizingAlgorithm.getPopUpViewDefalutBounds(defaultBounds);
+                // Re-apply 16:9 bounds if they were overridden by layout pass
+                if (!pinnedBounds.equals(defaultBounds)) {
+                    mTask.setBounds(defaultBounds);
+                }
+                final float targetScale = WindowResizingAlgorithm.getDefaultPinnedWindowScale(
+                        mTask.getConfiguration().orientation, mIsPinnedWindowSmall);
+                if (Math.abs(getWindowSurfaceScale() - targetScale) > 0.01f) {
+                    setWindowSurfaceScale(targetScale);
+                }
             }
             DimmerWindow.getInstance().onResizeChanged();
         }
@@ -1051,6 +1089,10 @@ class TaskWindowSurfaceInfo {
             Slog.d(TAG, "toggleResize: " + (isCurrentlySmall ? "small->large" : "large->small") +
                     " newScale=" + newScale);
         }
+    }
+
+    float getPinnedWindowCornerRadius() {
+        return mPinnedWindowCornerRadius;
     }
 
     boolean isPinnedWindowSmall() {

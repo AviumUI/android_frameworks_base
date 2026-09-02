@@ -374,6 +374,17 @@ public class CarrierTextManager {
             subOrderBySlot[slotId] = i;
             int simState = mKeyguardUpdateMonitor.getSimStateForSlotId(slotId);
             CharSequence carrierName = subs.get(i).getCarrierName();
+            // Map English carrier names to Chinese
+            if (carrierName != null) {
+                String cn = carrierName.toString();
+                if (cn.contains("CHINA MOBILE") || cn.contains("CMCC")) {
+                    carrierName = "中国移动";
+                } else if (cn.contains("CHN-CT") || cn.contains("CHINA TELECOM") || cn.contains("CT")) {
+                    carrierName = "中国电信";
+                } else if (cn.contains("CHN-UNICOM") || cn.contains("UNICOM")) {
+                    carrierName = "中国联通";
+                }
+            }
             CharSequence carrierTextForSimState = getCarrierTextForSimState(simState, carrierName);
             mLogger.logUpdateLoopStart(subId, simState, String.valueOf(carrierName));
             if (carrierTextForSimState != null) {

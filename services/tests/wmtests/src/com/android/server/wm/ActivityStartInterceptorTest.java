@@ -135,6 +135,53 @@ public class ActivityStartInterceptorTest {
     private SparseArray<ActivityInterceptorCallback> mActivityInterceptorCallbacks =
             new SparseArray<>();
 
+    @Test
+    public void appLaunchApproval_isBoundToCallerTargetAndIntentAndConsumedOnce() {
+        final int source = 10123;
+        final int target = 110456;
+        final Intent intent = new Intent(Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://example.com/approved"))
+                .setComponent(new android.content.ComponentName("target", "target.Main"));
+        final android.os.IBinder token = new android.os.Binder();
+        final ActivityStartInterceptor.LaunchApproval approval =
+                new ActivityStartInterceptor.LaunchApproval(source, target, intent);
+        final android.os.Bundle capability = new android.os.Bundle();
+        capability.putBinder("token", token);
+        ActivityStartInterceptor.sLaunchApprovals.put(token, approval);
+        mInterceptor.mCallingUid = source;
+        mInterceptor.mAInfo = new ActivityInfo();
+        mInterceptor.mAInfo.applicationInfo = new android.content.pm.ApplicationInfo();
+        mInterceptor.mAInfo.applicationInfo.uid = target;
+        try {
+            mInterceptor.mIntent = new Intent(intent).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertFalse(mInterceptor.consumeLaunchApproval()); // The dialog has not allowed it.
+            approval.allowed = true;
+            mInterceptor.mCallingUid = source + 1;
+            mInterceptor.mIntent = new Intent(intent).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertFalse(mInterceptor.consumeLaunchApproval());
+            mInterceptor.mCallingUid = source;
+            mInterceptor.mAInfo.applicationInfo.uid = target + 1;
+            mInterceptor.mIntent = new Intent(intent).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertFalse(mInterceptor.consumeLaunchApproval());
+            mInterceptor.mAInfo.applicationInfo.uid = target;
+            mInterceptor.mIntent = new Intent(intent).setData(android.net.Uri.parse(
+                    "https://example.com/different")).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertFalse(mInterceptor.consumeLaunchApproval());
+            mInterceptor.mIntent = new Intent(intent).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertTrue(mInterceptor.consumeLaunchApproval());
+            mInterceptor.mIntent = new Intent(intent).putExtra(
+                    ActivityStartInterceptor.APPROVAL_TOKEN, capability);
+            assertFalse(mInterceptor.consumeLaunchApproval());
+        } finally {
+            ActivityStartInterceptor.sLaunchApprovals.remove(token);
+        }
+    }
+
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before

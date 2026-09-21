@@ -4057,9 +4057,12 @@ public class BubbleController implements ConfigurationChangeListener,
                 return;
             }
 
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK 
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
                     | Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
+            // This PendingIntent is consumed by Bubble TaskView. The system launch
+            // interceptor uses the marker to distinguish it from a normal app jump.
+            launchIntent.putExtra("android.avium.extra.BUBBLE_LAUNCH", true);
 
             PendingIntent pi = PendingIntent.getActivityAsUser(
                     mContext, 

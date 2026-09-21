@@ -136,6 +136,32 @@ public class ActivityStartInterceptorTest {
             new SparseArray<>();
 
     @Test
+    public void systemLaunchFlows_requireTrustedResolvedDestination() {
+        final ActivityInfo target = new ActivityInfo();
+        target.applicationInfo = new ApplicationInfo();
+        target.applicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+        for (String pkg : new String[] {"com.android.settings", "com.android.systemui",
+                "com.android.documentsui", "com.android.packageinstaller",
+                "com.android.providers.media.module"}) {
+            target.packageName = pkg;
+            assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+            assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        }
+        target.packageName = "controller";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        target.applicationInfo.flags = 0;
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        target.packageName = "com.android.settings";
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        target.applicationInfo.flags = ApplicationInfo.FLAG_SYSTEM;
+        target.packageName = "com.android.browser";
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        target.packageName = "com.example.app";
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(null, "controller", true));
+    }
+
+    @Test
     public void appLaunchApproval_isBoundToCallerTargetAndIntentAndConsumedOnce() {
         final int source = 10123;
         final int target = 110456;

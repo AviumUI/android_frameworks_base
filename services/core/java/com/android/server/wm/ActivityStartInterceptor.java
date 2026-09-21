@@ -400,6 +400,10 @@ class ActivityStartInterceptor {
                 // SystemUI is the trusted host of TaskView bubbles. Its PendingIntent starts
                 // the app inside a bubble task and must not be replaced by the approval UI.
                 || "com.android.systemui".equals(mCallingPackage)
+                // Avium creates this explicit marker only for a Bubble TaskView launch.
+                // Keep ordinary Avium app-to-app starts protected by the approval UI.
+                || ("org.avium.systemuiex".equals(mCallingPackage)
+                    && mIntent.getBooleanExtra("android.avium.extra.BUBBLE_LAUNCH", false))
                 || mServiceContext.checkPermission(MANAGE_ACTIVITY_TASKS, mCallingPid, mCallingUid)
                     == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
         // Launcher and recents starts are user actions, not an app requesting another app.

@@ -397,7 +397,9 @@ class ActivityStartInterceptor {
         if (consumeLaunchApproval()) return false;
         if (UserHandle.getAppId(mCallingUid) < android.os.Process.FIRST_APPLICATION_UID
                 || mCallingPackage.equals(mAInfo.packageName)
-                || "android".equals(mAInfo.packageName)
+                // SystemUI is the trusted host of TaskView bubbles. Its PendingIntent starts
+                // the app inside a bubble task and must not be replaced by the approval UI.
+                || "com.android.systemui".equals(mCallingPackage)
                 || mServiceContext.checkPermission(MANAGE_ACTIVITY_TASKS, mCallingPid, mCallingUid)
                     == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
         // Launcher and recents starts are user actions, not an app requesting another app.

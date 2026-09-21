@@ -371,6 +371,26 @@ class ActivityStartInterceptor {
         }
     }
 
+    /** System-owned consent and picker surfaces already mediate the requested operation. */
+    @VisibleForTesting
+    static boolean isSystemLaunchFlow(ActivityInfo target, String permissionController,
+            boolean platformSigned) {
+        if (target == null || target.applicationInfo == null
+                || !target.applicationInfo.isSystemApp()) return false;
+        final String pkg = target.packageName;
+        // Use the configured controller, including modular/vendor implementations.
+        if (pkg != null && pkg.equals(permissionController)) return true;
+        if (!platformSigned) return false;
+        return "com.android.settings".equals(pkg)
+                || "com.android.systemui".equals(pkg)
+                || "com.android.documentsui".equals(pkg)
+                || "com.google.android.documentsui".equals(pkg)
+                || "com.android.packageinstaller".equals(pkg)
+                || "com.google.android.packageinstaller".equals(pkg)
+                || "com.android.providers.media.module".equals(pkg)
+                || "com.google.android.providers.media.module".equals(pkg);
+    }
+
     private boolean interceptAppLaunchApproval() {
         if (mIntent == null || mAInfo == null || mAInfo.applicationInfo == null
                 || mCallingPackage == null) return false;
@@ -383,6 +403,11 @@ class ActivityStartInterceptor {
         // Launcher and recents starts are user actions, not an app requesting another app.
         final int sourceUser = UserHandle.getUserId(mCallingUid);
         final var pm = mServiceContext.getPackageManager();
+        // Inspect the resolved destination, never an action string supplied by the caller.
+        // Ordinary system apps (browser, camera, store, etc.) still require approval.
+        if (isSystemLaunchFlow(mAInfo, pm.getPermissionControllerPackageName(),
+                pm.checkSignatures("android", mAInfo.packageName)
+                        == android.content.pm.PackageManager.SIGNATURE_MATCH)) return false;
         final Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
         final ResolveInfo homeInfo = pm.resolveActivityAsUser(home, 0, sourceUser);
         if (homeInfo != null && homeInfo.activityInfo != null

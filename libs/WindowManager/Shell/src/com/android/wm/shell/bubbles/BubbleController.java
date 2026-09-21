@@ -192,16 +192,15 @@ public class BubbleController implements ConfigurationChangeListener,
     //Ext add
     private BubbleExt mBubbleExt;
     private final Set<String> mRetryingPackages = new HashSet<>();
+    // Only retry a task that was actually removed. A task-moved callback also fires while
+    // TaskView is opening a bubble; treating that callback as a fullscreen request races the
+    // bubble transition and leaves the embedded app with no surface.
     private final android.app.TaskStackListener mBubbleTaskListener = new android.app.TaskStackListener() {
         @Override
         public void onTaskRemoved(int taskId) {
             mMainExecutor.execute(() -> handleTaskRemoved(taskId));
         }
 
-        @Override
-        public void onTaskMovedToFront(ActivityManager.RunningTaskInfo taskInfo) {
-            mMainExecutor.execute(() -> handleTaskMovedToFront(taskInfo));
-        }
     };
     private String mLastRequestPackage = null;
     private UserHandle mLastRequestUser;
@@ -4060,9 +4059,6 @@ public class BubbleController implements ConfigurationChangeListener,
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                     | Intent.FLAG_ACTIVITY_MULTIPLE_TASK
                     | Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
-            // This PendingIntent is consumed by Bubble TaskView. The system launch
-            // interceptor uses the marker to distinguish it from a normal app jump.
-            launchIntent.putExtra("android.avium.extra.BUBBLE_LAUNCH", true);
 
             PendingIntent pi = PendingIntent.getActivityAsUser(
                     mContext, 
@@ -4112,28 +4108,4 @@ public class BubbleController implements ConfigurationChangeListener,
         });
     }
 
-    private void handleTaskMovedToFront(android.app.ActivityManager.RunningTaskInfo taskInfo) {
-        mMainExecutor.execute(() -> {
-            Bubble bubble = mBubbleData.getBubbleInStackWithTaskId(taskInfo.taskId);
-            if (bubble != null && bubble.isAppBubble() && !isStackExpanded()) {
-                String pkg = bubble.getPackageName();
-                UserHandle user = bubble.getUser();
-                mBubbleData.dismissBubbleWithKey(bubble.getKey(), Bubbles.DISMISS_USER_GESTURE);
-                mMainExecutor.executeDelayed(() -> {
-                    launchAppFullscreen(pkg, user);
-                }, 300);
-            }
-        });
-    }
-    
-    private void launchAppFullscreen(String packageName, UserHandle user) {
-        if (!isAppBubbleUserAvailable(user)) return;
-        PackageManager pm = mContext.createContextAsUser(user, 0).getPackageManager();
-        Intent launchIntent = pm.getLaunchIntentForPackage(packageName);
-        if (launchIntent != null) {
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                                  Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            mContext.startActivityAsUser(launchIntent, user);
-        }
-    }
 }

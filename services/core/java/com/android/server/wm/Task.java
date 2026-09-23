@@ -3402,6 +3402,11 @@ class Task extends TaskFragment {
 
     @Override
     void prepareSurfaces() {
+        // Input sink surface is not a part of animation, so apply in a steady state
+        // (non-sync) with pending transaction.
+        if (mTaskInputSink != null && isVisible() && mSyncState == SYNC_STATE_NONE) {
+            mTaskInputSink.applyChangesToSurfaceIfChanged(getPendingTransaction());
+        }
         super.prepareSurfaces();
         final SurfaceControl.Transaction t = getSyncTransaction();
         PopUpWindowController.getInstance().onPrepareSurfaces(this, t);
@@ -3410,16 +3415,6 @@ class Task extends TaskFragment {
     @Override
     void updateSurfaceVisibility(SurfaceControl.Transaction t) {
         t.setVisibility(mSurfaceControl, isVisible());
-    }
-
-    @Override
-    void prepareSurfaces() {
-        // Input sink surface is not a part of animation, so apply in a steady state
-        // (non-sync) with pending transaction.
-        if (mTaskInputSink != null && isVisible() && mSyncState == SYNC_STATE_NONE) {
-            mTaskInputSink.applyChangesToSurfaceIfChanged(getPendingTransaction());
-        }
-        super.prepareSurfaces();
     }
 
     /**

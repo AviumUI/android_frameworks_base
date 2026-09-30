@@ -423,6 +423,12 @@ class ActivityStartInterceptor {
         final int owner = parent == null ? sourceUser : parent.id;
         final UserInfo sourceProfile = mUserManager.getUserInfo(sourceUser);
         final UserInfo destinationProfile = mUserManager.getUserInfo(mUserId);
+        // ResolverActivity has already selected a concrete profile when the target user is a
+        // clone, private, or managed profile. Do not turn that selection into a second
+        // "choose a space" prompt while authorizing the actual launch.
+        final boolean hasResolvedProfileDestination = mUserId != owner && destinationProfile != null
+                && (destinationProfile.isCloneProfile() || destinationProfile.isPrivateProfile()
+                || destinationProfile.isManagedProfile());
         final boolean canChooseSpace = (sourceUser == owner || sourceProfile != null
                 && (sourceProfile.isCloneProfile() || sourceProfile.isPrivateProfile()))
                 && (mUserId == owner || destinationProfile != null
@@ -463,7 +469,9 @@ class ActivityStartInterceptor {
         }
         for (UserInfo profile : mUserManager.getProfiles(owner)) {
             // Do not use the personal-space chooser to cross a managed-profile policy boundary.
-            if (!canChooseSpace && profile.id != mUserId) continue;
+            if ((hasResolvedProfileDestination || !canChooseSpace) && profile.id != mUserId) {
+                continue;
+            }
             if (profile.id != mUserId && !profile.isCloneProfile() && !profile.isPrivateProfile()
                     && profile.id != owner) continue;
             if (!mUserManager.isUserUnlocked(profile.id)
@@ -502,7 +510,8 @@ class ActivityStartInterceptor {
                 keys.add(key);
                 targetUsers.add(profile.id);
                 labels.add(resolved.loadLabel(pm).toString());
-                spaces.add(profile.isCloneProfile() ? 1 : profile.isPrivateProfile() ? 2 : 0);
+                spaces.add(profile.isCloneProfile() ? 1 : profile.isPrivateProfile() ? 2
+                        : profile.isManagedProfile() ? 3 : 0);
             } catch (android.content.pm.PackageManager.NameNotFoundException e) {
                 // Profile/package removal may race the chooser.
             }
@@ -568,6 +577,8 @@ class ActivityStartInterceptor {
             }
         }, mService.mH);
         dialog.putExtra("labels", labels.toArray(new String[0]));
+        dialog.putExtra("targetPackage", targetPackage);
+        dialog.putExtra("spaceUserIds", targetUsers.stream().mapToInt(Integer::intValue).toArray());
         dialog.putExtra("remembered", remembered);
         dialog.putExtra("spaces", spaces.stream().mapToInt(Integer::intValue).toArray());
         dialog.putExtra("callback", callback);

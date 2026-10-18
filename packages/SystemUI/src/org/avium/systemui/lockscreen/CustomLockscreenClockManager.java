@@ -19,12 +19,13 @@ package org.avium.systemui.lockscreen;
 import android.content.Context;
 import android.util.Log;
 import android.view.View;
-import android.os.Process;
+import android.view.ViewGroup;
 import javax.inject.Inject;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.SystemPropertiesWatcher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
 @SysUISingleton
 public class CustomLockscreenClockManager {
@@ -56,9 +57,14 @@ public class CustomLockscreenClockManager {
 
     public View getView() {
         if (mCustomClockView == null && isEnabled()) {
+            // Keep wallpaper synchronization independent of the selected clock implementation.
+            DepthWallpaperSetup.INSTANCE.applyIfNeeded(mContext);
             mCustomClock = CustomLockScreenClockFactory.create(mContext, mStatusBarStateController);
             if (mCustomClock != null) {
                 mCustomClockView = mCustomClock.getView(mContext);
+                if (mCustomClockView != null) {
+                    mNativeViewHider.hideNativeViews(mCustomClockView);
+                }
             }
         }
         return mCustomClockView;
@@ -71,6 +77,10 @@ public class CustomLockscreenClockManager {
     }
 
     public void onDestroy() {
+        if (mCustomClockView != null) {
+            mNativeViewHider.restoreNativeViews(mCustomClockView);
+        }
+        detachCurrentView();
         if (mCustomClock != null) {
             mCustomClock.onDestroy();
             mCustomClock = null;
@@ -81,7 +91,30 @@ public class CustomLockscreenClockManager {
         }
     }
 
+    /** Disposes the current clock so the next blueprint build gets fresh properties and views. */
+    public void reload() {
+        if (!isEnabled() && mCustomClockView != null) {
+            mNativeViewHider.restoreNativeViews(mCustomClockView);
+        }
+        detachCurrentView();
+        if (mCustomClock != null) {
+            mCustomClock.onDestroy();
+        }
+        mCustomClock = null;
+        mCustomClockView = null;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(mContext);
+    }
+
+    private void detachCurrentView() {
+        if (mCustomClockView == null) return;
+        ViewGroup parent = (ViewGroup) mCustomClockView.getParent();
+        if (parent != null) {
+            parent.removeView(mCustomClockView);
+        }
+    }
+
+    @Deprecated
     public void restartSystemUI() {
-        Process.killProcess(Process.myPid());
+        reload();
     }
 }

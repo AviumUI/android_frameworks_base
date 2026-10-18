@@ -18,8 +18,10 @@ package org.avium.systemui.depthwallpaper
 
 import android.content.Context
 import android.graphics.*
+import android.hardware.display.DisplayManager
 import android.util.AttributeSet
 import android.util.Log
+import android.view.Display
 import android.view.View
 import android.widget.FrameLayout
 import java.io.File
@@ -74,6 +76,8 @@ class OccludingMaskLayout @JvmOverloads constructor(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
+        Log.d(TAG, "attached enabled=${DepthWallpaperSwitch.isEnabled(context)}")
+        DepthWallpaperSetup.applyIfNeeded(context)
         try {
             mStatusBarStateController = Dependency.get(StatusBarStateController::class.java)
             mStatusBarStateController?.addCallback(this)
@@ -106,10 +110,18 @@ class OccludingMaskLayout @JvmOverloads constructor(
 
     private fun updateScreenSize() {
         val display = context.display
+            ?: context.getSystemService(DisplayManager::class.java)
+                ?.getDisplay(Display.DEFAULT_DISPLAY)
         val p = Point()
         display?.getRealSize(p)
-        screenW = p.x
-        screenH = p.y
+        if (p.x > 0 && p.y > 0) {
+            screenW = p.x
+            screenH = p.y
+        } else {
+            val dm = resources.displayMetrics
+            screenW = dm.widthPixels
+            screenH = dm.heightPixels
+        }
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -128,6 +140,7 @@ class OccludingMaskLayout @JvmOverloads constructor(
             return currentBmp to lastMTime
         }
 
+        val startMTime = f.lastModified()
         return try {
             FileInputStream(f).use { fis ->
                 val decoded = BitmapFactory.decodeStream(fis)
@@ -139,7 +152,13 @@ class OccludingMaskLayout @JvmOverloads constructor(
                         decoded.recycle()
                         copy
                     }
-                    finalBmp to f.lastModified()
+                    val endMTime = f.lastModified()
+                    if (endMTime != startMTime) {
+                        finalBmp.recycle()
+                        currentBmp to lastMTime
+                    } else {
+                        finalBmp to endMTime
+                    }
                 } else {
                     currentBmp to lastMTime
                 }
@@ -173,6 +192,11 @@ class OccludingMaskLayout @JvmOverloads constructor(
     private fun updateMatrix() {
         val bmp = bgBitmap ?: maskBitmap ?: return
         if (screenW == 0 || screenH == 0) updateScreenSize()
+        if (screenW == 0 || screenH == 0) {
+            screenW = rootView.width
+            screenH = rootView.height
+        }
+        if (screenW <= 0 || screenH <= 0) return
 
         val bmpW = bmp.width
         val bmpH = bmp.height

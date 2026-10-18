@@ -92,12 +92,13 @@ constructor(
         }
         applicationScope.launch("AviumLockscreenWatcher") {
             var isInitialState = true
-            customLockscreenRepository.isEnabled.collect { isEnabled ->
+            customLockscreenRepository.settingsVersion.collect {
                 if (isInitialState) {
                     isInitialState = false
                     return@collect
                 }
-                customLockscreenClockManager.restartSystemUI()
+                customLockscreenClockManager.reload()
+                refreshBlueprint()
             }
         }
     }

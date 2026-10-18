@@ -20,8 +20,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.os.Process;
-import android.os.SystemProperties;
 import android.util.Log;
 import javax.inject.Inject;
 import com.android.systemui.dagger.SysUISingleton;
@@ -45,8 +43,8 @@ public class SystemPropertiesWatcher {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (ACTION_SETTINGS_CHANGED.equals(intent.getAction())) {
-                Log.d(TAG, "Received settings changed broadcast, restarting SystemUI");
-                Process.killProcess(Process.myPid());
+                // CustomLockscreenRepository owns the state update and blueprint refresh.
+                Log.d(TAG, "Received custom lockscreen settings update");
             }
         }
     };

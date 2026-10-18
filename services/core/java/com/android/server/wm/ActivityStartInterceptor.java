@@ -269,6 +269,15 @@ class ActivityStartInterceptor {
             return true;
         }
 
+        // Implicit intents are the platform's app/open chooser flow (for example ACTION_VIEW,
+        // ACTION_SEND and ACTION_OPEN_DOCUMENT). The resolver or picker owns that user choice;
+        // inserting the profile-launch approval in front of it causes a second prompt and can
+        // invalidate the resolver's selected target when the deferred IntentSender is resumed.
+        if (!mComponentSpecified && mIntent != null && mIntent.getComponent() == null
+                && mIntent.getPackage() == null) {
+            return false;
+        }
+
         if (interceptAppLaunchApproval()) return true;
 
         final SparseArray<ActivityInterceptorCallback> callbacks =

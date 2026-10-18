@@ -301,6 +301,10 @@ public class NotificationPanelViewControllerBaseTest extends SysuiTestCase {
     protected View.OnLayoutChangeListener mLayoutChangeListener;
     protected ShadeRepository mShadeRepository;
     protected FakeMSDLPlayer mMSDLPlayer = mKosmos.getMsdlPlayer();
+    @Mock
+    protected org.avium.systemui.lockscreen.CustomLockscreenClockManager
+            mCustomLockscreenClockManager;
+
     protected WindowRootViewBlurInteractor mWindowRootViewBlurInteractor =
             mKosmos.getWindowRootViewBlurInteractor();
 
@@ -580,6 +584,7 @@ public class NotificationPanelViewControllerBaseTest extends SysuiTestCase {
                 mBrightnessMirrorShowingRepository,
                 new BlurConfig(0f, 0f),
                 () -> mKosmos.getFakeShadeDisplaysRepository(),
+                mCustomLockscreenClockManager,
                 mWindowRootViewBlurInteractor,
                 mContext);
         mNotificationPanelViewController.initDependencies(

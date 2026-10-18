@@ -36,8 +36,6 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
-import com.airbnb.lottie.Lottie;
-import com.airbnb.lottie.LottieConfig;
 import com.android.internal.protolog.ProtoLog;
 import com.android.systemui.BootCompleteCacheImpl;
 import com.android.systemui.CoreStartable;
@@ -55,6 +53,9 @@ import com.android.systemui.statusbar.phone.ConfigurationForwarder;
 import com.android.systemui.util.NotificationChannels;
 import com.android.wm.shell.dagger.HasWMComponent;
 import com.android.wm.shell.dagger.WMComponent;
+
+import com.airbnb.lottie.Lottie;
+import com.airbnb.lottie.LottieConfig;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayDeque;
@@ -117,6 +118,7 @@ public class SystemUIApplicationImpl extends SystemUIApplication implements
     @Override
     public void onCreate() {
         super.onCreate();
+        org.avium.systemui.lockscreen.util.CustomLockscreenSettings.initialize(this);
         Log.v(TAG, "SystemUIApplication created.");
         // This line is used to setup Dagger's dependency injection and should be kept at the
         // top of this method.

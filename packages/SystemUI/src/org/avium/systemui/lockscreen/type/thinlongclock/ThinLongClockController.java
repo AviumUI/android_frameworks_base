@@ -165,12 +165,12 @@ public class ThinLongClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
+        mDateView.setTextColor(LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor()));
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
             int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
 
-            mDateView.setTextColor(hourColor);
             mDateView.setAlpha(0.8f);
 
             ImageView[] hourViews = {mHour1, mHour2};

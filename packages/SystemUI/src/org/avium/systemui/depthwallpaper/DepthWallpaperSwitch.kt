@@ -22,6 +22,7 @@ import android.os.SystemProperties
 object DepthWallpaperSwitch {
     private const val PROP = "persist.avium.depthwallpaper"
     fun isEnabled(context: Context): Boolean {
-        return SystemProperties.getBoolean(PROP, false)
+        return org.avium.systemui.lockscreen.util.CustomLockscreenSettings.isEnabled() &&
+            SystemProperties.getBoolean(PROP, false)
     }
 }

@@ -734,6 +734,10 @@ constructor(
         }
     }
 
+    fun removeCallback(callback: Callback) {
+        callbacks.remove(callback)
+    }
+
     /** Callback for authentication events. */
     interface Callback {
         /** TODO: comment here */

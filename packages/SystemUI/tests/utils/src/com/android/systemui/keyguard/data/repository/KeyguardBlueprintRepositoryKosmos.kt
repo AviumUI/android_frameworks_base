@@ -37,6 +37,17 @@ import com.android.systemui.statusbar.lockscreen.lockscreenSmartspaceController
 import java.util.Optional
 import org.mockito.Mockito.spy
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.avium.systemui.lockscreen.CustomLockscreenRepository
+
+val Kosmos.customLockscreenRepository by
+    Kosmos.Fixture {
+        mock<CustomLockscreenRepository>().also {
+            whenever(it.isEnabled).thenReturn(MutableStateFlow(false))
+            whenever(it.settingsVersion).thenReturn(MutableStateFlow(0L))
+        }
+    }
 
 val Kosmos.keyguardClockSection: ClockSection by
     Kosmos.Fixture {
@@ -84,6 +95,9 @@ val Kosmos.defaultKeyguardBlueprint by
             keyguardSliceViewSection = mock(),
             udfpsAccessibilityOverlaySection = mock(),
             accessibilityActionsSection = mock(),
+            customLockscreenRepository = customLockscreenRepository,
+            customClockSection = mock(),
+            notificationIconsSection = mock(),
         )
     }
 
@@ -106,6 +120,9 @@ val Kosmos.splitShadeBlueprint by
             mediaSection = mock(),
             keyguardSliceViewSection = mock(),
             accessibilityActionsSection = mock(),
+            customLockscreenRepository = customLockscreenRepository,
+            customClockSection = mock(),
+            notificationIconsSection = mock(),
         )
     }
 

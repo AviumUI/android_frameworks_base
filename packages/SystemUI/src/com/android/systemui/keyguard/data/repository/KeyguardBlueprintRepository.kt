@@ -115,11 +115,17 @@ constructor(
         }
 
         assert.isMainThread()
-        if ((targetTransitionConfig?.type?.priority ?: Int.MIN_VALUE) < config.type.priority) {
-            if (targetTransitionConfig == null) scheduleCallback()
+        val pending = targetTransitionConfig
+        if (pending == null) {
             targetTransitionConfig = config
+            scheduleCallback()
         } else {
-            logger.i({ "Skipping low priority transition: $str1" }) { str1 = "$config" }
+            // A higher-priority animation must not discard a requested view rebuild. In
+            // particular, custom clock reloads dispose the old view before requesting a refresh.
+            val selected = if (config.type.priority > pending.type.priority) config else pending
+            targetTransitionConfig = selected.copy(
+                rebuildSections = (pending.rebuildSections + config.rebuildSections).distinct()
+            )
         }
     }
 

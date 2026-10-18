@@ -231,14 +231,13 @@ public class NormalTimeClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
+        int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
+        mLunarDateView.setTextColor(dayColor);
+        mGregorianDateView.setTextColor(dayColor);
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
             int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
-            int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
-
-            mLunarDateView.setTextColor(dayColor);
-            mGregorianDateView.setTextColor(dayColor);
 
             mHour1.setColorFilter(hourColor);
             mHour2.setColorFilter(hourColor);

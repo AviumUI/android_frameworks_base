@@ -27,6 +27,13 @@ import com.android.systemui.common.ui.data.repository.fakeConfigurationRepositor
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.keyguardBlueprintRepository
+import com.android.systemui.keyguard.data.repository.customLockscreenRepository
+import com.android.systemui.keyguard.data.repository.splitShadeBlueprint
+import com.android.systemui.keyguard.ui.view.layout.sections.SplitShadeMediaSection
+import com.android.systemui.keyguard.ui.view.layout.sections.SplitShadeNotificationStackScrollLayoutSection
+import org.avium.systemui.lockscreen.sections.CustomClockSection
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.mockito.kotlin.whenever
 import com.android.systemui.keyguard.ui.view.layout.blueprints.DefaultKeyguardBlueprint
 import com.android.systemui.keyguard.ui.view.layout.blueprints.SplitShadeKeyguardBlueprint
 import com.android.systemui.kosmos.advanceUntilIdle
@@ -60,6 +67,25 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
             sensorType = FingerprintSensorType.POWER_BUTTON,
             sensorLocations = mapOf(),
         )
+    }
+
+    @Test
+    @DisableSceneContainer
+    fun customClockSwitch_keepsNativeSplitShadeMediaAndNotifications() {
+        val enabled = MutableStateFlow(false)
+        whenever(kosmos.customLockscreenRepository.isEnabled).thenReturn(enabled)
+        val blueprint = kosmos.splitShadeBlueprint
+        val nativeSections = blueprint.sections.toList()
+        val media = nativeSections.filterIsInstance<SplitShadeMediaSection>().single()
+        val notifications =
+            nativeSections.filterIsInstance<SplitShadeNotificationStackScrollLayoutSection>().single()
+
+        enabled.value = true
+        assertThat(blueprint.sections).containsAtLeast(media, notifications)
+        assertThat(blueprint.sections.filterIsInstance<CustomClockSection>()).hasSize(1)
+
+        enabled.value = false
+        assertThat(blueprint.sections).containsExactlyElementsIn(nativeSections).inOrder()
     }
 
     @Test

@@ -17,14 +17,16 @@
 package org.avium.systemui.lockscreen;
 
 import android.content.Context;
-import android.util.Log;
 import android.view.View;
-import android.os.Process;
-import javax.inject.Inject;
+import android.view.ViewGroup;
+
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
+
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
-import org.avium.systemui.lockscreen.util.SystemPropertiesWatcher;
+
+import javax.inject.Inject;
 
 @SysUISingleton
 public class CustomLockscreenClockManager {
@@ -34,54 +36,97 @@ public class CustomLockscreenClockManager {
     private final Context mContext;
     private ICustomLockScreenClock mCustomClock;
     private final NativeLockscreenViewHider mNativeViewHider;
-    private final SystemPropertiesWatcher mPropertiesWatcher;
     private final StatusBarStateController mStatusBarStateController;
     private View mCustomClockView;
+    private boolean mHasNotifications;
 
+    /** Creates the custom clock manager. */
     @Inject
-    public CustomLockscreenClockManager(Context context, NativeLockscreenViewHider nativeViewHider, SystemPropertiesWatcher propertiesWatcher, StatusBarStateController statusBarStateController) {
+    public CustomLockscreenClockManager(
+            Context context,
+            NativeLockscreenViewHider nativeViewHider,
+            StatusBarStateController statusBarStateController) {
         this.mContext = context;
         this.mNativeViewHider = nativeViewHider;
-        this.mPropertiesWatcher = propertiesWatcher;
         this.mStatusBarStateController = statusBarStateController;
     }
 
+    /** Returns whether the current user enabled a custom lockscreen. */
     public boolean isEnabled() {
         return CustomLockscreenSettings.isEnabled();
     }
-    
+
+    /** Hides native clock content for a custom clock. */
     public void hideNativeClock(View view) {
         mNativeViewHider.hideNativeViews(view);
     }
 
+    /** Returns the current clock, constructing it with the saved appearance if needed. */
     public View getView() {
         if (mCustomClockView == null && isEnabled()) {
+            // Keep wallpaper synchronization independent of the selected clock implementation.
+            DepthWallpaperSetup.INSTANCE.applyIfNeeded(mContext);
             mCustomClock = CustomLockScreenClockFactory.create(mContext, mStatusBarStateController);
             if (mCustomClock != null) {
                 mCustomClockView = mCustomClock.getView(mContext);
+                if (mCustomClockView != null) {
+                    mCustomClock.onNotificationStateChanged(mHasNotifications);
+                }
             }
         }
         return mCustomClockView;
     }
 
+    /** Forwards notification visibility to the current clock. */
     public void onNotificationStateChanged(boolean hasNotifications) {
+        if (mHasNotifications == hasNotifications) return;
+        mHasNotifications = hasNotifications;
         if (mCustomClock != null && isEnabled()) {
             mCustomClock.onNotificationStateChanged(hasNotifications);
         }
     }
 
+    /** Releases the current clock and its views. */
     public void onDestroy() {
+        if (mCustomClockView != null) {
+            mNativeViewHider.restoreNativeViews(mCustomClockView);
+        }
+        detachCurrentView();
         if (mCustomClock != null) {
             mCustomClock.onDestroy();
             mCustomClock = null;
-            mCustomClockView = null; 
-        }
-        if (mPropertiesWatcher != null) {
-            mPropertiesWatcher.destroy();
+            mCustomClockView = null;
         }
     }
 
+    /** Disposes the current clock so the next blueprint build gets fresh properties and views. */
+    public void reload() {
+        if (mCustomClockView != null) {
+            mNativeViewHider.restoreNativeViews(mCustomClockView);
+        }
+        detachCurrentView();
+        if (mCustomClock != null) {
+            mCustomClock.onDestroy();
+        }
+        mCustomClock = null;
+        mCustomClockView = null;
+        DepthWallpaperSetup.INSTANCE.applyIfNeeded(mContext);
+    }
+
+    private void detachCurrentView() {
+        if (mCustomClockView == null) return;
+        ViewGroup parent = (ViewGroup) mCustomClockView.getParent();
+        if (parent != null) {
+            parent.removeView(mCustomClockView);
+        }
+    }
+
+    /**
+     * Reloads clock views without restarting SystemUI.
+     * @deprecated Use {@link #reload()} instead.
+     */
+    @Deprecated
     public void restartSystemUI() {
-        Process.killProcess(Process.myPid());
+        reload();
     }
 }

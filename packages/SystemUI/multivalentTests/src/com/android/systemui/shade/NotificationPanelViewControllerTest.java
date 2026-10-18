@@ -65,6 +65,14 @@ public class NotificationPanelViewControllerTest extends NotificationPanelViewCo
     }
 
     @Test
+    public void customClock_doesNotReplaceNativeNotificationHeightListener() {
+        when(mCustomLockscreenClockManager.isEnabled()).thenReturn(true);
+        givenViewAttached();
+        verify(mNotificationStackScrollLayoutController, times(1))
+                .setOnHeightChangedListener(any());
+    }
+
+    @Test
     @EnableFlags(com.android.systemui.Flags.FLAG_SHADE_EXPANDS_ON_STATUS_BAR_LONG_PRESS)
     public void onStatusBarLongPress_shadeExpands() {
         //TODO(b/394977231) delete this temporary workaround used only by tests

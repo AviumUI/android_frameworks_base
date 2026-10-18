@@ -40,7 +40,12 @@ import com.android.systemui.keyguard.ui.view.layout.sections.DefaultStatusBarSec
 import com.android.systemui.keyguard.ui.view.layout.sections.DefaultUdfpsAccessibilityOverlaySection
 import com.android.systemui.keyguard.ui.view.layout.sections.KeyguardSliceViewSection
 import com.android.systemui.keyguard.ui.view.layout.sections.SmartspaceSection
+import org.avium.systemui.lockscreen.sections.NotificationIconsSection
 import com.android.systemui.util.mockito.whenever
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.avium.systemui.lockscreen.CustomLockscreenRepository
+import org.avium.systemui.lockscreen.sections.CustomClockSection
 import java.util.Optional
 import org.junit.Before
 import org.junit.Test
@@ -57,6 +62,10 @@ import org.mockito.MockitoAnnotations
 class DefaultKeyguardBlueprintTest : SysuiTestCase() {
     private lateinit var underTest: DefaultKeyguardBlueprint
     private lateinit var rootView: KeyguardRootView
+    private val customEnabled = MutableStateFlow(false)
+    @Mock private lateinit var customClockSection: CustomClockSection
+    @Mock private lateinit var notificationIconsSection: NotificationIconsSection
+    @Mock private lateinit var customRepository: CustomLockscreenRepository
     @Mock private lateinit var accessibilityActionsSection: AccessibilityActionsSection
     @Mock private lateinit var defaultIndicationAreaSection: DefaultIndicationAreaSection
     @Mock private lateinit var mDefaultDeviceEntrySection: DefaultDeviceEntrySection
@@ -78,6 +87,7 @@ class DefaultKeyguardBlueprintTest : SysuiTestCase() {
     fun setup() {
         MockitoAnnotations.initMocks(this)
         rootView = KeyguardRootView(context, null)
+        whenever(customRepository.isEnabled).thenReturn(customEnabled)
         underTest =
             DefaultKeyguardBlueprint(
                 accessibilityActionsSection,
@@ -95,7 +105,43 @@ class DefaultKeyguardBlueprintTest : SysuiTestCase() {
                 smartspaceSection,
                 keyguardSliceViewSection,
                 udfpsAccessibilityOverlaySection,
+                customClockSection,
+                notificationIconsSection,
+                customRepository,
             )
+    }
+
+    @Test
+    fun customClock_keepsNativeNotificationsAndAod() {
+        customEnabled.value = true
+        assertThat(underTest.sections).containsAtLeast(
+            defaultNSSLSection, aodNotificationIconsSection, aodPromotedNotificationSection,
+            defaultStatusBarViewSection, customClockSection, notificationIconsSection,
+        )
+        assertThat(underTest.sections).containsNoneOf(
+            clockSection, smartspaceSection, keyguardSliceViewSection,
+        )
+    }
+
+    @Test
+    fun switchingBack_restoresNativeClockAndDateWithoutRecreatingNotifications() {
+        customEnabled.value = true
+        val previous = object : KeyguardBlueprint {
+            override val id = underTest.id
+            override val sections = underTest.sections.toList()
+        }
+        customEnabled.value = false
+        val layout = ConstraintLayout(context, null)
+        underTest.replaceViews(layout, previous)
+
+        verify(customClockSection).removeViews(layout)
+        verify(clockSection).addViews(layout)
+        verify(smartspaceSection).addViews(layout)
+        verify(keyguardSliceViewSection).addViews(layout)
+        verify(defaultNSSLSection, never()).removeViews(layout)
+        verify(defaultNSSLSection, never()).addViews(layout)
+        verify(aodNotificationIconsSection, never()).removeViews(layout)
+        assertThat(underTest.sections).doesNotContain(customClockSection)
     }
 
     @Test

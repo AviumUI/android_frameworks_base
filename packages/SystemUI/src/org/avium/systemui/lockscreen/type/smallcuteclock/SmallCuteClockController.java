@@ -168,12 +168,12 @@ public class SmallCuteClockController extends BaseLockscreenController {
 
     @Override
     public void applyStyles() {
+        mDateView.setTextColor(LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor()));
         if (!mUseBlurEffect) {
             int hourColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getHourColor());
             int minuteColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
             int dotColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor());
 
-            mDateView.setTextColor(hourColor);
 
             ImageView[] hourViews = {mHour1, mHour2};
             ImageView[] minuteViews = {mMinute1, mMinute2};

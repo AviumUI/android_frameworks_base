@@ -26,21 +26,19 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
-import android.os.Handler;
-import android.os.Looper;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.content.ContextCompat;
 
-//import org.avium.aviumlockscreenstudio.R;
 import com.android.systemui.res.R;
+
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.GlassClockManager;
@@ -337,6 +335,7 @@ public class MediaBlurClockController extends BaseLockscreenController implement
     public void onTimeTick() {
         mDateView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.date_format)));
         mTimeView.setText(LockscreenClockUtils.getCurrentTimeString("HH:mm"));
+        applyStyles();
     }
 
     @Override
@@ -349,7 +348,8 @@ public class MediaBlurClockController extends BaseLockscreenController implement
         int dayColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDayColor());
 
         mDateView.setTextColor(dayColor);
-        mTimeView.setTextColor(minuteColor);
+        LockscreenClockUtils.applyTimeColors(mTimeView, hourColor, minuteColor,
+                LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor()));
     }
 
 

@@ -16,92 +16,153 @@
 
 package org.avium.systemui.lockscreen.util;
 
+import android.app.ActivityManager;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.os.SystemProperties;
+import android.os.UserHandle;
+import android.provider.Settings;
+import android.util.Log;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Locale;
 
-public class CustomLockscreenSettings {
+/** Per-user lockscreen configuration, committed as a single Settings Provider value. */
+public final class CustomLockscreenSettings {
+    public static final String CONFIG = "avium_custom_lockscreen_config";
+    private static ContentResolver sResolver;
+    private static int sUserId;
+    private static String sRawConfig;
+    private static JSONObject sConfig = new JSONObject();
 
-    private static final String PROP_ENABLED = "persist.avium.customlockscreen.enable";
-    private static final String PROP_TYPE = "persist.avium.customlockscreen.type";
-    private static final String PROP_COLOR = "persist.avium.customlockscreen.color";
-    private static final String PROP_HOUR_COLOR = "persist.avium.customlockscreen.hour.color";
-    private static final String PROP_MINUTE_COLOR = "persist.avium.customlockscreen.minute.color";
-    private static final String PROP_WEEKDAY_COLOR = "persist.avium.customlockscreen.weekday.color";
-    private static final String PROP_MONTH_COLOR = "persist.avium.customlockscreen.month.color";
-    private static final String PROP_DAY_COLOR = "persist.avium.customlockscreen.day.color";
-    private static final String PROP_DOT_COLOR = "persist.avium.customlockscreen.dot.color";
-    private static final String PROP_SHOW_LUNAR = "persist.avium.customlockscreen.show_lunar";
+    private CustomLockscreenSettings() {}
+
+    /** Initialize before constructing SystemUI's dependency graph. */
+    public static synchronized void initialize(Context context) {
+        sResolver = context.getContentResolver();
+        setUserId(ActivityManager.getCurrentUser());
+    }
+
+    /** Switch users without reusing the previous user's cached appearance. */
+    public static synchronized void setUserId(int userId) {
+        sUserId = userId;
+        sRawConfig = null;
+        sConfig = new JSONObject();
+        // Legacy properties were device-wide. Only migrate them into the owner once;
+        // other users start with their own defaults. Never write a system property.
+        if (sResolver != null
+                && userId == UserHandle.USER_SYSTEM
+                && Settings.Secure.getStringForUser(sResolver, CONFIG, userId) == null) {
+            JSONObject legacy = new JSONObject();
+            try {
+                legacy.put(
+                        "enabled",
+                        SystemProperties.getBoolean(
+                                "persist.avium.customlockscreen.enable", false));
+                legacy.put(
+                        "type", SystemProperties.getInt("persist.avium.customlockscreen.type", 1));
+                for (String name :
+                        new String[] {
+                            "color",
+                            "hour.color",
+                            "minute.color",
+                            "weekday.color",
+                            "month.color",
+                            "day.color",
+                            "dot.color"
+                        }) {
+                    legacy.put(
+                            name.replace('.', '_'),
+                            SystemProperties.get("persist.avium.customlockscreen." + name, ""));
+                }
+                legacy.put(
+                        "show_lunar",
+                        SystemProperties.getBoolean(
+                                "persist.avium.customlockscreen.show_lunar", true));
+                Settings.Secure.putStringForUser(sResolver, CONFIG, legacy.toString(), userId);
+            } catch (JSONException e) {
+                Log.e("AVIUM_LOCKSCREEN", "Unable to migrate lockscreen configuration", e);
+            }
+        }
+    }
+
+    private static synchronized JSONObject config() {
+        if (sResolver == null) {
+            throw new IllegalStateException("CustomLockscreenSettings has not been initialized");
+        }
+        String raw = Settings.Secure.getStringForUser(sResolver, CONFIG, sUserId);
+        if (!java.util.Objects.equals(raw, sRawConfig)) {
+            try {
+                sConfig = raw == null ? new JSONObject() : new JSONObject(raw);
+            } catch (JSONException e) {
+                Log.e("AVIUM_LOCKSCREEN", "Invalid lockscreen configuration", e);
+                sConfig = new JSONObject();
+            }
+            sRawConfig = raw;
+        }
+        return sConfig;
+    }
+
+    public static String getThemeZipPath() {
+        return config().optString("theme_zip_path");
+    }
+
+    public static String getThemeName() {
+        return config().optString("theme_name", "custom");
+    }
 
     public static boolean isEnabled() {
-        return SystemProperties.getBoolean(PROP_ENABLED, false);
+        return config().optBoolean("enabled", false);
     }
 
     public static int getClockType() {
-        return SystemProperties.getInt(PROP_TYPE, 0);
+        return config().optInt("type", 1);
     }
 
-    @Deprecated
     public static String getClockColor() {
-        return SystemProperties.get(PROP_COLOR, "white");
+        return color("color", "white");
+    }
+
+    private static String color(String key, String fallback) {
+        String value = config().optString(key, "");
+        return value.isEmpty() ? fallback : value;
     }
 
     public static String getHourColor() {
-        String hourColor = SystemProperties.get(PROP_HOUR_COLOR, "");
-        if (hourColor.isEmpty()) {
-            hourColor = SystemProperties.get(PROP_COLOR, "white");
-        }
-        return hourColor;
+        return color("hour_color", getClockColor());
     }
 
     public static String getMinuteColor() {
-        String minuteColor = SystemProperties.get(PROP_MINUTE_COLOR, "");
-        if (minuteColor.isEmpty()) {
-            minuteColor = SystemProperties.get(PROP_COLOR, "white");
-        }
-        return minuteColor;
+        return color("minute_color", getClockColor());
     }
 
     public static String getWeekdayColor() {
-        String weekdayColor = SystemProperties.get(PROP_WEEKDAY_COLOR, "");
-        if (weekdayColor.isEmpty()) {
-            weekdayColor = "white";
-        }
-        return weekdayColor;
+        return color("weekday_color", getDayColor());
     }
 
     public static String getMonthColor() {
-        String monthColor = SystemProperties.get(PROP_MONTH_COLOR, "");
-        if (monthColor.isEmpty()) {
-            monthColor = "white";
-        }
-        return monthColor;
+        return color("month_color", getDayColor());
     }
 
     public static String getDayColor() {
-        String dayColor = SystemProperties.get(PROP_DAY_COLOR, "");
-        if (dayColor.isEmpty()) {
-            dayColor = "white";
-        }
-        return dayColor;
+        return color("day_color", "white");
     }
 
     public static String getDotColor() {
-        String dotColor = SystemProperties.get(PROP_DOT_COLOR, "");
-        if (dotColor.isEmpty()) {
-            dotColor = "white";
-        }
-        return dotColor;
+        return color("dot_color", "white");
     }
 
+    /** Returns whether individual time colors were saved. */
     public static boolean hasSeparateHourMinuteColors() {
-        String hourColor = SystemProperties.get(PROP_HOUR_COLOR, "");
-        String minuteColor = SystemProperties.get(PROP_MINUTE_COLOR, "");
-        return !hourColor.isEmpty() || !minuteColor.isEmpty();
+        return !config().optString("hour_color").isEmpty()
+                || !config().optString("minute_color").isEmpty();
     }
 
+    /** Returns whether lunar dates should be shown in the current locale. */
     public static boolean shouldShowLunar() {
-        boolean showLunar = SystemProperties.getBoolean(PROP_SHOW_LUNAR, true);
-        boolean isChinese = Locale.getDefault().getLanguage().equals(Locale.CHINESE.getLanguage());
-        return showLunar && isChinese;
+        return config().optBoolean("show_lunar", true)
+                && Locale.getDefault().getLanguage().equals(Locale.CHINESE.getLanguage());
     }
 }

@@ -60,7 +60,7 @@ public abstract class BaseGuoguoClockController extends BaseLockscreenController
     @Override
     public View getView(Context context) {
         mContext = context;
-        mUseBlurEffect = mContext.getString(R.string.guoguo_blur_effect).equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
+        mUseBlurEffect = "blur".equalsIgnoreCase(CustomLockscreenSettings.getClockColor().trim());
         createViews();
         mLayoutManager = new LockscreenLayoutManager(mContainer);
         setupLayout();

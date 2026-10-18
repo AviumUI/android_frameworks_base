@@ -16,61 +16,50 @@
 
 package org.avium.systemui.lockscreen.di;
 
-import org.avium.systemui.lockscreen.CustomLockscreenClockManager;
-import org.avium.systemui.lockscreen.NativeLockscreenViewHider;
-import org.avium.systemui.lockscreen.util.SystemPropertiesWatcher;
+import android.content.Context;
+
+import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.plugins.statusbar.StatusBarStateController;
+import com.android.systemui.settings.UserTracker;
+
 import dagger.Module;
 import dagger.Provides;
-import javax.inject.Singleton;
-import android.content.Context;
-import com.android.systemui.dagger.SysUISingleton;
-import org.avium.systemui.lockscreen.sections.CustomClockSection;
-import org.avium.systemui.lockscreen.sections.NotificationIconsSection;
+
+import org.avium.systemui.lockscreen.CustomLockscreenClockManager;
 import org.avium.systemui.lockscreen.CustomLockscreenRepository;
-import com.android.systemui.statusbar.notification.collection.NotifPipeline;
-import com.android.systemui.shade.ShadeController;
+import org.avium.systemui.lockscreen.NativeLockscreenViewHider;
+
+import java.util.concurrent.Executor;
 
 @Module
 public class AviumLockscreenModule {
 
+    /** Provides native-clock visibility management. */
     @Provides
     @SysUISingleton
     public NativeLockscreenViewHider provideNativeLockscreenViewHider(Context context) {
         return new NativeLockscreenViewHider(context);
     }
-    
+
+    /** Provides the current custom clock and its lifecycle. */
     @Provides
     @SysUISingleton
     public CustomLockscreenClockManager provideCustomLockscreenClockManager(
             Context context,
             NativeLockscreenViewHider nativeLockscreenViewHider,
-            SystemPropertiesWatcher propertiesWatcher,
-            com.android.systemui.plugins.statusbar.StatusBarStateController statusBarStateController
-    ) {
-        return new CustomLockscreenClockManager(context, nativeLockscreenViewHider, propertiesWatcher, statusBarStateController);
+            StatusBarStateController statusBarStateController) {
+        return new CustomLockscreenClockManager(
+                context, nativeLockscreenViewHider, statusBarStateController);
     }
 
+    /** Provides observation of per-user lockscreen settings. */
     @Provides
     @SysUISingleton
-    public CustomClockSection provideCustomClockSection(CustomLockscreenClockManager manager) {
-        return new CustomClockSection(manager);
-    }
-
-    @Provides
-    @SysUISingleton
-    public CustomLockscreenRepository provideCustomLockscreenRepository(Context context) {
-        return new CustomLockscreenRepository(context);
-    }
-    
-    @Provides
-    @SysUISingleton
-    public SystemPropertiesWatcher provideSystemPropertiesWatcher(Context context) {
-        return new SystemPropertiesWatcher(context);
-    }
-
-    @Provides
-    @SysUISingleton
-    public NotificationIconsSection provideNotificationIconsSection(Context context, NotifPipeline notifPipeline, ShadeController shadeController) {
-        return new NotificationIconsSection(context, notifPipeline, shadeController);
+    public CustomLockscreenRepository provideCustomLockscreenRepository(
+            Context context,
+            UserTracker userTracker,
+            @Main Executor mainExecutor) {
+        return new CustomLockscreenRepository(context, userTracker, mainExecutor);
     }
 }

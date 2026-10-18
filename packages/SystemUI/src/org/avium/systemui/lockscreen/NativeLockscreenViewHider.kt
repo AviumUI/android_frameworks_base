@@ -20,7 +20,9 @@ import android.content.Context
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.core.view.isVisible
+import java.util.IdentityHashMap
 import com.android.systemui.dagger.SysUISingleton
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings
 import javax.inject.Inject
@@ -30,12 +32,25 @@ private const val TAG = "AVIUM_LOCKSCREEN"
 @SysUISingleton
 class NativeLockscreenViewHider @Inject constructor(private val context: Context) {
 
+    private data class HiddenState(
+        val visibility: Int,
+        val width: Int,
+        val height: Int,
+        val layoutListener: View.OnLayoutChangeListener,
+        val drawListener: ViewTreeObserver.OnDrawListener
+    )
+
+    private val hiddenViews = IdentityHashMap<View, HiddenState>()
+
     fun hideNativeViews(entryView: View) {
         if (!CustomLockscreenSettings.isEnabled()) {
             Log.d(TAG, "Custom lockscreen is disabled, native views will remain visible.")
             return
         }
         entryView.postDelayed({
+            if (!CustomLockscreenSettings.isEnabled() || !entryView.isAttachedToWindow) {
+                return@postDelayed
+            }
             val rootView = entryView.rootView as? ViewGroup ?: return@postDelayed
             val rootId = context.resources.getIdentifier("keyguard_root_view", "id", "com.android.systemui")
             if (rootView.id != rootId) {
@@ -46,6 +61,9 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
             listOf(
                 "bc_smartspace_view",
                 "date_smartspace_view",
+                "date_smartspace_view_large",
+                "weather_smartspace_view",
+                "weather_smartspace_view_large",
                 "lockscreen_clock_view",
                 "lockscreen_clock_view_large",
                 "keyguard_slice_view"
@@ -63,8 +81,22 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
         }, 100) 
     }
 
+    fun restoreNativeViews(entryView: View) {
+        // Restore tracked instances even if the clock has already been detached/reparented.
+        hiddenViews.keys.toList().forEach { it.restoreView() }
+    }
+
     private fun View?.hideView() {
         if (this == null) return
+
+        if (hiddenViews.containsKey(this)) return
+
+        val originalParams = layoutParams
+        val originalVisibility = visibility
+        val originalWidth = originalParams?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        val originalHeight = originalParams?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        lateinit var layoutListener: View.OnLayoutChangeListener
+        lateinit var drawListener: ViewTreeObserver.OnDrawListener
 
         fun makeInvisible() {
             if (isVisible) {
@@ -74,9 +106,9 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
 
         fun makeSizeZero() {
             val params = layoutParams
-            if (params != null) {
-                if (params.height != 0) params.height = 0
-                if (params.width != 0) params.width = 0
+            if (params != null && (params.height != 0 || params.width != 0)) {
+                params.height = 0
+                params.width = 0
                 layoutParams = params
             }
         }
@@ -84,13 +116,34 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
         makeSizeZero()
         makeInvisible()
 
-        viewTreeObserver?.takeIf { it.isAlive }?.addOnGlobalLayoutListener {
+        layoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             makeSizeZero()
             makeInvisible()
         }
-        viewTreeObserver?.takeIf { it.isAlive }?.addOnDrawListener {
+        drawListener = ViewTreeObserver.OnDrawListener {
             makeInvisible()
         }
+        addOnLayoutChangeListener(layoutListener)
+        viewTreeObserver?.takeIf { it.isAlive }?.addOnDrawListener(drawListener)
+        hiddenViews[this] = HiddenState(
+            originalVisibility,
+            originalWidth,
+            originalHeight,
+            layoutListener,
+            drawListener
+        )
         Log.d(TAG, "View ${this.id} hidden.")
+    }
+
+    private fun View?.restoreView() {
+        if (this == null) return
+        val state = hiddenViews.remove(this) ?: return
+        removeOnLayoutChangeListener(state.layoutListener)
+        viewTreeObserver?.takeIf { it.isAlive }?.removeOnDrawListener(state.drawListener)
+        layoutParams = layoutParams?.also {
+            it.width = state.width
+            it.height = state.height
+        }
+        visibility = state.visibility
     }
 }

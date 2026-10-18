@@ -20,14 +20,12 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.PixelFormat;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.UserManager;
 import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebChromeClient;
@@ -35,12 +33,14 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.res.R;
+
 import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
-
 import org.avium.systemui.lockscreen.ICustomLockScreenClock;
+import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 
 import java.io.File;
 
@@ -163,10 +163,21 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         setupWebView();
         loadCurrentTheme();
         mWebViewInitialized = true;
+        String zipPath = CustomLockscreenSettings.getThemeZipPath();
+        if (!zipPath.isEmpty() && new java.io.File(zipPath).isFile()) {
+            handleThemeZip(zipPath, CustomLockscreenSettings.getThemeName());
+        }
     }
 
     private void setupWebView() {
-        mWebView = new WebView(mCredentialContext);
+        // Clock themes are decorative. Let the keyguard handle taps and swipes so a
+        // full-screen WebView cannot swallow notification, unlock or shade gestures.
+        mWebView = new WebView(mCredentialContext) {
+            @Override
+            public boolean onTouchEvent(android.view.MotionEvent event) {
+                return false;
+            }
+        };
         mWebView.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -195,7 +206,6 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         mJsInterface.setStatusBarStateController(mStatusBarStateController);
         mWebView.addJavascriptInterface(mJsInterface, INTERFACE_NAME);
 
-        mWebView.setOnTouchListener((v, event) -> true);
 
         mContainer.addView(mWebView);
     }
@@ -233,11 +243,17 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         if (mBgHandler == null) {
             return;
         }
+        final Handler mainHandler = mMainHandler;
+        final ThemeManagerHelper themeManager = mThemeManager;
         mBgHandler.post(() -> {
-            boolean success = mThemeManager.processThemeZip(zipPath, themeName);
+            boolean success = themeManager.processThemeZip(zipPath, themeName);
             if (success) {
-                mJsInterface.setThemeName(themeName);
-                reloadTheme();
+                new java.io.File(zipPath).delete();
+                mainHandler.post(() -> {
+                    if (!mWebViewInitialized || mWebView == null) return;
+                    mJsInterface.setThemeName(themeName);
+                    reloadTheme();
+                });
             }
         });
     }
@@ -288,6 +304,7 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
     @Override
     public void onDestroy() {
         mIsLoaded = false;
+        mWebViewInitialized = false;
 
         if (mStatusBarStateController != null) {
             mStatusBarStateController.removeCallback(this);

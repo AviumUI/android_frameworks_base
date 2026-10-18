@@ -410,6 +410,7 @@ public class NotificationShadeWindowViewController implements Dumpable {
         mView.setWindowRootViewKeyEventHandler(mWindowRootViewKeyEventHandler);
         mView.setInteractionEventHandler(new NotificationShadeWindowView.InteractionEventHandler() {
             boolean mLastInterceptWasDragDownHelper = false;
+            boolean mTouchStartedInLockscreenDrawer;
 
             @Override
             public Boolean handleDispatchTouchEvent(MotionEvent ev) {
@@ -572,6 +573,19 @@ public class NotificationShadeWindowViewController implements Dumpable {
 
             private boolean shouldInterceptTouchEventInternal(MotionEvent ev) {
                 mLastInterceptWasDragDownHelper = false;
+                if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                    mTouchStartedInLockscreenDrawer = mStackScrollLayout != null
+                            && mStackScrollLayout.isTouchInsideLockscreenDrawer(
+                                    ev.getRawX(), ev.getRawY());
+                }
+                // Keep ownership for the whole gesture, while allowing shade drags outside
+                // the panel (including the status bar) even when the drawer is open.
+                if (mTouchStartedInLockscreenDrawer
+                        && mStatusBarStateController.getState() == KEYGUARD
+                        && !mStatusBarStateController.isDozing()
+                        && !mPrimaryBouncerInteractor.isBouncerShowing()) {
+                    return false;
+                }
                 // When the device starts dozing, there's a delay before the device's display state
                 // changes from ON => DOZE to allow for the light reveal animation to run at
                 // a higher refresh rate and to delay visual changes (ie: display blink) when

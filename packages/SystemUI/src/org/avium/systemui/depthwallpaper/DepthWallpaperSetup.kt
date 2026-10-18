@@ -19,15 +19,23 @@ package org.avium.systemui.depthwallpaper
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Point
+import android.hardware.display.DisplayManager
+import android.view.Display
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
+import java.util.concurrent.Executors
 
 object DepthWallpaperSetup {
     private const val TAG = "DepthWallpaperSetup"
     private const val WALLPAPER_PATH = "/data/system/avium/wallpaper"
     
-    private var lastAppliedMTime: Long = 0
+    @Volatile private var lastAppliedMTime: Long = 0
+    @Volatile private var applying = false
+    @Volatile private var pendingMTime: Long = 0
+    private val executor = Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "DepthWallpaperSetup").apply { isDaemon = true }
+    }
 
     fun applyIfNeeded(context: Context) {
         if (!DepthWallpaperSwitch.isEnabled(context)) return
@@ -37,30 +45,59 @@ object DepthWallpaperSetup {
             Log.w(TAG, "Wallpaper file not found at $WALLPAPER_PATH")
             return
         }
-        if (file.lastModified() == lastAppliedMTime) {
+        val mtime = file.lastModified()
+        if (mtime == 0L || mtime == lastAppliedMTime) {
             return
         }
-        Thread {
+        synchronized(this) {
+            if (applying) {
+                pendingMTime = maxOf(pendingMTime, mtime)
+                return
+            }
+            if (mtime == lastAppliedMTime) return
+            applying = true
+        }
+        executor.execute {
             try {
                 Log.d(TAG, "Start setting lockscreen wallpaper async...")
                 
                 val wm = WallpaperManager.getInstance(context)
                 val display = context.display
+                    ?: context.getSystemService(DisplayManager::class.java)
+                        ?.getDisplay(Display.DEFAULT_DISPLAY)
                 val size = Point()
-                display?.getRealSize(size)
+                if (display == null) {
+                    Log.w(TAG, "No display available; delaying wallpaper setup")
+                    return@execute
+                }
+                display.getRealSize(size)
                 val width = size.x
                 val height = size.y
+                if (width <= 0 || height <= 0) {
+                    Log.w(TAG, "Invalid display size ${width}x${height}")
+                    return@execute
+                }
                 wm.suggestDesiredDimensions(width, height)
 
                 FileInputStream(file).use { stream ->
                     wm.setStream(stream, null, true, WallpaperManager.FLAG_LOCK)
                 }
-                lastAppliedMTime = file.lastModified()
+                lastAppliedMTime = file.lastModified().takeIf { it >= mtime } ?: mtime
                 Log.d(TAG, "Async: Lockscreen wallpaper set successfully.")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Async: Failed to set wallpaper", e)
+            } finally {
+                val retry = synchronized(this) {
+                    applying = false
+                    val requested = pendingMTime
+                    pendingMTime = 0
+                    requested
+                }
+                if (retry > lastAppliedMTime) {
+                    applyIfNeeded(context)
+                }
             }
-        }.start()
+        }
     }
 }

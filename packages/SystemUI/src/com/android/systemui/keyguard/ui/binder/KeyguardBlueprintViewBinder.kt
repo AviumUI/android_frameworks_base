@@ -36,7 +36,7 @@ import com.android.systemui.log.core.Logger
 import com.android.systemui.log.dagger.KeyguardBlueprintLog
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.shared.R as sharedR
-import com.android.systemui.util.kotlin.pairwise
+import org.avium.systemui.lockscreen.sections.CustomClockSection
 
 object KeyguardBlueprintViewBinder {
     @JvmStatic
@@ -48,12 +48,22 @@ object KeyguardBlueprintViewBinder {
         @KeyguardBlueprintLog log: LogBuffer,
     ) {
         val logger = Logger(log, TAG)
+        // Blueprints can change their section list without changing their identity. Keep the
+        // sections actually installed in this layout, rather than querying a mutable blueprint.
+        var installedBlueprint: KeyguardBlueprint? = null
+        fun snapshot(blueprint: KeyguardBlueprint): KeyguardBlueprint =
+            object : KeyguardBlueprint {
+                override val id = blueprint.id
+                override val sections = blueprint.sections.toList()
+            }
         constraintLayout.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 launch("$TAG#viewModel.blueprint") {
-                    viewModel.blueprint.pairwise(null as KeyguardBlueprint?).collect {
-                        (prevBlueprint, blueprint) ->
-                        val config = Config.DEFAULT
+                    viewModel.blueprint.collect { currentBlueprint ->
+                        val blueprint = snapshot(currentBlueprint)
+                        val config = Config.DEFAULT.copy(
+                            rebuildSections = blueprint.sections.filterIsInstance<CustomClockSection>()
+                        )
                         val transition =
                             IntraBlueprintTransition(
                                 config,
@@ -66,9 +76,10 @@ object KeyguardBlueprintViewBinder {
                             // Replace sections from the previous blueprint with the new ones
                             blueprint.replaceViews(
                                 constraintLayout,
-                                prevBlueprint,
+                                installedBlueprint,
                                 config.rebuildSections,
                             )
+                            installedBlueprint = blueprint
 
                             val cs =
                                 ConstraintSet().apply {
@@ -94,7 +105,7 @@ object KeyguardBlueprintViewBinder {
 
                 launch("$TAG#viewModel.refreshTransition") {
                     viewModel.refreshTransition.collect { config ->
-                        val blueprint = viewModel.blueprint.value
+                        val blueprint = snapshot(viewModel.blueprint.value)
 
                         viewModel.runTransition(
                             constraintLayout,
@@ -102,11 +113,25 @@ object KeyguardBlueprintViewBinder {
                             smartspaceViewModel,
                             config,
                         ) {
-                            blueprint.rebuildViews(constraintLayout, config.rebuildSections)
+                            val sectionsChanged = installedBlueprint?.sections != blueprint.sections
+                            blueprint.replaceViews(
+                                constraintLayout,
+                                installedBlueprint,
+                                config.rebuildSections,
+                            )
+                            installedBlueprint = blueprint
 
                             val cs =
                                 ConstraintSet().apply {
                                     clone(constraintLayout)
+                                    if (sectionsChanged) {
+                                        // Match a normal blueprint transition: remove custom
+                                        // anchors before restoring the native clock/date layout.
+                                        val emptyLayout = ConstraintSet.Layout()
+                                        knownIds.forEach {
+                                            getConstraint(it).layout.copyFrom(emptyLayout)
+                                        }
+                                    }
                                     blueprint.applyConstraints(this)
                                 }
                             logger.logConstraintSet(cs, clockViewModel)

@@ -85,7 +85,7 @@ public class GlassClockManager implements StatusBarStateController.StateListener
     private boolean mUseLiveBackdrop = true;
     private boolean mLiveCaptureInFlight;
     private boolean mSuppressDigitDraw;
-    private boolean mDestroyed;
+    private volatile boolean mDestroyed;
     private boolean mIsDozing;
     private boolean mIsOnKeyguard;
     private int mCaptureGeneration;
@@ -94,6 +94,23 @@ public class GlassClockManager implements StatusBarStateController.StateListener
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private final HandlerThread mCaptureThread = new HandlerThread("GlassClockCapture");
     private final Handler mCaptureHandler;
+    private final Runnable mCaptureTick = new Runnable() {
+        @Override
+        public void run() {
+            if (mDestroyed || !mIsOnKeyguard || mIsDozing
+                    || firstAttachedDigitView() == null) return;
+            requestLiveBackdropCapture();
+            mMainHandler.postDelayed(this, LIVE_CAPTURE_INTERVAL_MS);
+        }
+    };
+
+    private void scheduleCapture() {
+        mMainHandler.removeCallbacks(mCaptureTick);
+        if (!mDestroyed && mIsOnKeyguard && !mIsDozing) {
+            // Never recursively draw the depth hierarchy from DigitView.onDraw().
+            mMainHandler.post(mCaptureTick);
+        }
+    }
     
     private StatusBarStateController mStatusBarStateController;
     private FileObserver mFileObserver;
@@ -165,11 +182,16 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         return mDotView;
     }
 
-    public synchronized void prepareWallpaper() {
-        if (mUseLiveBackdrop) {
-            return;
-        }
+    public void prepareWallpaper() {
+        if (mDestroyed) return;
+        mCaptureHandler.removeCallbacks(mPrepareWallpaper);
+        mCaptureHandler.post(mPrepareWallpaper);
+    }
 
+    private final Runnable mPrepareWallpaper = this::loadWallpaper;
+
+    private void loadWallpaper() {
+        if (mDestroyed) return;
         WallpaperManager wallpaperManager = WallpaperManager.getInstance(mContext);
         Bitmap wallpaperBitmap = null;
         try {
@@ -208,7 +230,12 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         }
 
         if (wallpaperBitmap == null) {
-            Drawable wallpaperDrawable = wallpaperManager.getDrawable();
+            Drawable wallpaperDrawable = null;
+            try {
+                wallpaperDrawable = wallpaperManager.getDrawable();
+            } catch (RuntimeException e) {
+                Log.w(TAG, "Wallpaper unavailable; using readable clock fallback", e);
+            }
             if (wallpaperDrawable != null) {
                 if (wallpaperDrawable instanceof BitmapDrawable) {
                     wallpaperBitmap = ((BitmapDrawable) wallpaperDrawable).getBitmap();
@@ -238,9 +265,8 @@ public class GlassClockManager implements StatusBarStateController.StateListener
             
             final Bitmap finalBlurred = newBlurred;
             mMainHandler.post(() -> {
-                if (mBlurredWallpaperBitmap != null && !mBlurredWallpaperBitmap.isRecycled()) {
-                    mBlurredWallpaperBitmap.recycle();
-                }
+                if (mDestroyed) return;
+                // RenderThread can still reference the previous bitmap's display list.
                 mBlurredWallpaperBitmap = finalBlurred;
                 invalidateDigitViews();
             });
@@ -293,13 +319,8 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         mCaptureHandler.removeCallbacksAndMessages(null);
         mCaptureThread.quitSafely();
 
-        if (mBlurredWallpaperBitmap != null && !mBlurredWallpaperBitmap.isRecycled()) {
-            mBlurredWallpaperBitmap.recycle();
-        }
+        // Do not recycle bitmaps that may still be referenced by a RenderNode.
         mBlurredWallpaperBitmap = null;
-        if (mLiveBackdropBitmap != null && !mLiveBackdropBitmap.isRecycled()) {
-            mLiveBackdropBitmap.recycle();
-        }
         mLiveBackdropBitmap = null;
         
         mMainHandler.removeCallbacksAndMessages(null);
@@ -473,15 +494,23 @@ public class GlassClockManager implements StatusBarStateController.StateListener
             WindowManagerGlobal.getWindowManagerService().captureDisplay(
                     displayId, captureArgs, listener);
             ScreenCaptureInternal.ScreenshotHardwareBuffer buffer = listener.getBuffer();
-            if (buffer == null || buffer.containsSecureLayers()) {
+            if (buffer == null) return null;
+            if (buffer.containsSecureLayers()) {
+                buffer.getHardwareBuffer().close();
                 return null;
             }
 
-            Bitmap bitmap = buffer.asBitmap();
-            if (bitmap == null) {
-                return null;
+            try {
+                Bitmap bitmap = buffer.asBitmap();
+                if (bitmap == null) return null;
+                try {
+                    return bitmap.copy(Bitmap.Config.ARGB_8888, false);
+                } finally {
+                    bitmap.recycle(); // This local capture was never submitted for drawing.
+                }
+            } finally {
+                buffer.getHardwareBuffer().close();
             }
-            return bitmap.copy(Bitmap.Config.ARGB_8888, false);
         } catch (RemoteException e) {
             Log.w(TAG, "Failed to capture live backdrop", e);
             return null;
@@ -527,9 +556,6 @@ public class GlassClockManager implements StatusBarStateController.StateListener
                     }
                     return;
                 }
-                if (mLiveBackdropBitmap != null && !mLiveBackdropBitmap.isRecycled()) {
-                    mLiveBackdropBitmap.recycle();
-                }
                 mLiveBackdropBitmap = blurred;
                 mLiveBackdropBounds.set(finalBounds);
                 invalidateDigitViews();
@@ -571,12 +597,8 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         mLiveCaptureInFlight = false;
         mLastLiveCaptureUptime = 0L;
 
-        if (mIsOnKeyguard && !mIsDozing) {
-            mMainHandler.postDelayed(() -> {
-                requestLiveBackdropCapture();
-                invalidateDigitViews();
-            }, LIVE_CAPTURE_INTERVAL_MS);
-        }
+        scheduleCapture();
+        invalidateDigitViews();
     }
 
     private void handleDozeChanged(boolean isDozing) {
@@ -589,12 +611,8 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         mLiveCaptureInFlight = false;
         mLastLiveCaptureUptime = 0L;
 
-        if (!mIsDozing && mIsOnKeyguard) {
-            mMainHandler.postDelayed(() -> {
-                requestLiveBackdropCapture();
-                invalidateDigitViews();
-            }, LIVE_CAPTURE_INTERVAL_MS);
-        }
+        scheduleCapture();
+        invalidateDigitViews();
     }
 
     private int dpToPx(int dp) {
@@ -624,6 +642,7 @@ public class GlassClockManager implements StatusBarStateController.StateListener
             output_alloc.destroy();
             script.destroy();
             rs.destroy();
+            if (smallBitmap != input) smallBitmap.recycle();
             return blurred; 
         } catch (Exception e) {
             return input;
@@ -655,9 +674,6 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
             super.onSizeChanged(w, h, oldw, oldh);
             if (w > 0 && h > 0) {
-                if (mMaskBitmap != null && !mMaskBitmap.isRecycled()) {
-                    mMaskBitmap.recycle();
-                }
                 mMaskBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
                 mMaskCanvas = new Canvas(mMaskBitmap);
                 updateMask();
@@ -667,7 +683,7 @@ public class GlassClockManager implements StatusBarStateController.StateListener
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            requestLiveBackdropCapture();
+            scheduleCapture();
         }
 
         @Override
@@ -693,6 +709,10 @@ public class GlassClockManager implements StatusBarStateController.StateListener
                 return;
             }
 
+            if (mIsDozing) {
+                drawFallbackDigit(canvas);
+                return;
+            }
             if (mUseLiveBackdrop && drawLiveBackdrop(canvas)) {
                 return;
             }
@@ -700,6 +720,7 @@ public class GlassClockManager implements StatusBarStateController.StateListener
             Bitmap wallpaper = GlassClockManager.this.mBlurredWallpaperBitmap;
 
             if (wallpaper == null || wallpaper.isRecycled()) {
+                drawFallbackDigit(canvas);
                 return;
             }
 
@@ -731,8 +752,15 @@ public class GlassClockManager implements StatusBarStateController.StateListener
             canvas.restoreToCount(saveCount);
         }
 
+        private void drawFallbackDigit(Canvas canvas) {
+            mPaint.setColor(android.graphics.Color.WHITE);
+            int saveCount = canvas.saveLayer(0, 0, getWidth(), getHeight(), null);
+            canvas.drawRect(0, 0, getWidth(), getHeight(), mPaint);
+            canvas.drawBitmap(mMaskBitmap, 0, 0, mXfermodePaint);
+            canvas.restoreToCount(saveCount);
+        }
+
         private boolean drawLiveBackdrop(Canvas canvas) {
-            requestLiveBackdropCapture();
 
             Bitmap backdrop = mLiveBackdropBitmap;
             if (backdrop == null || backdrop.isRecycled() || mLiveBackdropBounds.isEmpty()) {

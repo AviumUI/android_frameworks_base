@@ -62,21 +62,23 @@ object DepthWallpaperAttacher {
         return when (lp) {
             is ConstraintLayout.LayoutParams -> ConstraintLayout.LayoutParams(lp)
             is FrameLayout.LayoutParams -> FrameLayout.LayoutParams(lp)
-            else -> ViewGroup.LayoutParams(lp)
+            // The detached target no longer uses these params. Keep specialized parent
+            // params (for example LinearLayout weight and gravity) on the wrapper.
+            else -> lp
         }
     }
 
     private fun childLpForWrapper(parentLp: ViewGroup.LayoutParams?): FrameLayout.LayoutParams {
-        var w = parentLp?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
-        var h = parentLp?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        var w = parentLp?.width ?: ViewGroup.LayoutParams.MATCH_PARENT
+        var h = parentLp?.height ?: ViewGroup.LayoutParams.MATCH_PARENT
 
-        if (parentLp is ConstraintLayout.LayoutParams) {
-            if (w == 0) w = ViewGroup.LayoutParams.MATCH_PARENT
-            if (h == 0) h = ViewGroup.LayoutParams.MATCH_PARENT
-        }
+        // ConstraintLayout constraints and LinearLayout weights are resolved by the
+        // outer parent. The inner clock fills the size assigned to its wrapper.
+        if (w == 0) w = ViewGroup.LayoutParams.MATCH_PARENT
+        if (h == 0) h = ViewGroup.LayoutParams.MATCH_PARENT
 
-        if (w <= 0) w = ViewGroup.LayoutParams.MATCH_PARENT
-        if (h <= 0) h = ViewGroup.LayoutParams.MATCH_PARENT
+        // Preserve WRAP_CONTENT: converting it to MATCH_PARENT inside a wrapping parent
+        // makes the first measure depend on a parent size that has not been established.
 
         return FrameLayout.LayoutParams(w, h)
     }

@@ -22,16 +22,18 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.TextView;
+
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 
+import com.android.systemui.res.R;
+
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
+import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-import com.android.systemui.res.R;
-import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
-import org.avium.systemui.depthwallpaper.DepthWallpaperSetup;
 
 import java.util.Locale;
 
@@ -108,6 +110,7 @@ public class ClassicClockController extends BaseLockscreenController {
             mLunarDateView.setVisibility(View.GONE);
         }
         mTimeView.setText(LockscreenClockUtils.getCurrentTimeString(mContext.getString(R.string.classic_time_format)));
+        applyStyles();
     }
 
     @Override
@@ -121,7 +124,8 @@ public class ClassicClockController extends BaseLockscreenController {
         
         mGregorianDateView.setTextColor(dayColor);
         mLunarDateView.setTextColor(dayColor);
-        mTimeView.setTextColor(minuteColor);
+        LockscreenClockUtils.applyTimeColors(mTimeView, hourColor, minuteColor,
+                LockscreenClockUtils.parseColor(CustomLockscreenSettings.getDotColor()));
     }
 
     @Override

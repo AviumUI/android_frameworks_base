@@ -25,16 +25,18 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.core.content.res.ResourcesCompat;
 
 import com.android.systemui.res.R;
+
+import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 import org.avium.systemui.lockscreen.util.BaseLockscreenController;
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings;
 import org.avium.systemui.lockscreen.util.LockscreenClockUtils;
 import org.avium.systemui.lockscreen.util.LockscreenLayoutManager;
-import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -251,13 +253,15 @@ public class TextTimeClockController extends BaseLockscreenController {
         int timeColor = LockscreenClockUtils.parseColor(CustomLockscreenSettings.getMinuteColor());
         
         mIntroView.setTextColor(introColor);
-        mHourView.setTextColor(timeColor);
+        mHourView.setTextColor(introColor);
         mMinuteView.setTextColor(timeColor);
 
-        mDayView.setTextColor(timeColor);
-        mMonthView.setTextColor(timeColor);
-        
-        mWeekView.setTextColor(timeColor);
+        mDayView.setTextColor(LockscreenClockUtils.parseColor(
+                CustomLockscreenSettings.getDayColor()));
+        mMonthView.setTextColor(LockscreenClockUtils.parseColor(
+                CustomLockscreenSettings.getMonthColor()));
+        mWeekView.setTextColor(LockscreenClockUtils.parseColor(
+                CustomLockscreenSettings.getWeekdayColor()));
     }
 
     @Override

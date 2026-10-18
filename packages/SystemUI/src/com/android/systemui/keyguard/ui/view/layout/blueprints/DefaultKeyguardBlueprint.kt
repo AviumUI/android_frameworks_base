@@ -17,7 +17,6 @@
 
 package com.android.systemui.keyguard.ui.view.layout.blueprints
 
-import android.util.Log
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardBlueprint
 import com.android.systemui.keyguard.shared.model.KeyguardSection
@@ -40,12 +39,9 @@ import java.util.Optional
 import javax.inject.Inject
 import javax.inject.Named
 import kotlin.jvm.optionals.getOrNull
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.avium.systemui.lockscreen.CustomLockscreenClockManager
 import org.avium.systemui.lockscreen.sections.CustomClockSection
 import org.avium.systemui.lockscreen.sections.NotificationIconsSection
 import org.avium.systemui.lockscreen.CustomLockscreenRepository
-import org.avium.systemui.depthwallpaper.DepthWallpaperAttacher
 
 /**
  * Positions elements of the lockscreen to the default position.
@@ -66,17 +62,16 @@ constructor(
     private val defaultSettingsPopupMenuSection: DefaultSettingsPopupMenuSection,
     private val defaultStatusBarSection: DefaultStatusBarSection,
     private val defaultNotificationStackScrollLayoutSection: DefaultNotificationStackScrollLayoutSection,
+    private val aodPromotedNotificationSection: AodPromotedNotificationSection,
     private val aodNotificationIconsSection: AodNotificationIconsSection,
     private val aodBurnInSection: AodBurnInSection,
     private val clockSection: ClockSection,
     private val smartspaceSection: SmartspaceSection,
     private val keyguardSliceViewSection: KeyguardSliceViewSection,
     private val udfpsAccessibilityOverlaySection: DefaultUdfpsAccessibilityOverlaySection,
-    private val customLockscreenClockManager: CustomLockscreenClockManager,
     private val customClockSection: CustomClockSection,
     private val notificationIconsSection: NotificationIconsSection,
     private val customLockscreenRepository: CustomLockscreenRepository,
-    aodPromotedNotificationSection: AodPromotedNotificationSection,
 ) : KeyguardBlueprint {
     override val id: String = DEFAULT
 
@@ -92,6 +87,7 @@ constructor(
                     defaultStatusBarSection,
                     defaultNotificationStackScrollLayoutSection,
                     aodNotificationIconsSection,
+                    aodPromotedNotificationSection,
                     smartspaceSection,
                     aodBurnInSection,
                     clockSection,
@@ -101,9 +97,9 @@ constructor(
                 )
 
             return if (customLockscreenRepository.isEnabled.value) {
-                Log.d("AVIUM_BLUEPRINT", "Custom lockscreen enabled. Replacing native sections.")
                 allSections.filterNot {
-                    it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection
+                    it is ClockSection || it is SmartspaceSection ||
+                        it is KeyguardSliceViewSection || it is AodNotificationIconsSection
                 } + customClockSection + notificationIconsSection
             } else {
                 allSections

@@ -19,16 +19,38 @@ package org.avium.systemui.lockscreen.util;
 import android.content.Context;
 import android.graphics.Color;
 import android.icu.text.SimpleDateFormat;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
+import android.widget.TextView;
+
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Calendar;
 
 public class LockscreenClockUtils {
 
     private static final String TAG = "AVIUM_LOCKSCREEN";
 
     private static final int DEFAULT_COLOR = Color.WHITE;
+
+    /** Colors the hour, separator and minute in clocks rendered by one TextView. */
+    public static void applyTimeColors(TextView view, int hourColor, int minuteColor, int dotColor) {
+        String text = view.getText().toString();
+        int separator = text.indexOf(':');
+        if (separator < 0) separator = text.indexOf('：');
+        view.setTextColor(minuteColor);
+        if (separator < 0) return;
+        SpannableString styled = new SpannableString(text);
+        styled.setSpan(new ForegroundColorSpan(hourColor), 0, separator,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        styled.setSpan(new ForegroundColorSpan(dotColor), separator, separator + 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        styled.setSpan(new ForegroundColorSpan(minuteColor), separator + 1, text.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        view.setText(styled);
+    }
 
     public static String getCurrentTimeString(String pattern, Locale locale) {
         try {

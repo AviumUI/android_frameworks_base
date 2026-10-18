@@ -234,6 +234,47 @@ public class NotificationStackScrollLayoutTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
+    public void lockscreenDrawer_touchOwnershipEndsWhenDrawerOrModeCloses() {
+        mStackScroller.setLockscreenDrawerShowing(true);
+        assertThat(mStackScroller.isLockscreenDrawerShowing()).isFalse();
+        mStackScroller.setLockscreenDrawer(true);
+        mStackScroller.setLockscreenDrawerShowing(true);
+        assertThat(mStackScroller.isLockscreenDrawerShowing()).isTrue();
+        mStackScroller.setLockscreenDrawerShowing(false);
+        assertThat(mStackScroller.isLockscreenDrawerShowing()).isFalse();
+        mStackScroller.setLockscreenDrawerShowing(true);
+        mStackScroller.setLockscreenDrawer(false);
+        assertThat(mStackScroller.isLockscreenDrawerShowing()).isFalse();
+        mStackScroller.setLockscreenDrawer(true);
+        assertThat(mStackScroller.isLockscreenDrawerShowing()).isFalse();
+    }
+
+    @Test
+    @DisableSceneContainer
+    public void lockscreenDrawer_restoresLatestShadePadding() {
+        mStackScroller.updateTopPadding(180f, false);
+        mStackScroller.setLockscreenDrawer(true);
+        mStackScroller.updateTopPadding(240f, false);
+        assertThat(mStackScroller.getTopPadding()).isEqualTo(0);
+
+        mStackScroller.setLockscreenDrawer(false);
+        assertThat(mStackScroller.getTopPadding()).isEqualTo(240);
+    }
+
+    @Test
+    @DisableSceneContainer
+    public void lockscreenDrawer_keepsLatestIntrinsicPaddingForShade() {
+        mStackScroller.setIntrinsicPadding(500);
+        mStackScroller.setLockscreenDrawer(true);
+        mStackScroller.setIntrinsicPadding(600);
+        assertThat(mStackScroller.getIntrinsicPadding()).isEqualTo(0);
+
+        mStackScroller.setLockscreenDrawer(false);
+        assertThat(mStackScroller.getIntrinsicPadding()).isEqualTo(600);
+    }
+
+    @Test
     @DisableSceneContainer // TODO(b/332574413) cover stack bounds integration with tests
     public void testUpdateStackHeight_qsExpansionGreaterThanZero() {
         final float expansionFraction = 0.2f;

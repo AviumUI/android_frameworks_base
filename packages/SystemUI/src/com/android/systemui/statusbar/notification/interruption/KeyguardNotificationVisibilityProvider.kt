@@ -40,7 +40,6 @@ import dagger.multibindings.IntoMap
 import java.io.PrintWriter
 import java.util.function.Consumer
 import javax.inject.Inject
-import org.avium.systemui.lockscreen.util.CustomLockscreenSettings
 
 /** Determines if notifications should be visible based on the state of the keyguard. */
 interface KeyguardNotificationVisibilityProvider {
@@ -210,7 +209,6 @@ constructor(
                 SHOW
             // Keyguard state doesn't matter if the keyguard is not showing.
             !isLockedOrLocking -> SHOW
-            CustomLockscreenSettings.isEnabled() -> HIDE
             // Notifications not allowed on the lockscreen, always hide.
             !lockscreenUserManager.shouldShowLockscreenNotifications() -> HIDE
             // secure lock device mode is enabled always disallow

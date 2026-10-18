@@ -75,6 +75,8 @@ constructor(
     }
 
     override fun addViews(constraintLayout: ConstraintLayout) {
+        // Sections can outlive a keyguard root; release bindings and views from the old root.
+        removeViews(constraintLayout)
         if (!keyguardSmartspaceViewModel.isSmartspaceEnabled) return
         smartspaceView = smartspaceController.buildAndConnectView(context)
         dateView = smartspaceController.buildAndConnectDateView(context, false) as? LinearLayout
@@ -359,25 +361,25 @@ constructor(
     }
 
     override fun removeViews(constraintLayout: ConstraintLayout) {
-        if (!keyguardSmartspaceViewModel.isSmartspaceEnabled) return
-
-        val list =
-            if (clockReactiveSmartspaceLayout()) {
-                listOf(smartspaceView, dateView, dateViewLargeClock)
-            } else {
-                listOf(smartspaceView, dateView)
-            }
+        // Dispose before removing views so collectors cannot reapply visibility to a
+        // detached date view. Remove every instance created, even if capabilities changed.
+        disposableHandle?.dispose()
+        disposableHandle = null
+        val list = listOf(smartspaceView, dateView, dateViewLargeClock)
         list.forEach {
             it?.let {
-                if (it.parent == constraintLayout) {
-                    constraintLayout.removeView(it)
-                }
+                (it.parent as? ViewGroup)?.removeView(it)
             }
         }
         smartspaceView?.viewTreeObserver?.removeOnGlobalLayoutListener(smartspaceVisibilityListener)
         smartspaceVisibilityListener = null
 
-        disposableHandle?.dispose()
+        if (keyguardUnlockAnimationController.lockscreenSmartspace === smartspaceView) {
+            keyguardUnlockAnimationController.lockscreenSmartspace = null
+        }
+        smartspaceView = null
+        dateView = null
+        dateViewLargeClock = null
     }
 
     private fun updateVisibility(constraintSet: ConstraintSet, isLargeClockVisible: Boolean) {

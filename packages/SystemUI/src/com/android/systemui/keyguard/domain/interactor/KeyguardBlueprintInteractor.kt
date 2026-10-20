@@ -43,6 +43,7 @@ import org.avium.systemui.lockscreen.CustomLockscreenRepository
 import android.util.Log
 import kotlinx.coroutines.flow.first
 import org.avium.systemui.lockscreen.CustomLockscreenClockManager
+import org.avium.systemui.lockscreen.sections.CustomClockSection
 
 @SysUISingleton
 class KeyguardBlueprintInteractor
@@ -98,7 +99,12 @@ constructor(
                     return@collect
                 }
                 customLockscreenClockManager.reload()
-                refreshBlueprint()
+                refreshBlueprint(
+                    Config(
+                        Type.NoTransition,
+                        rebuildSections = blueprint.value.sections.filterIsInstance<CustomClockSection>(),
+                    )
+                )
             }
         }
     }

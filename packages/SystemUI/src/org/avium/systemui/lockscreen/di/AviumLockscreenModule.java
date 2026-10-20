@@ -24,11 +24,7 @@ import dagger.Provides;
 import javax.inject.Singleton;
 import android.content.Context;
 import com.android.systemui.dagger.SysUISingleton;
-import org.avium.systemui.lockscreen.sections.CustomClockSection;
-import org.avium.systemui.lockscreen.sections.NotificationIconsSection;
 import org.avium.systemui.lockscreen.CustomLockscreenRepository;
-import com.android.systemui.statusbar.notification.collection.NotifPipeline;
-import com.android.systemui.shade.ShadeController;
 
 @Module
 public class AviumLockscreenModule {
@@ -52,12 +48,6 @@ public class AviumLockscreenModule {
 
     @Provides
     @SysUISingleton
-    public CustomClockSection provideCustomClockSection(CustomLockscreenClockManager manager) {
-        return new CustomClockSection(manager);
-    }
-
-    @Provides
-    @SysUISingleton
     public CustomLockscreenRepository provideCustomLockscreenRepository(Context context) {
         return new CustomLockscreenRepository(context);
     }
@@ -68,9 +58,6 @@ public class AviumLockscreenModule {
         return new SystemPropertiesWatcher(context);
     }
 
-    @Provides
-    @SysUISingleton
-    public NotificationIconsSection provideNotificationIconsSection(Context context, NotifPipeline notifPipeline, ShadeController shadeController) {
-        return new NotificationIconsSection(context, notifPipeline, shadeController);
-    }
+
+
 }

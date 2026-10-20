@@ -572,6 +572,15 @@ public class NotificationShadeWindowViewController implements Dumpable {
 
             private boolean shouldInterceptTouchEventInternal(MotionEvent ev) {
                 mLastInterceptWasDragDownHelper = false;
+                // The local keyguard drawer owns its handle, blank space and card gestures.
+                // Do not turn a list scroll or drawer dismissal into a shade/QS drag.
+                if (mStatusBarStateController.getState() == KEYGUARD
+                        && !mStatusBarStateController.isDozing()
+                        && !mPrimaryBouncerInteractor.isBouncerShowing()
+                        && mStackScrollLayout != null
+                        && mStackScrollLayout.isLockscreenDrawerShowing()) {
+                    return false;
+                }
                 // When the device starts dozing, there's a delay before the device's display state
                 // changes from ON => DOZE to allow for the light reveal animation to run at
                 // a higher refresh rate and to delay visual changes (ie: display blink) when

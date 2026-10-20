@@ -77,9 +77,8 @@ constructor(
 ) : KeyguardBlueprint {
     override val id: String = ID
 
-    override val sections by lazy {
-        SceneContainerFlag.assertInLegacyMode()
-        val allSections = listOfNotNull(
+    private val allSections =
+        listOfNotNull(
             accessibilityActionsSection,
             defaultIndicationAreaSection,
             defaultShortcutsSection,
@@ -98,14 +97,18 @@ constructor(
             defaultDeviceEntrySection, // Add LAST: Intentionally has z-order above other views.
         )
 
-        if (customLockscreenRepository.isEnabled.value) {
-            allSections.filterNot {
-                it is ClockSection || it is SmartspaceSection || it is KeyguardSliceViewSection || it is SplitShadeMediaSection
-            } + customClockSection + notificationIconsSection
-        } else {
-            allSections
+    override val sections: List<KeyguardSection>
+        get() {
+            SceneContainerFlag.assertInLegacyMode()
+            return if (customLockscreenRepository.isEnabled.value) {
+                allSections.filterNot {
+                    it is ClockSection || it is SmartspaceSection ||
+                        it is KeyguardSliceViewSection
+                } + customClockSection + notificationIconsSection
+            } else {
+                allSections
+            }
         }
-    }
 
     companion object {
         const val ID = "split-shade"

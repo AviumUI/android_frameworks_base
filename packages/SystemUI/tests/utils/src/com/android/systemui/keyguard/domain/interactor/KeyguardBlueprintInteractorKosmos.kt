@@ -19,6 +19,7 @@ package com.android.systemui.keyguard.domain.interactor
 import com.android.systemui.biometrics.domain.interactor.fingerprintPropertyInteractor
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.keyguard.data.repository.keyguardBlueprintRepository
+import com.android.systemui.keyguard.data.repository.customLockscreenRepository
 import com.android.systemui.keyguard.data.repository.keyguardSmartspaceSection
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -33,5 +34,7 @@ val Kosmos.keyguardBlueprintInteractor by
             configurationInteractor = configurationInteractor,
             fingerprintPropertyInteractor = fingerprintPropertyInteractor,
             smartspaceSection = keyguardSmartspaceSection,
+            customLockscreenRepository = customLockscreenRepository,
+            customLockscreenClockManager = org.mockito.kotlin.mock(),
         )
     }

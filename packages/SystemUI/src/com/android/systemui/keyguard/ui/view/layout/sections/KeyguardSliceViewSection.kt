@@ -20,6 +20,7 @@ package com.android.systemui.keyguard.ui.view.layout.sections
 import android.content.Context
 import android.os.Handler
 import android.view.LayoutInflater
+import android.view.ViewGroup
 import androidx.constraintlayout.widget.Barrier
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -59,23 +60,26 @@ constructor(
     val powerInteractor: PowerInteractor,
     val aodBurnInViewModel: AodBurnInViewModel,
 ) : KeyguardSection() {
-    private lateinit var sliceView: KeyguardSliceView
+    private var sliceView: KeyguardSliceView? = null
     private var disposableHandle: DisposableHandle? = null
 
     override fun addViews(constraintLayout: ConstraintLayout) {
+        removeViews(constraintLayout)
         if (smartspaceController.isEnabled) return
-        sliceView =
+        val view =
             layoutInflater.inflate(R.layout.keyguard_slice_view, null, false) as KeyguardSliceView
-        constraintLayout.addView(sliceView)
+        sliceView = view
+        constraintLayout.addView(view)
     }
 
     override fun bindData(constraintLayout: ConstraintLayout) {
         if (smartspaceController.isEnabled) return
+        val view = sliceView ?: return
         val controller =
             KeyguardSliceViewController(
                 handler,
                 bgHandler,
-                sliceView,
+                view,
                 activityStarter,
                 configurationController,
                 dumpManager,
@@ -89,7 +93,7 @@ constructor(
         disposableHandle?.dispose()
         disposableHandle =
             KeyguardSliceViewBinder.bind(
-                sliceView,
+                view,
                 keyguardInteractor,
                 controller,
                 aodBurnInViewModel,
@@ -133,5 +137,10 @@ constructor(
         }
     }
 
-    override fun removeViews(constraintLayout: ConstraintLayout) {}
+    override fun removeViews(constraintLayout: ConstraintLayout) {
+        disposableHandle?.dispose()
+        disposableHandle = null
+        sliceView?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        sliceView = null
+    }
 }

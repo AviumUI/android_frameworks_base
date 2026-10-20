@@ -48,6 +48,9 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
             return
         }
         entryView.postDelayed({
+            if (!CustomLockscreenSettings.isEnabled() || !entryView.isAttachedToWindow) {
+                return@postDelayed
+            }
             val rootView = entryView.rootView as? ViewGroup ?: return@postDelayed
             val rootId = context.resources.getIdentifier("keyguard_root_view", "id", "com.android.systemui")
             if (rootView.id != rootId) {
@@ -58,6 +61,9 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
             listOf(
                 "bc_smartspace_view",
                 "date_smartspace_view",
+                "date_smartspace_view_large",
+                "weather_smartspace_view",
+                "weather_smartspace_view_large",
                 "lockscreen_clock_view",
                 "lockscreen_clock_view_large",
                 "keyguard_slice_view"
@@ -76,18 +82,8 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
     }
 
     fun restoreNativeViews(entryView: View) {
-        val rootView = entryView.rootView as? ViewGroup ?: return
-        val resourceNames = listOf(
-            "bc_smartspace_view",
-            "date_smartspace_view",
-            "lockscreen_clock_view",
-            "lockscreen_clock_view_large",
-            "keyguard_slice_view"
-        )
-        resourceNames.forEach { resourceName ->
-            val id = context.resources.getIdentifier(resourceName, "id", "com.android.systemui")
-            if (id != 0) rootView.findViewById<View?>(id)?.restoreView()
-        }
+        // Restore tracked instances even if the clock has already been detached/reparented.
+        hiddenViews.keys.toList().forEach { it.restoreView() }
     }
 
     private fun View?.hideView() {
@@ -110,9 +106,9 @@ class NativeLockscreenViewHider @Inject constructor(private val context: Context
 
         fun makeSizeZero() {
             val params = layoutParams
-            if (params != null) {
-                if (params.height != 0) params.height = 0
-                if (params.width != 0) params.width = 0
+            if (params != null && (params.height != 0 || params.width != 0)) {
+                params.height = 0
+                params.width = 0
                 layoutParams = params
             }
         }

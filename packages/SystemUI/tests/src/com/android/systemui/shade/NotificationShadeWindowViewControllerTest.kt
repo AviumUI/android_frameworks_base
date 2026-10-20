@@ -75,12 +75,14 @@ import com.android.systemui.statusbar.LockscreenShadeTransitionController
 import com.android.systemui.statusbar.NotificationInsetsController
 import com.android.systemui.statusbar.NotificationShadeDepthController
 import com.android.systemui.statusbar.NotificationShadeWindowController
+import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.data.repository.homeStatusBarComponentsRepository
 import com.android.systemui.statusbar.notification.data.repository.NotificationLaunchAnimationRepository
 import com.android.systemui.statusbar.notification.domain.interactor.NotificationLaunchAnimationInteractor
 import com.android.systemui.statusbar.notification.stack.AmbientState
+import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
 import com.android.systemui.statusbar.phone.CentralSurfaces
 import com.android.systemui.statusbar.phone.ConfigurationForwarder
@@ -134,6 +136,7 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
 
     val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
+    @Mock private lateinit var stackScrollLayout: NotificationStackScrollLayout
     @Mock private lateinit var view: NotificationShadeWindowView
     @Mock private lateinit var sysuiStatusBarStateController: SysuiStatusBarStateController
     @Mock private lateinit var centralSurfaces: CentralSurfaces
@@ -467,6 +470,27 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
 
             assertThat(returnVal).isTrue()
         }
+
+    @Test
+    fun shouldInterceptTouchEvent_customDrawer_leavesGesturesWithDrawer() {
+        whenever(view.findViewById<NotificationStackScrollLayout>(R.id.notification_stack_scroller))
+            .thenReturn(stackScrollLayout)
+        underTest.setupExpandedStatusBar()
+        whenever(sysuiStatusBarStateController.state).thenReturn(StatusBarState.KEYGUARD)
+        whenever(stackScrollLayout.isLockscreenDrawerShowing).thenReturn(true)
+        whenever(panelExpansionInteractor.isFullyExpanded).thenReturn(true)
+        whenever(dragDownHelper.isDragDownEnabled).thenReturn(true)
+        whenever(dragDownHelper.onInterceptTouchEvent(any())).thenReturn(true)
+        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any()))
+            .thenReturn(true)
+
+        assertThat(interactionEventHandler.shouldInterceptTouchEvent(DOWN_EVENT)).isFalse()
+        assertThat(interactionEventHandler.shouldInterceptTouchEvent(MOVE_EVENT)).isFalse()
+        verify(dragDownHelper, never()).onInterceptTouchEvent(any())
+
+        whenever(stackScrollLayout.isLockscreenDrawerShowing).thenReturn(false)
+        assertThat(interactionEventHandler.shouldInterceptTouchEvent(DOWN_EVENT)).isTrue()
+    }
 
     @Test
     fun shouldInterceptTouchEvent_dozing_touchNotInLockIconArea_touchIntercepted() {

@@ -303,6 +303,39 @@ public class NotificationStackScrollLayout
     private boolean mExpandedInThisMotion;
     private boolean mShouldShowShelfOnly;
     protected boolean mScrollingEnabled;
+    private boolean mLockscreenDrawer;
+    private boolean mLockscreenDrawerShowing;
+    private float mRequestedDrawerTopPadding;
+    private float mRequestedDrawerExpandedHeight;
+    private int mRequestedDrawerMaxNotifications;
+
+    /** Temporarily use local coordinates in the custom lockscreen notification viewport. */
+    public void setLockscreenDrawer(boolean enabled) {
+        if (mLockscreenDrawer == enabled) return;
+        if (enabled) {
+            mRequestedDrawerTopPadding = getTopPadding();
+            mRequestedDrawerExpandedHeight = mExpandedHeight;
+            mRequestedDrawerMaxNotifications = mMaxDisplayedNotifications;
+        }
+        mLockscreenDrawer = enabled;
+        if (!enabled) mLockscreenDrawerShowing = false;
+        updateTopPadding(mRequestedDrawerTopPadding, false);
+        setExpandedHeight(mRequestedDrawerExpandedHeight);
+        setMaxDisplayedNotifications(mRequestedDrawerMaxNotifications);
+        if (!enabled) setOwnScrollY(0);
+        updateClipping();
+        requestChildrenUpdate();
+    }
+
+    /** True only while the custom keyguard drawer owns notification touch gestures. */
+    public boolean isLockscreenDrawerShowing() {
+        return mLockscreenDrawer && mLockscreenDrawerShowing;
+    }
+
+    public void setLockscreenDrawerShowing(boolean showing) {
+        mLockscreenDrawerShowing = showing && mLockscreenDrawer;
+    }
+
     protected FooterView mFooterView;
     protected StackScrollerDecorView mEmptyShadeView;
     private boolean mClearAllInProgress;
@@ -1223,6 +1256,7 @@ public class NotificationStackScrollLayout
         }
         if (!SceneContainerFlag.isEnabled()) {
             setMaxLayoutHeight(getHeight());
+            if (mLockscreenDrawer) setExpandedHeight(mRequestedDrawerExpandedHeight);
             updateContentHeight();
         }
         clampScrollPosition();
@@ -1957,6 +1991,10 @@ public class NotificationStackScrollLayout
      */
     public void setExpandedHeight(float height) {
         SceneContainerFlag.assertInLegacyMode();
+        if (mLockscreenDrawer) {
+            mRequestedDrawerExpandedHeight = height;
+            height = getHeight();
+        }
         final boolean skipHeightUpdate = shouldSkipHeightUpdate();
 
         updateStackPosition();
@@ -2056,6 +2094,12 @@ public class NotificationStackScrollLayout
     }
 
     public void updateClipping() {
+        if (mLockscreenDrawer) {
+            // The lockscreen viewport owns clipping; shade bounds are in window coordinates.
+            setClipBounds(null);
+            setClipToOutline(false);
+            return;
+        }
         boolean clipped = mRequestedClipBounds != null && !mInHeadsUpPinnedMode
                 && !mHeadsUpAnimatingAway;
         if (mIsClipped != clipped) {
@@ -2405,7 +2449,7 @@ public class NotificationStackScrollLayout
     }
 
     private boolean isScrollingEnabled() {
-        return mScrollingEnabled;
+        return mLockscreenDrawer || mScrollingEnabled;
     }
 
     boolean onKeyguard() {
@@ -3109,6 +3153,11 @@ public class NotificationStackScrollLayout
      */
     public void updateTopPadding(float qsHeight, boolean animate) {
         SceneContainerFlag.assertInLegacyMode();
+        if (mLockscreenDrawer) {
+            mRequestedDrawerTopPadding = qsHeight;
+            qsHeight = 0f;
+            animate = false;
+        }
         int topPadding = (int) qsHeight;
         int minStackHeight = getLayoutMinHeightInternal();
         if (topPadding + minStackHeight > getHeight()) {
@@ -3120,7 +3169,7 @@ public class NotificationStackScrollLayout
             mAmbientState.setTopPadding(topPadding);
             onTopPaddingChanged(/* animate = */ animate && !mKeyguardBypassEnabled);
         }
-        setExpandedHeight(mExpandedHeight);
+        setExpandedHeight(mLockscreenDrawer ? mRequestedDrawerExpandedHeight : mExpandedHeight);
     }
 
     public int getLayoutMinHeight() {
@@ -5189,6 +5238,7 @@ public class NotificationStackScrollLayout
      * Always 0 with SceneContainer enabled.
      */
     int getIntrinsicPadding() {
+        if (mLockscreenDrawer) return 0;
         if (SceneContainerFlag.isEnabled()) {
             return 0;
         }
@@ -5742,6 +5792,10 @@ public class NotificationStackScrollLayout
 
     @Override
     public void setMaxDisplayedNotifications(int maxDisplayedNotifications) {
+        if (mLockscreenDrawer) {
+            mRequestedDrawerMaxNotifications = maxDisplayedNotifications;
+            maxDisplayedNotifications = -1;
+        }
         if (mMaxDisplayedNotifications != maxDisplayedNotifications) {
             if (mLogger != null) {
                 mLogger.setMaxDisplayedNotifications(maxDisplayedNotifications);
@@ -5938,6 +5992,7 @@ public class NotificationStackScrollLayout
             println(pw, "hideAmount", mAmbientState.getHideAmount());
             println(pw, "ambientStateSwipingUp", mAmbientState.isSwipingUp());
             println(pw, "maxDisplayedNotifications", mMaxDisplayedNotifications);
+            println(pw, "lockscreenDrawer", mLockscreenDrawer);
             println(pw, "intrinsicPadding", mIntrinsicPadding);
             println(pw, "bottomPadding", mBottomPadding);
             dumpRoundedRectClipping(pw);

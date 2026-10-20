@@ -3497,6 +3497,7 @@ public final class NotificationPanelViewController implements
             ExpandableView.OnHeightChangedListener {
         @Override
         public void onHeightChanged(ExpandableView view, boolean needsAnimation) {
+            mCustomLockscreenClockManager.onNotificationStateChanged(hasVisibleNotifications());
             // Block update if we are in QS and just the top padding changed (i.e. view == null).
             if (view == null && mQsController.getExpanded()) {
                 return;
@@ -3518,7 +3519,9 @@ public final class NotificationPanelViewController implements
         }
 
         @Override
-        public void onReset(ExpandableView view) {}
+        public void onReset(ExpandableView view) {
+            mCustomLockscreenClockManager.onNotificationStateChanged(hasVisibleNotifications());
+        }
     }
 
     private void onDynamicPrivacyChanged() {
@@ -3733,30 +3736,7 @@ public final class NotificationPanelViewController implements
             mConfigurationListener.onThemeChanged();
             mFalsingManager.addTapListener(mFalsingTapListener);
             mKeyguardIndicationController.init();
-            
-            //Ext add
-            if (mCustomLockscreenClockManager != null && mCustomLockscreenClockManager.isEnabled()) {
-                mNotificationStackScrollLayoutController.setOnHeightChangedListener(
-                    new ExpandableView.OnHeightChangedListener() {
-                        @Override
-                        public void onHeightChanged(ExpandableView view, boolean needsAnimation) {
-                            boolean hasNotifications = hasVisibleNotifications();
-                            Log.d(AVIUM_TAG, "onHeightChanged: Notification state changed, hasNotifications=" + hasNotifications);
-                            mCustomLockscreenClockManager.onNotificationStateChanged(hasNotifications);
-                        }
-
-                        @Override
-                        public void onReset(ExpandableView view) {
-                            boolean hasNotifications = hasVisibleNotifications();
-                            Log.d(AVIUM_TAG, "onReset: Notification state reset, hasNotifications=" + hasNotifications);
-                            mCustomLockscreenClockManager.onNotificationStateChanged(hasNotifications);
-                        }
-                    }
-                );
-                boolean initialHasNotifications = hasVisibleNotifications();
-                Log.d(AVIUM_TAG, "Initial notification state: hasNotifications=" + initialHasNotifications);
-                mCustomLockscreenClockManager.onNotificationStateChanged(initialHasNotifications);
-            }
+            mCustomLockscreenClockManager.onNotificationStateChanged(hasVisibleNotifications());
         }
 
         @Override
@@ -3887,6 +3867,13 @@ public final class NotificationPanelViewController implements
         @Override
         public boolean onInterceptTouchEvent(MotionEvent event) {
             if (!mUseExternalTouch) {
+                return false;
+            }
+            if (mStatusBarStateController.getState() == KEYGUARD
+                    && !mStatusBarStateController.isDozing()
+                    && !mCentralSurfaces.isBouncerShowing()
+                    && mNotificationStackScrollLayoutController.getView()
+                            .isLockscreenDrawerShowing()) {
                 return false;
             }
 

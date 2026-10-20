@@ -38,6 +38,7 @@ public class CustomLockscreenClockManager {
     private final SystemPropertiesWatcher mPropertiesWatcher;
     private final StatusBarStateController mStatusBarStateController;
     private View mCustomClockView;
+    private boolean mHasNotifications;
 
     @Inject
     public CustomLockscreenClockManager(Context context, NativeLockscreenViewHider nativeViewHider, SystemPropertiesWatcher propertiesWatcher, StatusBarStateController statusBarStateController) {
@@ -63,7 +64,7 @@ public class CustomLockscreenClockManager {
             if (mCustomClock != null) {
                 mCustomClockView = mCustomClock.getView(mContext);
                 if (mCustomClockView != null) {
-                    mNativeViewHider.hideNativeViews(mCustomClockView);
+                    mCustomClock.onNotificationStateChanged(mHasNotifications);
                 }
             }
         }
@@ -71,6 +72,8 @@ public class CustomLockscreenClockManager {
     }
 
     public void onNotificationStateChanged(boolean hasNotifications) {
+        if (mHasNotifications == hasNotifications) return;
+        mHasNotifications = hasNotifications;
         if (mCustomClock != null && isEnabled()) {
             mCustomClock.onNotificationStateChanged(hasNotifications);
         }
@@ -93,7 +96,7 @@ public class CustomLockscreenClockManager {
 
     /** Disposes the current clock so the next blueprint build gets fresh properties and views. */
     public void reload() {
-        if (!isEnabled() && mCustomClockView != null) {
+        if (mCustomClockView != null) {
             mNativeViewHider.restoreNativeViews(mCustomClockView);
         }
         detachCurrentView();

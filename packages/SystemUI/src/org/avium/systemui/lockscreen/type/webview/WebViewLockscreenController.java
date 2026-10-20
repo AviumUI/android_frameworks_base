@@ -166,7 +166,14 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
     }
 
     private void setupWebView() {
-        mWebView = new WebView(mCredentialContext);
+        // Clock themes are decorative. Let the keyguard handle taps and swipes so a
+        // full-screen WebView cannot swallow notification, unlock or shade gestures.
+        mWebView = new WebView(mCredentialContext) {
+            @Override
+            public boolean onTouchEvent(android.view.MotionEvent event) {
+                return false;
+            }
+        };
         mWebView.setLayoutParams(new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -195,7 +202,6 @@ public class WebViewLockscreenController implements ICustomLockScreenClock,
         mJsInterface.setStatusBarStateController(mStatusBarStateController);
         mWebView.addJavascriptInterface(mJsInterface, INTERFACE_NAME);
 
-        mWebView.setOnTouchListener((v, event) -> true);
 
         mContainer.addView(mWebView);
     }

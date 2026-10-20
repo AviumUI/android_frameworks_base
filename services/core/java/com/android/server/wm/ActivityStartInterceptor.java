@@ -102,6 +102,7 @@ class ActivityStartInterceptor {
     private int mStartFlags;
     private String mCallingPackage;
     private @Nullable String mCallingFeatureId;
+    private boolean mFromResolver;
 
     /*
      * Per-intent states that were load from ActivityStarter and are subject to modifications
@@ -150,12 +151,19 @@ class ActivityStartInterceptor {
      */
     void setStates(int userId, int realCallingPid, int realCallingUid, int startFlags,
             String callingPackage, @Nullable String callingFeatureId) {
+        setStates(userId, realCallingPid, realCallingUid, startFlags, callingPackage,
+                callingFeatureId, false);
+    }
+
+    void setStates(int userId, int realCallingPid, int realCallingUid, int startFlags,
+            String callingPackage, @Nullable String callingFeatureId, boolean fromResolver) {
         mRealCallingPid = realCallingPid;
         mRealCallingUid = realCallingUid;
         mUserId = userId;
         mStartFlags = startFlags;
         mCallingPackage = callingPackage;
         mCallingFeatureId = callingFeatureId;
+        mFromResolver = fromResolver;
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
@@ -267,15 +275,6 @@ class ActivityStartInterceptor {
         if (interceptAutomatedPackageIfNeeded()) {
             // If the app is currently being automated, we should warn the user about it.
             return true;
-        }
-
-        // Implicit intents are the platform's app/open chooser flow (for example ACTION_VIEW,
-        // ACTION_SEND and ACTION_OPEN_DOCUMENT). The resolver or picker owns that user choice;
-        // inserting the profile-launch approval in front of it causes a second prompt and can
-        // invalidate the resolver's selected target when the deferred IntentSender is resumed.
-        if (!mComponentSpecified && mIntent != null && mIntent.getComponent() == null
-                && mIntent.getPackage() == null) {
-            return false;
         }
 
         if (interceptAppLaunchApproval()) return true;
@@ -390,6 +389,11 @@ class ActivityStartInterceptor {
         // Use the configured controller, including modular/vendor implementations.
         if (pkg != null && pkg.equals(permissionController)) return true;
         if (!platformSigned) return false;
+        if ("android".equals(pkg)
+                && ("com.android.internal.app.ResolverActivity".equals(target.name)
+                || "com.android.internal.app.ChooserActivity".equals(target.name))) {
+            return true;
+        }
         return "com.android.settings".equals(pkg)
                 || "com.android.systemui".equals(pkg)
                 || "com.android.documentsui".equals(pkg)
@@ -404,6 +408,11 @@ class ActivityStartInterceptor {
         if (mIntent == null || mAInfo == null || mAInfo.applicationInfo == null
                 || mCallingPackage == null) return false;
         if (consumeLaunchApproval()) return false;
+        // resolveActivity() has already filled in Intent.component here. Use the original
+        // caller's componentSpecified flag, not the mutated Intent, for implicit open flows.
+        // A resolver selection is explicit but has already been confirmed by the user. The
+        // source is identified by ActivityStarter from its ActivityRecord, never an app extra.
+        if (!mComponentSpecified || mFromResolver) return false;
         if (UserHandle.getAppId(mCallingUid) < android.os.Process.FIRST_APPLICATION_UID
                 || mCallingPackage.equals(mAInfo.packageName)
                 // SystemUI is the trusted host of TaskView bubbles. Its PendingIntent starts

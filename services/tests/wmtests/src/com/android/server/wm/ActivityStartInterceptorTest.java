@@ -159,6 +159,14 @@ public class ActivityStartInterceptorTest {
         target.packageName = "com.example.app";
         assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
         assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(null, "controller", true));
+        target.packageName = "android";
+        target.name = "com.android.internal.app.ResolverActivity";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        target.name = "com.android.internal.app.ChooserActivity";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        target.packageName = "com.example.app";
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
     }
 
     @Test
@@ -534,6 +542,33 @@ public class ActivityStartInterceptorTest {
         assertTrue(mInterceptor.intercept(null, null, mAInfo, null, null, null, 0, 0, null, null));
         assertEquals("android.test.foo", mInterceptor.mIntent.getAction());
         assertEquals(3, mInterceptor.mActivityOptions.getLaunchDisplayId());
+    }
+
+    @Test
+    public void implicitOpenWithResolvedComponent_preservesSystemCallbacks() {
+        // ActivityTaskSupervisor has already inserted the resolved component by this point.
+        final Intent open = new Intent(Intent.ACTION_VIEW)
+                .setComponent(new android.content.ComponentName(TEST_PACKAGE_NAME, "Viewer"));
+        final Intent handled = new Intent("android.test.handled");
+        addMockInterceptorCallback(handled, null, true);
+
+        assertTrue(mInterceptor.intercept(open, null, mAInfo, null, null, null, 123,
+                10123, null, null, false /* componentSpecified */));
+        assertEquals(handled, mInterceptor.mIntent);
+    }
+
+    @Test
+    public void resolverSelection_preservesSystemCallbacksWithoutLaunchApproval() {
+        mInterceptor.setStates(TEST_USER_ID, TEST_REAL_CALLING_PID, TEST_REAL_CALLING_UID,
+                TEST_START_FLAGS, TEST_CALLING_PACKAGE, null, true /* fromResolver */);
+        final Intent selected = new Intent(Intent.ACTION_VIEW)
+                .setComponent(new android.content.ComponentName(TEST_PACKAGE_NAME, "Viewer"));
+        final Intent handled = new Intent("android.test.handled");
+        addMockInterceptorCallback(handled, null, true);
+
+        assertTrue(mInterceptor.intercept(selected, null, mAInfo, null, null, null, 123,
+                10123, null, null, true /* componentSpecified */));
+        assertEquals(handled, mInterceptor.mIntent);
     }
 
     @Test

@@ -30,7 +30,6 @@ import kotlin.math.max
 
 import com.android.systemui.Dependency
 import com.android.systemui.plugins.statusbar.StatusBarStateController
-import com.android.systemui.res.R;
 
 class OccludingMaskLayout @JvmOverloads constructor(
     context: Context,
@@ -58,12 +57,6 @@ class OccludingMaskLayout @JvmOverloads constructor(
 
     private var mDozeAmount: Float = 0f
     private var mStatusBarStateController: StatusBarStateController? = null
-    private var mStatusBarView: View? = null
-    private var mDeviceEntryIconView: View? = null
-    private var mKeyguardIndicationArea: View? = null
-    private var mStartButton: View? = null
-    private var mEndButton: View? = null
-
     private val invalidateRunnable = Runnable {
         invalidate()
     }
@@ -215,163 +208,30 @@ class OccludingMaskLayout @JvmOverloads constructor(
         drawMatrix.postTranslate(-vx, -vy)
     }
 
-    private fun findKeyguardStatusBar() {
-        var current: View? = this
-        while (current != null) {
-            val sb = current.rootView.findViewById<View>(R.id.keyguard_header)
-            if (sb != null) {
-                mStatusBarView = sb
-                break
-            }
-            val parent = current.parent
-            current = if (parent is View) parent else null
-        }
-    }
-
-    private fun findDeviceEntryIcon() {
-        var current: View? = this
-        while (current != null) {
-            val icon = current.rootView.findViewById<View>(R.id.device_entry_icon_view)
-            if (icon != null) {
-                mDeviceEntryIconView = icon
-                break
-            }
-            val parent = current.parent
-            current = if (parent is View) parent else null
-        }
-    }
-
-    private fun findKeyguardIndicationArea() {
-        var current: View? = this
-        while (current != null) {
-            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
-            if (keyguardRootView != null) {
-                val area = keyguardRootView.findViewById<View>(R.id.keyguard_indication_area)
-                if (area != null) {
-                    mKeyguardIndicationArea = area
-                    break
-                }
-            }
-            val parent = current.parent
-            current = if (parent is View) parent else null
-        }
-    }
-
-    private fun findStartButton() {
-        var current: View? = this
-        while (current != null) {
-            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
-            if (keyguardRootView != null) {
-                val btn = keyguardRootView.findViewById<View>(R.id.start_button)
-                if (btn != null) {
-                    mStartButton = btn
-                    break
-                }
-            }
-            val parent = current.parent
-            current = if (parent is View) parent else null
-        }
-    }
-
-    private fun findEndButton() {
-        var current: View? = this
-        while (current != null) {
-            val keyguardRootView = current.rootView.findViewById<View>(R.id.keyguard_root_view)
-            if (keyguardRootView != null) {
-                val btn = keyguardRootView.findViewById<View>(R.id.end_button)
-                if (btn != null) {
-                    mEndButton = btn
-                    break
-                }
-            }
-            val parent = current.parent
-            current = if (parent is View) parent else null
-        }
-    }
-
     override fun dispatchDraw(canvas: Canvas) {
-        if (!DepthWallpaperSwitch.isEnabled(context) || mDozeAmount == 1f) {
+        if (!DepthWallpaperSwitch.isEnabled(context) || mDozeAmount >= 1f) {
             super.dispatchDraw(canvas)
             return
         }
 
         reloadImagesIfNeeded()
-        val alpha = ((1f - mDozeAmount) * 255).toInt().coerceIn(0, 255)
-
-        if (alpha == 0) {
+        val mask = maskBitmap
+        if (mask == null || mask.isRecycled) {
             super.dispatchDraw(canvas)
+            scheduleInvalidate()
             return
         }
 
-        paint.alpha = alpha
-        val bg = bgBitmap
-        if (bg != null && !bg.isRecycled) {
-            paint.xfermode = null
-            canvas.drawBitmap(bg, drawMatrix, paint)
-        }
-
+        // Only remove the clock pixels behind the foreground. The real wallpaper and
+        // system controls already render below/above this view in the native hierarchy.
+        // Repainting them here duplicates their transforms during shade/unlock animations.
+        val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         super.dispatchDraw(canvas)
-
-        val mask = maskBitmap
-        if (mask != null && !mask.isRecycled) {
-            paint.xfermode = null
-            canvas.drawBitmap(mask, drawMatrix, paint)
-        }
-
-        drawStatusBarMirror(canvas)
-        drawDeviceEntryIconMirror(canvas)
-        drawKeyguardIndicationAreaMirror(canvas)
-        drawStartButtonMirror(canvas)
-        drawEndButtonMirror(canvas)
-
+        paint.alpha = ((1f - mDozeAmount) * 255).toInt().coerceIn(0, 255)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+        canvas.drawBitmap(mask, drawMatrix, paint)
+        paint.xfermode = null
+        canvas.restoreToCount(layer)
         scheduleInvalidate()
-    }
-
-    private fun drawViewMirror(canvas: Canvas, view: View?) {
-        view?.let { v ->
-            if (v.isAttachedToWindow && v.visibility == View.VISIBLE && v.alpha > 0.01f) {
-                canvas.save()
-
-                val viewLoc = IntArray(2)
-                v.getLocationOnScreen(viewLoc)
-
-                val myLoc = IntArray(2)
-                getLocationOnScreen(myLoc)
-
-                canvas.translate(
-                    (viewLoc[0] - myLoc[0]).toFloat(),
-                    (viewLoc[1] - myLoc[1]).toFloat()
-                )
-
-                v.draw(canvas)
-
-                canvas.restore()
-            }
-        }
-    }
-
-    private fun drawStatusBarMirror(canvas: Canvas) {
-        findKeyguardStatusBar()
-        drawViewMirror(canvas, mStatusBarView)
-    }
-
-    private fun drawDeviceEntryIconMirror(canvas: Canvas) {
-        findDeviceEntryIcon()
-        drawViewMirror(canvas, mDeviceEntryIconView)
-    }
-
-    private fun drawKeyguardIndicationAreaMirror(canvas: Canvas) {
-        findKeyguardIndicationArea()
-        drawViewMirror(canvas, mKeyguardIndicationArea)
-    }
-
-    private fun drawStartButtonMirror(canvas: Canvas) {
-        findStartButton()
-        drawViewMirror(canvas, mStartButton)
-    }
-
-    private fun drawEndButtonMirror(canvas: Canvas) {
-        findEndButton()
-        drawViewMirror(canvas, mEndButton)
     }
 }

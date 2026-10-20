@@ -51,6 +51,7 @@ import android.content.IIntentSender;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.SuspendDialogInfo;
@@ -102,6 +103,7 @@ class ActivityStartInterceptor {
     private int mStartFlags;
     private String mCallingPackage;
     private @Nullable String mCallingFeatureId;
+    private boolean mFromResolver;
 
     /*
      * Per-intent states that were load from ActivityStarter and are subject to modifications
@@ -150,12 +152,19 @@ class ActivityStartInterceptor {
      */
     void setStates(int userId, int realCallingPid, int realCallingUid, int startFlags,
             String callingPackage, @Nullable String callingFeatureId) {
+        setStates(userId, realCallingPid, realCallingUid, startFlags, callingPackage,
+                callingFeatureId, false);
+    }
+
+    void setStates(int userId, int realCallingPid, int realCallingUid, int startFlags,
+            String callingPackage, @Nullable String callingFeatureId, boolean fromResolver) {
         mRealCallingPid = realCallingPid;
         mRealCallingUid = realCallingUid;
         mUserId = userId;
         mStartFlags = startFlags;
         mCallingPackage = callingPackage;
         mCallingFeatureId = callingFeatureId;
+        mFromResolver = fromResolver;
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
@@ -380,34 +389,143 @@ class ActivityStartInterceptor {
         final String pkg = target.packageName;
         // Use the configured controller, including modular/vendor implementations.
         if (pkg != null && pkg.equals(permissionController)) return true;
+        if (isIntentResolverActivity(target)) {
+            return true;
+        }
+        // PackageInstaller may use a module/vendor signing key instead of the platform
+        // certificate. Its system-owned confirmation surface must remain directly launchable.
+        if ("com.android.packageinstaller".equals(pkg)
+                || "com.google.android.packageinstaller".equals(pkg)) return true;
         if (!platformSigned) return false;
         return "com.android.settings".equals(pkg)
                 || "com.android.systemui".equals(pkg)
                 || "com.android.documentsui".equals(pkg)
                 || "com.google.android.documentsui".equals(pkg)
-                || "com.android.packageinstaller".equals(pkg)
-                || "com.google.android.packageinstaller".equals(pkg)
                 || "com.android.providers.media.module".equals(pkg)
                 || "com.google.android.providers.media.module".equals(pkg);
+    }
+
+    @VisibleForTesting
+    static boolean isIntentResolverActivity(ActivityInfo target) {
+        if (target == null || target.applicationInfo == null
+                || !target.applicationInfo.isSystemApp()) return false;
+        final String pkg = target.packageName;
+        final String name = target.name;
+        return "android".equals(pkg)
+                        && ("com.android.internal.app.ResolverActivity".equals(name)
+                                || "com.android.internal.app.ChooserActivity".equals(name))
+                || "com.android.intentresolver".equals(pkg)
+                        && ("com.android.intentresolver.ResolverActivity".equals(name)
+                                || "com.android.intentresolver.ChooserActivity".equals(name)
+                                || "com.android.intentresolver.ChooserActivityLauncher".equals(name));
+    }
+
+    /** Returns whether a package is a user-installed (non-system) application for this user. */
+    private static boolean isOrdinaryApp(android.content.pm.PackageManager pm, String packageName,
+            int userId) {
+        try {
+            final ApplicationInfo appInfo = pm.getApplicationInfoAsUser(packageName, 0, userId);
+            return !appInfo.isSystemApp();
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    private static boolean isSystemApp(android.content.pm.PackageManager pm, String packageName,
+            int userId) {
+        try {
+            return pm.getApplicationInfoAsUser(packageName, 0, userId).isSystemApp();
+        } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    /** System components may hand off web links or app-specific URI links to an ordinary app. */
+    private static boolean isSupportedLink(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction())
+                || intent.getData() == null) return false;
+        final String scheme = intent.getData().getScheme();
+        return scheme != null && !scheme.isEmpty();
+    }
+
+    private boolean interceptSystemAppLinkIfNeeded() {
+        if (mIntent == null || mAInfo == null || mAInfo.applicationInfo == null
+                || mCallingPackage == null || mFromResolver || !isSupportedLink(mIntent)) {
+            return false;
+        }
+        if (UserHandle.getAppId(mCallingUid) < android.os.Process.FIRST_APPLICATION_UID
+                || mCallingUid == mAInfo.applicationInfo.uid
+                || mServiceContext.checkPermission(MANAGE_ACTIVITY_TASKS, mCallingPid, mCallingUid)
+                    == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return false;
+        }
+        final int sourceUser = UserHandle.getUserId(mCallingUid);
+        final var pm = mServiceContext.getPackageManager();
+        if (!isSystemApp(pm, mCallingPackage, sourceUser)
+                || !isOrdinaryApp(pm, mAInfo.packageName, mUserId)) {
+            return false;
+        }
+        return interceptWithSystemResolver();
+    }
+
+    @VisibleForTesting
+    static Intent createApprovalLookupIntent(Intent resolvedIntent, boolean componentSpecified) {
+        return createApprovalLookupIntent(resolvedIntent, componentSpecified, null);
+    }
+
+    @VisibleForTesting
+    static Intent createApprovalLookupIntent(Intent resolvedIntent, boolean componentSpecified,
+            String resolvedType) {
+        final Intent lookup = resolvedIntent.getSelector() == null
+                ? new Intent(resolvedIntent) : new Intent(resolvedIntent.getSelector());
+        if (!componentSpecified) lookup.setComponent(null);
+        if (resolvedType != null) lookup.setDataAndType(lookup.getData(), resolvedType);
+        return lookup;
+    }
+
+    @VisibleForTesting
+    static boolean hasRememberedLaunchGrant(String candidateKey, String storedKey,
+            int candidateUser, int resolvedUser, String candidatePackage, String resolvedPackage) {
+        return candidateKey != null && candidateKey.equals(storedKey)
+                && candidateUser == resolvedUser
+                && candidatePackage != null && candidatePackage.equals(resolvedPackage);
     }
 
     private boolean interceptAppLaunchApproval() {
         if (mIntent == null || mAInfo == null || mAInfo.applicationInfo == null
                 || mCallingPackage == null) return false;
         if (consumeLaunchApproval()) return false;
+        // resolveActivity() has already filled in Intent.component here. Supported URI links are
+        // also eligible when the original request was implicit.
+        // Platform-owned resolver selections remain a trusted system launch flow. Our
+        // chooser resumes through a caller/target-bound one-shot approval token instead.
+        if (mFromResolver || isIntentResolverActivity(mAInfo)) return false;
         if (UserHandle.getAppId(mCallingUid) < android.os.Process.FIRST_APPLICATION_UID
                 || mCallingPackage.equals(mAInfo.packageName)
+                // Different packages sharing one UID are still the same app identity for this
+                // purpose and must not trigger an app-to-app approval prompt.
+                || mCallingUid == mAInfo.applicationInfo.uid
                 // SystemUI is the trusted host of TaskView bubbles. Its PendingIntent starts
                 // the app inside a bubble task and must not be replaced by the approval UI.
-                || "com.android.systemui".equals(mCallingPackage)
+                || ("com.android.systemui".equals(mCallingPackage)
+                    && !isSupportedLink(mIntent))
                 || mServiceContext.checkPermission(MANAGE_ACTIVITY_TASKS, mCallingPid, mCallingUid)
                     == android.content.pm.PackageManager.PERMISSION_GRANTED) return false;
         // Launcher and recents starts are user actions, not an app requesting another app.
         final int sourceUser = UserHandle.getUserId(mCallingUid);
         final var pm = mServiceContext.getPackageManager();
+        // App-to-app starts require selection/approval. Trusted system components remain
+        // exempt except when handing off a supported link.
+        final boolean callerIsOrdinary = isOrdinaryApp(pm, mCallingPackage, sourceUser);
+        final boolean callerIsSupportedSystemLink = isSystemApp(pm, mCallingPackage, sourceUser)
+                && isSupportedLink(mIntent);
+        if (!callerIsOrdinary && !callerIsSupportedSystemLink) return false;
         // Inspect the resolved destination, never an action string supplied by the caller.
-        // Ordinary system apps (browser, camera, store, etc.) still require approval.
-        if (isSystemLaunchFlow(mAInfo, pm.getPermissionControllerPackageName(),
+        // System-owned consent surfaces are already mediated by the platform.
+        final boolean resolvingImplicit = !mComponentSpecified && "android".equals(mAInfo.packageName)
+                && ("com.android.internal.app.ResolverActivity".equals(mAInfo.name)
+                || "com.android.internal.app.ChooserActivity".equals(mAInfo.name));
+        if (!resolvingImplicit && isSystemLaunchFlow(mAInfo, pm.getPermissionControllerPackageName(),
                 pm.checkSignatures("android", mAInfo.packageName)
                         == android.content.pm.PackageManager.SIGNATURE_MATCH)) return false;
         final Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
@@ -423,6 +541,12 @@ class ActivityStartInterceptor {
         final int owner = parent == null ? sourceUser : parent.id;
         final UserInfo sourceProfile = mUserManager.getUserInfo(sourceUser);
         final UserInfo destinationProfile = mUserManager.getUserInfo(mUserId);
+        // ResolverActivity has already selected a concrete profile when the target user is a
+        // clone, private, or managed profile. Do not turn that selection into a second
+        // "choose a space" prompt while authorizing the actual launch.
+        final boolean hasResolvedProfileDestination = mUserId != owner && destinationProfile != null
+                && (destinationProfile.isCloneProfile() || destinationProfile.isPrivateProfile()
+                || destinationProfile.isManagedProfile());
         final boolean canChooseSpace = (sourceUser == owner || sourceProfile != null
                 && (sourceProfile.isCloneProfile() || sourceProfile.isPrivateProfile()))
                 && (mUserId == owner || destinationProfile != null
@@ -432,12 +556,13 @@ class ActivityStartInterceptor {
                 "org.avium.systemuiex.ui.selection.AppLaunchApprovalActivity");
         final Intent dialog = new Intent().setComponent(dialogComponent)
                 .addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-        final ResolveInfo dialogInfo = mSupervisor.resolveIntent(dialog, null, owner, 0,
+        final ResolveInfo dialogInfo = mSupervisor.resolveIntent(dialog, null, mUserId, 0,
                 android.os.Process.SYSTEM_UID, android.os.Process.myPid());
         if (dialogInfo == null || dialogInfo.activityInfo == null) return false;
 
         final Intent original = new Intent(mIntent);
         final String targetPackage = mAInfo.packageName;
+        final java.util.ArrayList<String> targetPackages = new java.util.ArrayList<>();
         final String sourcePackage = mCallingPackage;
         final int originalCaller = mCallingUid;
         final String featureId = mCallingFeatureId;
@@ -463,48 +588,72 @@ class ActivityStartInterceptor {
         }
         for (UserInfo profile : mUserManager.getProfiles(owner)) {
             // Do not use the personal-space chooser to cross a managed-profile policy boundary.
-            if (!canChooseSpace && profile.id != mUserId) continue;
+            if ((hasResolvedProfileDestination || !canChooseSpace) && profile.id != mUserId) {
+                continue;
+            }
             if (profile.id != mUserId && !profile.isCloneProfile() && !profile.isPrivateProfile()
                     && profile.id != owner) continue;
             if (!mUserManager.isUserUnlocked(profile.id)
                     || mUserManager.isQuietModeEnabled(profile.getUserHandle())) continue;
-            Intent candidate = new Intent(original);
-            if (profile.id != sourceUser) candidate.prepareToLeaveUser(sourceUser);
-            // A selector participates in resolution but must not be combined with setPackage.
-            final Intent lookup = candidate.getSelector() == null
-                    ? new Intent(candidate) : new Intent(candidate.getSelector());
-            lookup.setPackage(targetPackage);
-            ResolveInfo resolved = mSupervisor.resolveIntent(lookup, resolvedType, profile.id,
-                    0, originalCaller, mCallingPid);
-            if (resolved == null || resolved.activityInfo == null
-                    || !targetPackage.equals(resolved.activityInfo.packageName)) continue;
-            try {
-                final String key = launchGrantKey(sourcePackage, sourceUser,
-                        targetPackage, profile.id);
-                final IBinder token = new android.os.Binder();
-                candidate.setSelector(null);
-                candidate.setPackage(targetPackage);
-                candidate.setComponent(new android.content.ComponentName(targetPackage,
-                        resolved.activityInfo.name));
-                final LaunchApproval approval = new LaunchApproval(originalCaller,
-                        resolved.activityInfo.applicationInfo.uid, candidate);
-                Bundle capability = new Bundle();
-                capability.putBinder("token", token);
-                candidate.putExtra(APPROVAL_TOKEN, capability);
-                final var sender = mService.getIntentSenderLocked(INTENT_SENDER_ACTIVITY,
-                        sourcePackage, featureId, originalCaller, profile.id, null, null,
-                        System.identityHashCode(token), new Intent[] {candidate},
-                        new String[] {resolvedType}, FLAG_ONE_SHOT | FLAG_IMMUTABLE, options);
-                if (sender == null) continue;
-                sLaunchApprovals.put(token, approval);
-                senders.add(new IntentSender(sender));
-                tokens.add(token);
-                keys.add(key);
-                targetUsers.add(profile.id);
-                labels.add(resolved.loadLabel(pm).toString());
-                spaces.add(profile.isCloneProfile() ? 1 : profile.isPrivateProfile() ? 2 : 0);
-            } catch (android.content.pm.PackageManager.NameNotFoundException e) {
-                // Profile/package removal may race the chooser.
+            // The resolved Intent has already acquired a component. Remove only that
+            // synthetic component for implicit requests; keep caller-specified restrictions.
+            final Intent lookup = createApprovalLookupIntent(
+                    original, mComponentSpecified, mResolvedType);
+            final java.util.HashSet<android.content.ComponentName> seen = new java.util.HashSet<>();
+            for (ResolveInfo resolved : pm.queryIntentActivitiesAsUser(lookup,
+                    android.content.pm.PackageManager.MATCH_DEFAULT_ONLY, profile.id)) {
+                final ActivityInfo destination = resolved.activityInfo;
+                if (destination == null || destination.applicationInfo == null
+                        || !destination.exported || !destination.enabled
+                        || !destination.applicationInfo.enabled
+                        || sourcePackage.equals(destination.packageName)
+                        || destination.applicationInfo.uid == originalCaller
+                        || (destination.permission != null
+                            && mServiceContext.checkPermission(destination.permission,
+                                mCallingPid, originalCaller)
+                                != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                        || isSystemLaunchFlow(destination, pm.getPermissionControllerPackageName(),
+                            pm.checkSignatures("android", destination.packageName)
+                                == android.content.pm.PackageManager.SIGNATURE_MATCH)) continue;
+                final android.content.ComponentName component = new android.content.ComponentName(
+                        destination.packageName, destination.name);
+                if (!seen.add(component)) continue;
+                final String candidatePackage = destination.packageName;
+                Intent candidate = new Intent(original);
+                // A selector is only used for resolving the destination. The original
+                // intent, including its selector and payload, is what the selected app
+                // must receive. The resolved MIME type is passed separately to IntentSender.
+                if (profile.id != sourceUser) candidate.prepareToLeaveUser(sourceUser);
+                try {
+                    final String key = launchGrantKey(sourcePackage, sourceUser,
+                            candidatePackage, profile.id);
+                    final IBinder token = new android.os.Binder();
+                    candidate.setSelector(null);
+                    candidate.setPackage(candidatePackage);
+                    candidate.setComponent(new android.content.ComponentName(candidatePackage,
+                            destination.name));
+                    final LaunchApproval approval = new LaunchApproval(originalCaller,
+                            destination.applicationInfo.uid, candidate);
+                    Bundle capability = new Bundle();
+                    capability.putBinder("token", token);
+                    candidate.putExtra(APPROVAL_TOKEN, capability);
+                    final var sender = mService.getIntentSenderLocked(INTENT_SENDER_ACTIVITY,
+                            sourcePackage, featureId, originalCaller, profile.id, null, null,
+                            System.identityHashCode(token), new Intent[] {candidate},
+                            new String[] {resolvedType}, FLAG_ONE_SHOT | FLAG_IMMUTABLE, options);
+                    if (sender == null) continue;
+                    sLaunchApprovals.put(token, approval);
+                    senders.add(new IntentSender(sender));
+                    tokens.add(token);
+                    keys.add(key);
+                    targetUsers.add(profile.id);
+                    targetPackages.add(candidatePackage);
+                    labels.add(destination.loadLabel(pm).toString());
+                    spaces.add(profile.isCloneProfile() ? 1 : profile.isPrivateProfile() ? 2
+                            : profile.isManagedProfile() ? 3 : 0);
+                } catch (android.content.pm.PackageManager.NameNotFoundException e) {
+                    // Profile/package removal may race the chooser.
+                }
             }
         }
         if (senders.isEmpty()) return false;
@@ -514,11 +663,16 @@ class ActivityStartInterceptor {
                 remembered[i] |= keys.get(i).equals(grants.optString(j));
             }
         }
-        // An existing grant only skips confirmation for the already resolved destination;
-        // choosing another space must remain an explicit user decision.
-        if (senders.size() == 1) {
-            for (int i = 0; i < grants.length(); i++) {
-                if (keys.get(0).equals(grants.optString(i)) && targetUsers.get(0) == mUserId) {
+        // Apply a remembered grant to the already-resolved target, even if matching
+        // applications also exist in other profiles. The grant remains package- and
+        // profile-bound; it never silently changes the chosen destination.
+        for (int candidate = 0; candidate < keys.size(); candidate++) {
+            if (targetUsers.get(candidate) != mUserId
+                    || !targetPackages.get(candidate).equals(mAInfo.packageName)) continue;
+            for (int j = 0; j < grants.length(); j++) {
+                if (hasRememberedLaunchGrant(keys.get(candidate), grants.optString(j),
+                        targetUsers.get(candidate), mUserId, targetPackages.get(candidate),
+                        mAInfo.packageName)) {
                     tokens.forEach(sLaunchApprovals::remove);
                     return false;
                 }
@@ -535,7 +689,7 @@ class ActivityStartInterceptor {
                     if (i == choice && (action == 1 || action == 2) && approval != null
                             && !approval.allowed && approval.expires >= android.os.SystemClock.elapsedRealtime()
                             && launchGrantStillMatches(keys.get(i), sourcePackage, sourceUser,
-                                targetPackage, targetUsers.get(i))
+                                targetPackages.get(i), targetUsers.get(i))
                             && mUserManager.isUserUnlocked(targetUsers.get(i))
                             && !mUserManager.isQuietModeEnabled(UserHandle.of(targetUsers.get(i)))) {
                         approval.allowed = true;
@@ -568,6 +722,9 @@ class ActivityStartInterceptor {
             }
         }, mService.mH);
         dialog.putExtra("labels", labels.toArray(new String[0]));
+        dialog.putExtra("targetPackage", targetPackage);
+        dialog.putExtra("targetPackages", targetPackages.toArray(new String[0]));
+        dialog.putExtra("spaceUserIds", targetUsers.stream().mapToInt(Integer::intValue).toArray());
         dialog.putExtra("remembered", remembered);
         dialog.putExtra("spaces", spaces.stream().mapToInt(Integer::intValue).toArray());
         dialog.putExtra("callback", callback);
@@ -587,6 +744,31 @@ class ActivityStartInterceptor {
         mResolvedType = null;
         // Match the platform's credential/harmful-app interceptors: retain attribution
         // to the real caller while the system substitutes a non-exported confirmation UI.
+        mCallingUid = mRealCallingUid;
+        mCallingPid = mRealCallingPid;
+        return true;
+    }
+
+    /** Re-resolves a system-app URL handoff through the platform ResolverActivity. */
+    @VisibleForTesting
+    boolean interceptWithSystemResolver() {
+        final Intent chooser = Intent.createChooser(new Intent(mIntent), null);
+        chooser.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+        final ResolveInfo resolver = mSupervisor.resolveIntent(chooser, null, mUserId, 0,
+                mRealCallingUid, mRealCallingPid);
+        if (resolver == null || resolver.activityInfo == null) return false;
+        // resolveIntent alone does not populate Intent.component. ActivityRecord requires
+        // the explicit resolved component, including when the chooser is an activity alias.
+        final ActivityInfo chooserInfo = mSupervisor.resolveActivity(
+                chooser, resolver, mStartFlags, null /* profilerInfo */);
+        if (chooserInfo == null) return false;
+        mIntent = chooser;
+        mInTask = null;
+        mInTaskFragment = null;
+        mActivityOptions = ActivityOptions.makeBasic();
+        mRInfo = resolver;
+        mAInfo = chooserInfo;
+        mResolvedType = null;
         mCallingUid = mRealCallingUid;
         mCallingPid = mRealCallingPid;
         return true;

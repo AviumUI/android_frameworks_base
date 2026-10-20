@@ -1354,7 +1354,7 @@ class ActivityStarter {
                 computeSuggestedLaunchDisplayArea(inTask, sourceRecord, checkedOptions);
         mInterceptor.setStates(userId, realCallingPid, realCallingUid, startFlags,
                 callingPackage,
-                callingFeatureId);
+                callingFeatureId, sourceRecord != null && sourceRecord.isResolverOrChildActivity());
         if (mInterceptor.intercept(intent, rInfo, aInfo, resolvedType, inTask, inTaskFragment,
                 callingPid, callingUid, checkedOptions, suggestedLaunchDisplayArea,
                 request.componentSpecified)) {

@@ -136,6 +136,120 @@ public class ActivityStartInterceptorTest {
             new SparseArray<>();
 
     @Test
+    public void approvalLookup_implicitRequestSearchesAllMatchingPackages() {
+        final android.content.ComponentName resolved = new android.content.ComponentName(
+                "resolved.app", "resolved.app.Main");
+        final Intent original = new Intent(Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://example.com/link")).setComponent(resolved);
+        final Intent lookup = ActivityStartInterceptor.createApprovalLookupIntent(original, false);
+        org.junit.Assert.assertNull(lookup.getComponent());
+        org.junit.Assert.assertNull(lookup.getPackage());
+        assertEquals(original.getData(), lookup.getData());
+        assertEquals(resolved, original.getComponent());
+    }
+
+    @Test
+    public void approvalLookup_keepsApkMimeTypeAndContentUri() {
+        final android.net.Uri apk = android.net.Uri.parse("content://downloads/app.apk");
+        final Intent original = new Intent(Intent.ACTION_VIEW).setDataAndType(apk,
+                "application/vnd.android.package-archive").setComponent(
+                        new android.content.ComponentName("resolved.app", "resolved.app.Main"));
+        final Intent lookup = ActivityStartInterceptor.createApprovalLookupIntent(
+                original, false, "application/vnd.android.package-archive");
+        org.junit.Assert.assertNull(lookup.getComponent());
+        assertEquals(apk, lookup.getData());
+        assertEquals("application/vnd.android.package-archive", lookup.getType());
+    }
+
+    @Test
+    public void rememberedLaunchGrant_matchesPackageAndProfile() {
+        assertTrue(ActivityStartInterceptor.hasRememberedLaunchGrant(
+                "signed-grant", "signed-grant", 10, 10, "target.app", "target.app"));
+        assertFalse(ActivityStartInterceptor.hasRememberedLaunchGrant(
+                "signed-grant", "signed-grant", 11, 10, "target.app", "target.app"));
+        assertFalse(ActivityStartInterceptor.hasRememberedLaunchGrant(
+                "signed-grant", "signed-grant", 10, 10, "other.app", "target.app"));
+        assertFalse(ActivityStartInterceptor.hasRememberedLaunchGrant(
+                "different", "signed-grant", 10, 10, "target.app", "target.app"));
+    }
+
+    @Test
+    public void approvalLookup_preservesExplicitTargetAndPackageRestriction() {
+        final android.content.ComponentName component = new android.content.ComponentName(
+                "explicit.app", "explicit.app.Main");
+        final Intent explicit = new Intent(Intent.ACTION_VIEW).setComponent(component);
+        assertEquals(component,
+                ActivityStartInterceptor.createApprovalLookupIntent(explicit, true).getComponent());
+        final Intent restricted = new Intent(Intent.ACTION_VIEW).setPackage("restricted.app")
+                .setComponent(component);
+        final Intent lookup = ActivityStartInterceptor.createApprovalLookupIntent(restricted, false);
+        org.junit.Assert.assertNull(lookup.getComponent());
+        assertEquals("restricted.app", lookup.getPackage());
+    }
+
+    @Test
+    public void approvalLookup_usesSelectorWithoutMutatingCallerIntent() {
+        final Intent selector = new Intent(Intent.ACTION_VIEW,
+                android.net.Uri.parse("custom:resource")).setPackage("selected.app");
+        final Intent original = new Intent(Intent.ACTION_MAIN);
+        original.setSelector(selector);
+        final Intent lookup = ActivityStartInterceptor.createApprovalLookupIntent(original, false);
+        assertEquals(Intent.ACTION_VIEW, lookup.getAction());
+        assertEquals(selector.getData(), lookup.getData());
+        assertEquals("selected.app", lookup.getPackage());
+        assertSame(selector, original.getSelector());
+    }
+
+    @Test
+    public void systemLinkChooser_resolvesComponentBeforeReplacingLaunch() {
+        final Intent original = new Intent(Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://example.com/link"));
+        mInterceptor.mIntent = original;
+        final android.content.pm.ResolveInfo resolver = new android.content.pm.ResolveInfo();
+        resolver.activityInfo = new ActivityInfo();
+        resolver.activityInfo.packageName = "android";
+        resolver.activityInfo.name = "android.ChooserAlias";
+        resolver.activityInfo.targetActivity = "com.android.internal.app.ChooserActivity";
+        final android.content.ComponentName component = new android.content.ComponentName(
+                "android", resolver.activityInfo.name);
+        org.mockito.Mockito.doReturn(resolver).when(mSupervisor).resolveIntent(
+                any(Intent.class), eq(null), org.mockito.ArgumentMatchers.anyInt(),
+                eq(0), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        org.mockito.Mockito.doAnswer(invocation -> {
+            Intent chooser = invocation.getArgument(0);
+            chooser.setComponent(component);
+            return resolver.activityInfo;
+        }).when(mSupervisor).resolveActivity(any(Intent.class), eq(resolver),
+                org.mockito.ArgumentMatchers.anyInt(), eq(null));
+
+        assertTrue(mInterceptor.interceptWithSystemResolver());
+
+        assertEquals(component, mInterceptor.mIntent.getComponent());
+        assertSame(resolver.activityInfo, mInterceptor.mAInfo);
+        assertEquals(Intent.ACTION_CHOOSER, mInterceptor.mIntent.getAction());
+        final Intent target = mInterceptor.mIntent.getParcelableExtra(Intent.EXTRA_INTENT,
+                Intent.class);
+        assertTrue(original.filterEquals(target));
+        org.junit.Assert.assertNull(original.getComponent());
+    }
+
+    @Test
+    public void systemLinkChooser_resolutionFailurePreservesOriginalLaunch() {
+        final Intent original = new Intent(Intent.ACTION_VIEW);
+        mInterceptor.mIntent = original;
+        mInterceptor.mAInfo = mAInfo;
+        final android.content.pm.ResolveInfo resolver = new android.content.pm.ResolveInfo();
+        resolver.activityInfo = new ActivityInfo();
+        org.mockito.Mockito.doReturn(resolver).when(mSupervisor).resolveIntent(
+                any(Intent.class), eq(null), org.mockito.ArgumentMatchers.anyInt(),
+                eq(0), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.anyInt());
+        // resolveActivity returns null: do not partially replace the original launch.
+        assertFalse(mInterceptor.interceptWithSystemResolver());
+        assertSame(original, mInterceptor.mIntent);
+        assertSame(mAInfo, mInterceptor.mAInfo);
+    }
+
+    @Test
     public void systemLaunchFlows_requireTrustedResolvedDestination() {
         final ActivityInfo target = new ActivityInfo();
         target.applicationInfo = new ApplicationInfo();
@@ -159,6 +273,22 @@ public class ActivityStartInterceptorTest {
         target.packageName = "com.example.app";
         assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
         assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(null, "controller", true));
+        target.packageName = "android";
+        target.name = "com.android.internal.app.ResolverActivity";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        target.name = "com.android.internal.app.ChooserActivity";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
+        target.packageName = "com.android.intentresolver";
+        target.name = "com.android.intentresolver.ChooserActivity";
+        assertTrue(ActivityStartInterceptor.isIntentResolverActivity(target));
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        target.name = "com.android.intentresolver.ChooserActivityLauncher";
+        assertTrue(ActivityStartInterceptor.isIntentResolverActivity(target));
+        target.packageName = "com.android.packageinstaller";
+        assertTrue(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", false));
+        target.packageName = "com.example.app";
+        assertFalse(ActivityStartInterceptor.isSystemLaunchFlow(target, "controller", true));
     }
 
     @Test
@@ -534,6 +664,33 @@ public class ActivityStartInterceptorTest {
         assertTrue(mInterceptor.intercept(null, null, mAInfo, null, null, null, 0, 0, null, null));
         assertEquals("android.test.foo", mInterceptor.mIntent.getAction());
         assertEquals(3, mInterceptor.mActivityOptions.getLaunchDisplayId());
+    }
+
+    @Test
+    public void implicitOpenWithResolvedComponent_preservesSystemCallbacks() {
+        // ActivityTaskSupervisor has already inserted the resolved component by this point.
+        final Intent open = new Intent(Intent.ACTION_VIEW)
+                .setComponent(new android.content.ComponentName(TEST_PACKAGE_NAME, "Viewer"));
+        final Intent handled = new Intent("android.test.handled");
+        addMockInterceptorCallback(handled, null, true);
+
+        assertTrue(mInterceptor.intercept(open, null, mAInfo, null, null, null, 123,
+                10123, null, null, false /* componentSpecified */));
+        assertEquals(handled, mInterceptor.mIntent);
+    }
+
+    @Test
+    public void resolverSelection_preservesSystemCallbacksWithoutLaunchApproval() {
+        mInterceptor.setStates(TEST_USER_ID, TEST_REAL_CALLING_PID, TEST_REAL_CALLING_UID,
+                TEST_START_FLAGS, TEST_CALLING_PACKAGE, null, true /* fromResolver */);
+        final Intent selected = new Intent(Intent.ACTION_VIEW)
+                .setComponent(new android.content.ComponentName(TEST_PACKAGE_NAME, "Viewer"));
+        final Intent handled = new Intent("android.test.handled");
+        addMockInterceptorCallback(handled, null, true);
+
+        assertTrue(mInterceptor.intercept(selected, null, mAInfo, null, null, null, 123,
+                10123, null, null, true /* componentSpecified */));
+        assertEquals(handled, mInterceptor.mIntent);
     }
 
     @Test

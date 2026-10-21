@@ -95,6 +95,7 @@ import com.android.systemui.navigationbar.gestural.domain.TaskMatcher;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.NavigationEdgeBackPlugin;
 import com.android.systemui.res.R;
+import com.android.systemui.smartsidebar.SmartSidebarManager;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shared.system.ActivityManagerWrapper;
 import com.android.systemui.shared.system.InputChannelCompat;
@@ -303,6 +304,12 @@ public class EdgeBackGestureHandler {
     @SystemUiStateFlags
     private long mSysUiFlags;
     private float mLongSwipeWidth;
+    private Action mEdgeLongSwipeAction = Action.NOTHING;
+    /** True once the long swipe threshold of the current gesture has been crossed. */
+    private boolean mLongSwipeTriggered;
+    /** Which edge the current long swipe started from. */
+    private boolean mLongSwipeFromLeft;
+    private SmartSidebarManager mSmartSidebarManager;
 
     // For Tf-Lite model.
     private BackGestureTfClassifierProvider mBackGestureTfClassifierProvider;
@@ -378,6 +385,16 @@ public class EdgeBackGestureHandler {
 
                 @Override
                 public void setTriggerLongSwipe(boolean triggerLongSwipe) {
+                    if (triggerLongSwipe) {
+                        if (mEdgeLongSwipeAction == Action.SIDEBAR
+                                && mSmartSidebarManager != null
+                                && mSmartSidebarManager.isEnabled()) {
+                            mLongSwipeTriggered = true;
+                            mLongSwipeFromLeft = mIsOnLeftEdge;
+                        }
+                    } else {
+                        mLongSwipeTriggered = false;
+                    }
                     if (mBackAnimation != null) {
                         mBackAnimation.setTriggerLongSwipe(triggerLongSwipe);
                     }
@@ -495,7 +512,8 @@ public class EdgeBackGestureHandler {
             JavaAdapter javaAdapter,
             DisplayManager displayManager,
             DisplayBackGestureHandlerImpl.Factory displayBackGestureHandlerFactory,
-            DesktopState desktopState) {
+            DesktopState desktopState,
+            SmartSidebarManager smartSidebarManager) {
         mContext = context;
         mMainDisplayId = context.getDisplayId();
         mUiThreadContext = uiThreadContext;
@@ -521,6 +539,7 @@ public class EdgeBackGestureHandler {
         mDisplayManager = displayManager;
         mDisplayBackGestureHandlerFactory = displayBackGestureHandlerFactory;
         mDesktopState = desktopState;
+        mSmartSidebarManager = smartSidebarManager;
 
         ComponentName recentsComponentName = ComponentName.unflattenFromString(
                 context.getString(com.android.internal.R.string.config_recentsComponentName));
@@ -618,10 +637,11 @@ public class EdgeBackGestureHandler {
                 false, new ContentObserver(mUiThreadContext.getHandler()) {
                     @Override
                     public void onChange(boolean selfChange) {
-                        mIsLongSwipeEnabled = Action.fromIntSafe(
+                        mEdgeLongSwipeAction = Action.fromIntSafe(
                                 LineageSettings.System.getInt(mContext.getContentResolver(),
                                         LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION,
-                                        Action.NOTHING.ordinal())) != Action.NOTHING;
+                                        Action.NOTHING.ordinal()));
+                        mIsLongSwipeEnabled = mEdgeLongSwipeAction != Action.NOTHING;
                         updateLongSwipeWidth();
                     }
                 });
@@ -1169,6 +1189,7 @@ public class EdgeBackGestureHandler {
     private void cancelGesture(MotionEvent ev) {
         // Send action cancel to reset all the touch events
         mAllowGesture = false;
+        mLongSwipeTriggered = false;
         mLogGesture = false;
         mInRejectedExclusion = false;
         MotionEvent cancelEv = MotionEvent.obtain(ev);
@@ -1243,6 +1264,7 @@ public class EdgeBackGestureHandler {
             mMLResults = 0;
             mLogGesture = false;
             mInRejectedExclusion = false;
+            mLongSwipeTriggered = false;
             boolean isWithinInsets = isWithinInsets((int) ev.getX(), (int) ev.getY());
             boolean isBackAllowedCommon = !mDisabledForQuickstep && mIsBackGestureAllowed
                     && !mGestureBlockingActivityRunning.get()
@@ -1374,6 +1396,17 @@ public class EdgeBackGestureHandler {
             }
 
             if (mAllowGesture) {
+                if (action == MotionEvent.ACTION_UP && mLongSwipeTriggered) {
+                    // The panel opens on release: the long swipe detection itself stays fully
+                    // owned by BackPanelController / BackAnimationController, we only act on its
+                    // result. See docs/smart-sidebar-design.md.
+                    final boolean left = mLongSwipeFromLeft;
+                    final float y = ev.getY();
+                    mLongSwipeTriggered = false;
+                    if (mSmartSidebarManager != null && mSmartSidebarManager.isEnabled()) {
+                        mSmartSidebarManager.openFromGesture(left, y);
+                    }
+                }
                 // forward touch
                 if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
                     displayBackGestureHandler.onMotionEvent(ev);

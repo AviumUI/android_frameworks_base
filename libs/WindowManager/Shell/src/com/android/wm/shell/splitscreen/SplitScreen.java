@@ -20,6 +20,8 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.window.RemoteTransition;
@@ -106,6 +108,22 @@ public interface SplitScreen {
             @Nullable Bundle options2, @SplitPosition int splitPosition,
             @PersistentSnapPosition int snapPosition, @Nullable RemoteTransition remoteTransition,
             InstanceId instanceId);
+
+    /**
+     * Launches an intent and an existing task into splitscreen in one transition.
+     *
+     * <p>Used by SystemUI features (for example the side panel) that know an application by its
+     * launch intent while the other half of the split is an already running task.
+     *
+     * @param pendingIntent the intent to launch, placed on the {@code splitPosition} side
+     * @param options1      options for the launched intent
+     * @param taskId        the existing task, placed on the opposite side
+     * @param options2      options for the existing task
+     */
+    void startIntentAndTask(PendingIntent pendingIntent, int userId,
+            @Nullable Bundle options1, int taskId, @Nullable Bundle options2,
+            @SplitPosition int splitPosition, @PersistentSnapPosition int snapPosition,
+            @Nullable RemoteTransition remoteTransition, InstanceId instanceId);
 
     /** Registers listener that gets split screen callback. */
     void registerSplitScreenListener(@NonNull SplitScreenListener listener,

@@ -1157,6 +1157,16 @@ public class SplitScreenController implements SplitDragPolicy.Starter,
         }
 
         @Override
+        public void startIntentAndTask(android.app.PendingIntent pendingIntent, int userId,
+                @Nullable Bundle options1, int taskId, @Nullable Bundle options2,
+                int splitPosition, int snapPosition,
+                @Nullable RemoteTransition remoteTransition, InstanceId instanceId) {
+            mMainExecutor.execute(() -> SplitScreenController.this.startIntentAndTask(
+                    pendingIntent, userId, options1, taskId, options2, splitPosition,
+                    snapPosition, remoteTransition, instanceId));
+        }
+
+        @Override
         public void registerSplitScreenListener(SplitScreenListener listener, Executor executor) {
             if (mExecutors.containsKey(listener)) return;
 

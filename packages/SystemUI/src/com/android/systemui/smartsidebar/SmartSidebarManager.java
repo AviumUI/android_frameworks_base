@@ -303,6 +303,14 @@ public class SmartSidebarManager implements CoreStartable {
         return SmartSidebarConfig.isEnabled();
     }
 
+    /** Whether the given edge is allowed to open the panel for the current user. */
+    public boolean allowsEdge(boolean left) {
+        final ContentResolver cr = mContext.getContentResolver();
+        final int userId = currentUserId();
+        return left ? SmartSidebarConfig.allowsLeftEdge(cr, userId)
+                : SmartSidebarConfig.allowsRightEdge(cr, userId);
+    }
+
     // ------------------------------------------------------------------------------------
     // Environment
     // ------------------------------------------------------------------------------------

@@ -22,6 +22,7 @@ import com.android.systemui.Dependency;
 import com.android.systemui.InitController;
 import com.android.systemui.SystemUIAppComponentFactoryBase;
 import com.android.systemui.controls.dagger.StartControlsStartableModule;
+import com.android.systemui.smartsidebar.SmartSidebarModule;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.PerUser;
 import com.android.systemui.dump.DumpManager;
@@ -78,6 +79,7 @@ import javax.inject.Provider;
         ReferenceSystemUIModule.class,
         StartControlsStartableModule.class,
         StartBinderLoggerModule.class,
+        SmartSidebarModule.class,
         SystemUIModule.class,
         SystemUICoreStartableModule.class,
         WallpaperModule.class})

@@ -113,6 +113,9 @@
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS_FULL" />
     <uses-permission android:name="android.permission.GET_TOP_ACTIVITY_INFO" />
     <uses-permission android:name="android.permission.MANAGE_ACTIVITY_TASKS" />
+
+    <!-- Bind the Avium smart sidebar service. -->
+    <uses-permission android:name="org.avium.smartsidebar.permission.CONTROL_SIDEBAR" />
     <uses-permission android:name="android.permission.START_ACTIVITY_AS_CALLER" />
     <uses-permission android:name="android.permission.START_TASKS_FROM_RECENTS" />
     <uses-permission android:name="android.permission.GET_INTENT_SENDER_INTENT" />

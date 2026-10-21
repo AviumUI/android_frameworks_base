@@ -2357,6 +2357,23 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 takeScreenshot(TAKE_SCREENSHOT_SELECTED_REGION, SCREENSHOT_KEY_OTHER);
                 notifyKeyGestureCompleted(event, KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT);
                 break;
+            case SIDEBAR: {
+                // Fallback only. The primary trigger lives in SystemUI's
+                // EdgeBackGestureHandler, which is the only place that knows which edge the
+                // gesture started from. Reaching this point means that hook did not run (for
+                // example because the gesture was handled while SystemUI was restarting), so ask
+                // SystemUI to open the panel on its default side. SystemUI de-duplicates this
+                // against the primary path.
+                if (SystemProperties.getBoolean(
+                        "persist.avium.smart_sidebar", false)) {
+                    final Intent intent = new Intent(
+                            "com.android.systemui.action.SMART_SIDEBAR_OPEN");
+                    intent.setPackage("com.android.systemui");
+                    intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
+                    mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+                }
+                break;
+            }
             default:
                 break;
         }

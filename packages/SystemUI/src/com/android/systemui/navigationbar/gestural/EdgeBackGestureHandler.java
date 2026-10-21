@@ -54,10 +54,14 @@ import android.graphics.Rect;
 import android.graphics.Region;
 import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
+import android.provider.Settings;
 import android.icu.text.SimpleDateFormat;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
+import android.os.UserHandle;
 import android.os.SystemProperties;
 import android.os.Trace;
 import android.provider.DeviceConfig;
@@ -96,6 +100,8 @@ import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.NavigationEdgeBackPlugin;
 import com.android.systemui.res.R;
 import com.android.systemui.smartsidebar.SmartSidebarManager;
+
+import org.avium.smartsidebar.SmartSidebarConfig;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shared.system.ActivityManagerWrapper;
 import com.android.systemui.shared.system.InputChannelCompat;
@@ -151,6 +157,14 @@ public class EdgeBackGestureHandler {
 
     private static final int MAX_NUM_LOGGED_PREDICTIONS = 10;
     private static final int MAX_NUM_LOGGED_GESTURES = 10;
+
+    /**
+     * Movement (squared, in pixels) that still counts as "resting" while waiting for the side
+     * panel hold delay. 4 dp squared at 2x density ~= 64 px^2.
+     */
+    private static final float HOLD_SLOP_SQ = 64f;
+
+    private static final boolean DEBUG_SIDEBAR = true;
 
     public static final boolean DEBUG_MISSING_GESTURE = false;
     public static final String DEBUG_MISSING_GESTURE_TAG = "NoBackGesture";
@@ -309,7 +323,66 @@ public class EdgeBackGestureHandler {
     private boolean mLongSwipeTriggered;
     /** Which edge the current long swipe started from. */
     private boolean mLongSwipeFromLeft;
+    /** True once the panel was opened by holding still after the long swipe threshold. */
+    private boolean mLongSwipeHoldOpened;
+    private boolean mLongSwipeHoldAnchorValid;
+    private float mLongSwipeHoldAnchorX;
+    private float mLongSwipeHoldAnchorY;
+    private int mSmartSidebarHoldDelayMs = SmartSidebarConfig.DEFAULT_HOLD_DELAY_MS;
     private SmartSidebarManager mSmartSidebarManager;
+
+    /** Short swipe + pause trigger: armed when a gesture starts on an edge with the panel on. */
+    private boolean mSidebarHoldArmed;
+    private boolean mSidebarHoldFired;
+    /** How far the finger had travelled when the panel became ready, see the reversal check. */
+    private float mSidebarPeakDx;
+    /** Distance the finger has to slide back before the pending panel open is dropped. */
+    private float mSidebarReversalSlopPx = 66f;
+    private boolean mSidebarHoldDistanceReached;
+    private float mSidebarHoldAnchorX;
+    private float mSidebarHoldAnchorY;
+    private int mSidebarTriggerDistancePx = 88;
+
+    private final Runnable mSidebarHoldRunnable = () -> {
+        if (!mSidebarHoldArmed || mSidebarHoldFired || !mAllowGesture) {
+            return;
+        }
+        if (mSmartSidebarManager != null
+                && !mSmartSidebarManager.allowsEdge(mIsOnLeftEdge)) {
+            // This edge is disabled in the panel settings: let the gesture behave normally.
+            cancelSidebarHold();
+            return;
+        }
+        // The pause only arms the trigger: it gives a haptic confirmation and the panel is opened
+        // when the finger is lifted, so that the user never gets a panel popping up under the
+        // finger.
+        mSidebarHoldFired = true;
+        mSidebarPeakDx = Math.abs(mSidebarHoldAnchorX - mDownPoint.x);
+        if (DEBUG_SIDEBAR) Log.d(TAG, "sidebar: hold ready");
+        vibrateSidebarHold();
+    };
+
+    private void vibrateSidebarHold() {
+        try {
+            final Vibrator vibrator = mContext.getSystemService(Vibrator.class);
+            if (vibrator != null && vibrator.hasVibrator()) {
+                vibrator.vibrate(VibrationEffect.createOneShot(25,
+                        VibrationEffect.DEFAULT_AMPLITUDE));
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "sidebar hold vibration failed", e);
+        }
+    }
+
+    private final Runnable mLongSwipeHoldRunnable = () -> {
+        if (!mLongSwipeTriggered || mLongSwipeHoldOpened || !mAllowGesture) {
+            return;
+        }
+        mLongSwipeHoldOpened = true;
+        if (mSmartSidebarManager != null && mSmartSidebarManager.isEnabled()) {
+            mSmartSidebarManager.openFromGesture(mLongSwipeFromLeft, mEndPoint.y);
+        }
+    };
 
     // For Tf-Lite model.
     private BackGestureTfClassifierProvider mBackGestureTfClassifierProvider;
@@ -370,6 +443,10 @@ public class EdgeBackGestureHandler {
 
                 @Override
                 public void cancelBack() {
+                    // The swipe was reversed (or the gesture was cancelled): drop a pending panel
+                    // open as well, the panel must not appear after the user cancelled the back.
+                    cancelSidebarHold();
+                    cancelLongSwipeHold();
                     if (mBackAnimation != null) {
                         mBackAnimation.setTriggerBack(false);
                     }
@@ -386,14 +463,15 @@ public class EdgeBackGestureHandler {
                 @Override
                 public void setTriggerLongSwipe(boolean triggerLongSwipe) {
                     if (triggerLongSwipe) {
-                        if (mEdgeLongSwipeAction == Action.SIDEBAR
-                                && mSmartSidebarManager != null
-                                && mSmartSidebarManager.isEnabled()) {
+                        if (isSidebarLongSwipeActive()) {
                             mLongSwipeTriggered = true;
                             mLongSwipeFromLeft = mIsOnLeftEdge;
+                            mLongSwipeHoldOpened = false;
+                            mLongSwipeHoldAnchorValid = false;
+                            scheduleLongSwipeHold();
                         }
-                    } else {
-                        mLongSwipeTriggered = false;
+                    } else if (mLongSwipeTriggered) {
+                        cancelLongSwipeHold();
                     }
                     if (mBackAnimation != null) {
                         mBackAnimation.setTriggerLongSwipe(triggerLongSwipe);
@@ -540,6 +618,9 @@ public class EdgeBackGestureHandler {
         mDisplayBackGestureHandlerFactory = displayBackGestureHandlerFactory;
         mDesktopState = desktopState;
         mSmartSidebarManager = smartSidebarManager;
+        // Make sure the bridge is up even if the CoreStartable registration is not picked up
+        // by the component (the gesture handler is created early and always has the instance).
+        mSmartSidebarManager.start();
 
         ComponentName recentsComponentName = ComponentName.unflattenFromString(
                 context.getString(com.android.internal.R.string.config_recentsComponentName));
@@ -648,12 +729,32 @@ public class EdgeBackGestureHandler {
         mContext.getContentResolver().notifyChange(LineageSettings.System.getUriFor(
                 LineageSettings.System.KEY_EDGE_LONG_SWIPE_ACTION), null);
 
+        // The "pause" delay before the panel opens is owned by the side panel app.
+        mContext.getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(SmartSidebarConfig.KEY_HOLD_DELAY_MS),
+                false, new ContentObserver(mUiThreadContext.getHandler()) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updateSmartSidebarHoldDelay();
+                    }
+                });
+        mContext.getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(SmartSidebarConfig.KEY_TRIGGER_DISTANCE_DP),
+                false, new ContentObserver(mUiThreadContext.getHandler()) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        updateSmartSidebarHoldDelay();
+                    }
+                });
+        updateSmartSidebarHoldDelay();
+
         // Reduce the default touch slop to ensure that we can intercept the gesture
         // before the app starts to react to it.
         // TODO(b/130352502) Tune this value and extract into a constant
         final float backGestureSlop = DeviceConfig.getFloat(DeviceConfig.NAMESPACE_SYSTEMUI,
                         SystemUiDeviceConfigFlags.BACK_GESTURE_SLOP_MULTIPLIER, 0.75f);
         mTouchSlop = mViewConfiguration.getScaledTouchSlop() * backGestureSlop;
+        mSidebarReversalSlopPx = 24 * mContext.getResources().getDisplayMetrics().density;
         mBackSwipeLinearThreshold = res.getDimension(
                 com.android.internal.R.dimen.navigation_edge_action_progress_threshold);
         mNonLinearFactor = getDimenFloat(res,
@@ -948,7 +1049,62 @@ public class EdgeBackGestureHandler {
         return mIsButtonForcedVisible;
     }
 
+    private void scheduleSidebarHold() {
+        final Handler handler = mUiThreadContext.getHandler();
+        handler.removeCallbacks(mSidebarHoldRunnable);
+        if (!mSidebarHoldArmed || mSidebarHoldFired) {
+            return;
+        }
+        handler.postDelayed(mSidebarHoldRunnable, mSmartSidebarHoldDelayMs);
+    }
+
+    private void cancelSidebarHold() {
+        mSidebarHoldArmed = false;
+        mSidebarHoldFired = false;
+        mSidebarHoldDistanceReached = false;
+        mUiThreadContext.getHandler().removeCallbacks(mSidebarHoldRunnable);
+    }
+
+    private void scheduleLongSwipeHold() {
+        final Handler handler = mUiThreadContext.getHandler();
+        handler.removeCallbacks(mLongSwipeHoldRunnable);
+        if (!mLongSwipeTriggered || mLongSwipeHoldOpened) {
+            return;
+        }
+        handler.postDelayed(mLongSwipeHoldRunnable, mSmartSidebarHoldDelayMs);
+    }
+
+    private void cancelLongSwipeHold() {
+        mLongSwipeTriggered = false;
+        mLongSwipeHoldOpened = false;
+        mLongSwipeHoldAnchorValid = false;
+        mUiThreadContext.getHandler().removeCallbacks(mLongSwipeHoldRunnable);
+    }
+
+    private void updateSmartSidebarHoldDelay() {
+        mSmartSidebarHoldDelayMs = SmartSidebarConfig.getHoldDelayMs(
+                mContext.getContentResolver(), UserHandle.USER_CURRENT);
+        final int dp = SmartSidebarConfig.getTriggerDistanceDp(
+                mContext.getContentResolver(), UserHandle.USER_CURRENT);
+        mSidebarTriggerDistancePx = Math.max(1,
+                (int) (dp * mContext.getResources().getDisplayMetrics().density));
+    }
+
+    /**
+     * True when the side panel should react to the long swipe: either the edge long swipe action
+     * was explicitly bound to SIDEBAR, or it was left unbound and the side panel master switch is
+     * on (so that enabling the switch alone is enough).
+     */
+    private boolean isSidebarLongSwipeActive() {
+        if (mSmartSidebarManager == null || !mSmartSidebarManager.isEnabled()) {
+            return false;
+        }
+        return mEdgeLongSwipeAction == Action.SIDEBAR || mEdgeLongSwipeAction == Action.NOTHING;
+    }
+
     private void updateLongSwipeWidth() {
+        mIsLongSwipeEnabled = mEdgeLongSwipeAction != Action.NOTHING
+                || isSidebarLongSwipeActive();
         if (!mIsEnabled) {
             return;
         }
@@ -1189,7 +1345,8 @@ public class EdgeBackGestureHandler {
     private void cancelGesture(MotionEvent ev) {
         // Send action cancel to reset all the touch events
         mAllowGesture = false;
-        mLongSwipeTriggered = false;
+        cancelLongSwipeHold();
+        cancelSidebarHold();
         mLogGesture = false;
         mInRejectedExclusion = false;
         MotionEvent cancelEv = MotionEvent.obtain(ev);
@@ -1264,7 +1421,11 @@ public class EdgeBackGestureHandler {
             mMLResults = 0;
             mLogGesture = false;
             mInRejectedExclusion = false;
-            mLongSwipeTriggered = false;
+            cancelLongSwipeHold();
+            cancelSidebarHold();
+            // The side panel master switch lives in a system property and has no observer, so
+            // re-evaluate it once per gesture instead of requiring a reboot.
+            updateLongSwipeWidth();
             boolean isWithinInsets = isWithinInsets((int) ev.getX(), (int) ev.getY());
             boolean isBackAllowedCommon = !mDisabledForQuickstep && mIsBackGestureAllowed
                     && !mGestureBlockingActivityRunning.get()
@@ -1288,6 +1449,20 @@ public class EdgeBackGestureHandler {
                 if (blockMouseEdgeBackGesture()) {
                     mAllowGesture = mAllowGesture && !isButtonPressFromMouse(ev);
                 }
+            }
+            if (mAllowGesture && mSmartSidebarManager != null
+                    && mSmartSidebarManager.isEnabled()) {
+                // Short swipe + pause: arm the hold timer, it starts as soon as the finger has
+                // travelled the configured distance.
+                mSidebarHoldArmed = true;
+                mSidebarHoldFired = false;
+                mSidebarPeakDx = 0f;
+                if (DEBUG_SIDEBAR) Log.d(TAG, "sidebar: armed, left=" + mIsOnLeftEdge
+                        + " triggerPx=" + mSidebarTriggerDistancePx
+                        + " holdMs=" + mSmartSidebarHoldDelayMs);
+                mSidebarHoldDistanceReached = false;
+                mSidebarHoldAnchorX = ev.getX();
+                mSidebarHoldAnchorY = ev.getY();
             }
             if (mAllowGesture) {
                 if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
@@ -1324,6 +1499,69 @@ public class EdgeBackGestureHandler {
                             ? displayBackGestureHandler.getExcludeRegion() : mExcludeRegion));
         } else if (mAllowGesture || mLogGesture) {
             boolean mLastFrameThresholdCrossed = mThresholdCrossed;
+            if (mSidebarHoldFired && action == MotionEvent.ACTION_MOVE) {
+                // The panel is pending (the haptic feedback already happened). Sliding the finger
+                // back towards the edge cancels it: opening the panel has to be reversible.
+                final float dx = Math.abs(ev.getX() - mDownPoint.x);
+                mSidebarPeakDx = Math.max(mSidebarPeakDx, dx);
+                if (mSidebarPeakDx - dx > mSidebarReversalSlopPx) {
+                    if (DEBUG_SIDEBAR) Log.d(TAG, "sidebar: reversed after the hold, cancelled");
+                    // Only the panel is dropped here: the swipe stays a normal back gesture, so
+                    // the system keeps drawing its animation and the user can still cancel the
+                    // back the usual way.
+                    cancelSidebarHold();
+                    mLongSwipeTriggered = false;
+                }
+            }
+            if (mSidebarHoldArmed && !mSidebarHoldFired) {
+                if (action == MotionEvent.ACTION_MOVE) {
+                    final float dx = Math.abs(ev.getX() - mSidebarHoldAnchorX);
+                    final float dy = Math.abs(ev.getY() - mSidebarHoldAnchorY);
+                    if (dy > dx) {
+                        // Vertical movement: not our gesture.
+                        cancelSidebarHold();
+                    } else if (!mSidebarHoldDistanceReached) {
+                        final float fromEdge = Math.abs(ev.getX() - mDownPoint.x);
+                        if (DEBUG_SIDEBAR) Log.d(TAG, "sidebar: moved " + fromEdge);
+                        if (fromEdge >= mSidebarTriggerDistancePx) {
+                            mSidebarHoldDistanceReached = true;
+                            mSidebarHoldAnchorX = ev.getX();
+                            mSidebarHoldAnchorY = ev.getY();
+                            scheduleSidebarHold();
+                        }
+                    } else if (dx * dx + dy * dy > HOLD_SLOP_SQ) {
+                        // Still moving: restart the timer so the panel only opens after the
+                        // finger actually rests for the configured delay.
+                        mSidebarHoldAnchorX = ev.getX();
+                        mSidebarHoldAnchorY = ev.getY();
+                        scheduleSidebarHold();
+                    }
+                } else if (action == MotionEvent.ACTION_UP
+                        || action == MotionEvent.ACTION_CANCEL) {
+                    cancelSidebarHold();
+                }
+            }
+            if (mLongSwipeTriggered) {
+                mEndPoint.x = (int) ev.getX();
+                mEndPoint.y = (int) ev.getY();
+                if (action == MotionEvent.ACTION_MOVE && !mLongSwipeHoldOpened) {
+                    if (!mLongSwipeHoldAnchorValid) {
+                        mLongSwipeHoldAnchorX = ev.getX();
+                        mLongSwipeHoldAnchorY = ev.getY();
+                        mLongSwipeHoldAnchorValid = true;
+                    } else {
+                        final float dx = ev.getX() - mLongSwipeHoldAnchorX;
+                        final float dy = ev.getY() - mLongSwipeHoldAnchorY;
+                        if (dx * dx + dy * dy > HOLD_SLOP_SQ) {
+                            // Still moving: restart the hold timer so that the panel only opens
+                            // after the finger actually rests for the configured delay.
+                            mLongSwipeHoldAnchorX = ev.getX();
+                            mLongSwipeHoldAnchorY = ev.getY();
+                            scheduleLongSwipeHold();
+                        }
+                    }
+                }
+            }
             if (!mThresholdCrossed) {
                 mEndPoint.x = (int) ev.getX();
                 mEndPoint.y = (int) ev.getY();
@@ -1352,7 +1590,13 @@ public class EdgeBackGestureHandler {
                         mDeferSetIsOnLeftEdge = false;
                     }
 
-                    if ((ev.getEventTime() - ev.getDownTime()) > mLongPressTimeout) {
+                    // A long press normally aborts the gesture. The side panel needs the
+                    // opposite: the user swipes in and *pauses*, which is by definition longer
+                    // than the long press timeout, so keep the gesture alive while the panel is
+                    // enabled and let the hold timer decide.
+                    if (!mLongSwipeHoldOpened
+                            && !isSidebarLongSwipeActive()
+                            && (ev.getEventTime() - ev.getDownTime()) > mLongPressTimeout) {
                         if (mAllowGesture) {
                             logGesture(SysUiStatsLog.BACK_GESTURE__TYPE__INCOMPLETE_LONG_PRESS);
                             cancelGesture(ev);
@@ -1396,14 +1640,36 @@ public class EdgeBackGestureHandler {
             }
 
             if (mAllowGesture) {
+                if (DEBUG_SIDEBAR && action == MotionEvent.ACTION_UP) {
+                    Log.d(TAG, "sidebar: UP fired=" + mSidebarHoldFired
+                            + " armed=" + mSidebarHoldArmed);
+                }
+                if (action == MotionEvent.ACTION_UP && mSidebarHoldFired) {
+                    // Released after the pause: swallow the back pipeline (so nothing navigates
+                    // and no "back to home" preview is committed) and open the panel instead.
+                    final boolean left = mIsOnLeftEdge;
+                    final float y = ev.getY();
+                    cancelSidebarHold();
+                    mLongSwipeTriggered = false;
+                    final MotionEvent cancelEv = MotionEvent.obtain(ev);
+                    cancelEv.setAction(MotionEvent.ACTION_CANCEL);
+                    cancelGesture(cancelEv);
+                    cancelEv.recycle();
+                    if (mSmartSidebarManager != null) {
+                        mSmartSidebarManager.openFromGesture(left, y);
+                    }
+                    return;
+                }
                 if (action == MotionEvent.ACTION_UP && mLongSwipeTriggered) {
-                    // The panel opens on release: the long swipe detection itself stays fully
-                    // owned by BackPanelController / BackAnimationController, we only act on its
-                    // result. See docs/smart-sidebar-design.md.
+                    // Two ways to open: holding still after the long swipe threshold (see
+                    // mLongSwipeHoldRunnable), or releasing the gesture. The hold path opens the
+                    // panel while the finger is still down, so do not open it a second time here.
                     final boolean left = mLongSwipeFromLeft;
                     final float y = ev.getY();
-                    mLongSwipeTriggered = false;
-                    if (mSmartSidebarManager != null && mSmartSidebarManager.isEnabled()) {
+                    final boolean alreadyOpened = mLongSwipeHoldOpened;
+                    cancelLongSwipeHold();
+                    if (!alreadyOpened && mSmartSidebarManager != null
+                            && mSmartSidebarManager.isEnabled()) {
                         mSmartSidebarManager.openFromGesture(left, y);
                     }
                 }

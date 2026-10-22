@@ -431,6 +431,11 @@ public class InternetDialogDelegateLegacy implements
 
         updateEthernet(internetContent);
         setMobileDataLayout(internetContent);
+        final boolean showFiveg = mShouldShowFivegToggle && mCanConfigMobileData
+                && internetContent.mHasActiveSubIdOnDds;
+        mFivegLayout.setVisibility(showFiveg ? View.VISIBLE : View.GONE);
+        mFivegToggle.setChecked(internetContent.mIsFivegEnabled);
+        mFivegToggle.setEnabled(showFiveg && !internetContent.mIsAirplaneModeEnabled);
 
         if (!mCanConfigWifi) {
             return;
@@ -458,6 +463,8 @@ public class InternetDialogDelegateLegacy implements
         internetContent.mIsWifiEnabled = mInternetDetailsContentController.isWifiEnabled();
         internetContent.mHasActiveSubIdOnDds =
                 mInternetDetailsContentController.hasActiveSubIdOnDds();
+        internetContent.mIsFivegEnabled = internetContent.mHasActiveSubIdOnDds
+                && mInternetDetailsContentController.isFivegEnabled();
         internetContent.mIsDeviceLocked = mInternetDetailsContentController.isDeviceLocked();
         internetContent.mIsWifiScanEnabled = mInternetDetailsContentController.isWifiScanEnabled();
         internetContent.mActiveAutoSwitchNonDdsSubId =
@@ -477,6 +484,8 @@ public class InternetDialogDelegateLegacy implements
         internetContent.mInternetDialogTitleString = getDialogTitleText();
         internetContent.mInternetDialogSubTitle = getSubtitleText();
         internetContent.mIsWifiEnabled = mInternetDetailsContentController.isWifiEnabled();
+        internetContent.mIsFivegEnabled = internetContent.mHasActiveSubIdOnDds
+                && mInternetDetailsContentController.isFivegEnabled();
         internetContent.mIsDeviceLocked = mInternetDetailsContentController.isDeviceLocked();
         return internetContent;
     }
@@ -511,7 +520,19 @@ public class InternetDialogDelegateLegacy implements
             }
         });
         mFivegToggle.setOnClickListener(v -> {
-            mInternetDetailsContentController.setFivegEnabled(mFivegToggle.isChecked());
+            final boolean enabled = mFivegToggle.isChecked();
+            mFivegToggle.setEnabled(false);
+            mBackgroundExecutor.execute(() -> {
+                try {
+                    mInternetDetailsContentController.setFivegEnabled(enabled);
+                } catch (RuntimeException e) {
+                    Log.w(TAG, "Unable to change 5G network preference", e);
+                } finally {
+                    // The telephony USER policy is the persisted source of truth. Read it back
+                    // even if the modem does not emit a service-state change immediately.
+                    mDataInternetContent.postValue(getInternetContent(true));
+                }
+            });
         });
         mConnectedWifListLayout.setOnClickListener(this::onClickConnectedWifi);
         mSeeAllLayout.setOnClickListener(this::onClickSeeMoreButton);
@@ -1098,6 +1119,7 @@ public class InternetDialogDelegateLegacy implements
         boolean mIsCarrierNetworkActive = false;
         boolean mIsWifiEnabled = false;
         boolean mHasActiveSubIdOnDds = false;
+        boolean mIsFivegEnabled = false;
         boolean mIsDeviceLocked = false;
         boolean mIsWifiScanEnabled = false;
         int mActiveAutoSwitchNonDdsSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;

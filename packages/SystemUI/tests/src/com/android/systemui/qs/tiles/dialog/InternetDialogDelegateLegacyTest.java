@@ -216,6 +216,21 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
     }
 
     @Test
+    public void updateDialog_fivegSwitchReflectsTelephonyPolicy() {
+        Switch toggle = mDialogView.requireViewById(R.id.fiveg_toggle);
+        InternetDialogDelegateLegacy.InternetContent content =
+                new InternetDialogDelegateLegacy.InternetContent();
+        content.mIsFivegEnabled = true;
+        mInternetDialogDelegateLegacy.mDataInternetContent.setValue(content);
+        assertThat(toggle.isChecked()).isTrue();
+
+        content = new InternetDialogDelegateLegacy.InternetContent();
+        content.mIsFivegEnabled = false;
+        mInternetDialogDelegateLegacy.mDataInternetContent.setValue(content);
+        assertThat(toggle.isChecked()).isFalse();
+    }
+
+    @Test
     public void updateDialog_withApmOn_internetDialogSubTitleGone() {
         when(mInternetDetailsContentController.isAirplaneModeEnabled()).thenReturn(true);
         mInternetDialogDelegateLegacy.updateDialog(true);

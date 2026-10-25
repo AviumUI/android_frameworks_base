@@ -66,6 +66,21 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
         };
     }
 
+    ResolverMultiProfilePagerAdapter(Context context,
+            ResolverListAdapter[] adapters,
+            EmptyStateProvider emptyStateProvider,
+            QuietModeManager quietModeManager,
+            @Profile int defaultProfile,
+            UserHandle workProfileUserHandle,
+            UserHandle cloneUserHandle) {
+        super(context, /* currentPage */ defaultProfile, emptyStateProvider, quietModeManager,
+                workProfileUserHandle, cloneUserHandle);
+        mItems = new ResolverProfileDescriptor[adapters.length];
+        for (int i = 0; i < adapters.length; i++) {
+            mItems[i] = createProfileDescriptor(adapters[i]);
+        }
+    }
+
     private ResolverProfileDescriptor createProfileDescriptor(
             ResolverListAdapter adapter) {
         final LayoutInflater inflater = LayoutInflater.from(getContext());
@@ -101,6 +116,11 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
     }
 
     @Override
+    public ResolverListAdapter getListAdapterForIndex(int pageIndex) {
+        return getAdapterForIndex(pageIndex);
+    }
+
+    @Override
     public ViewGroup instantiateItem(ViewGroup container, int position) {
         setupListAdapter(position);
         return super.instantiateItem(container, position);
@@ -109,12 +129,10 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
     @Override
     @Nullable
     ResolverListAdapter getListAdapterForUserHandle(UserHandle userHandle) {
-        if (getPersonalListAdapter().getUserHandle().equals(userHandle)
-                || userHandle.equals(getCloneUserHandle())) {
-            return getPersonalListAdapter();
-        } else if (getWorkListAdapter() != null
-                && getWorkListAdapter().getUserHandle().equals(userHandle)) {
-            return getWorkListAdapter();
+        for (ResolverProfileDescriptor item : mItems) {
+            if (item.resolverListAdapter.getUserHandle().equals(userHandle)) {
+                return item.resolverListAdapter;
+            }
         }
         return null;
     }
@@ -131,7 +149,24 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
         if (getCount() == 1) {
             return null;
         }
-        return getAdapterForIndex(1 - getCurrentPage());
+        return getAdapterForIndex(getCurrentPage() == 0 ? 1 : 0);
+    }
+
+    @Override
+    boolean rebuildInactiveTab(boolean doPostProcessing) {
+        if (getCount() == 1) return false;
+        boolean result = true;
+        for (int i = 0; i < getCount(); i++) {
+            if (i != getCurrentPage()) {
+                result &= rebuildTabForIndex(i, doPostProcessing);
+            }
+        }
+        return result;
+    }
+
+    private boolean rebuildTabForIndex(int index, boolean doPostProcessing) {
+        ResolverListAdapter adapter = getAdapterForIndex(index);
+        return adapter.rebuildList(doPostProcessing);
     }
 
     @Override
@@ -142,10 +177,13 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
     @Override
     @Nullable
     public ResolverListAdapter getWorkListAdapter() {
-        if (getCount() == 1) {
-            return null;
+        UserHandle work = getWorkProfileUserHandle();
+        if (work == null) return null;
+        ResolverListAdapter adapter = getListAdapterForUserHandle(work);
+        if (adapter != null) {
+            return adapter;
         }
-        return getAdapterForIndex(PROFILE_WORK);
+        return null;
     }
 
     @Override
@@ -164,7 +202,7 @@ public class ResolverMultiProfilePagerAdapter extends AbstractMultiProfilePagerA
         if (getCount() == 1) {
             return null;
         }
-        return getListViewForIndex(1 - getCurrentPage());
+        return getListViewForIndex(getCurrentPage() == 0 ? 1 : 0);
     }
 
     void setUseLayoutWithDefault(boolean useLayoutWithDefault) {

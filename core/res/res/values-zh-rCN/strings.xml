@@ -332,6 +332,10 @@
     <string name="foreground_service_multiple_separator" msgid="5002287361849863168">"<xliff:g id="LEFT_SIDE">%1$s</xliff:g>、<xliff:g id="RIGHT_SIDE">%2$s</xliff:g>"</string>
     <string name="safeMode" msgid="8974401416068943888">"安全模式"</string>
     <string name="android_system_label" msgid="5974767339591067210">"Android 系统"</string>
+    <string name="resolver_private_tab">私人空间</string>
+    <string name="resolver_private_tab_accessibility">私人空间视图</string>
+    <string name="resolver_clone_tab">分身空间</string>
+    <string name="resolver_clone_tab_accessibility">分身空间视图</string>
     <string name="user_owner_label" msgid="8628726904184471211">"切换到个人资料"</string>
     <string name="managed_profile_label" msgid="7316778766973512382">"切换到工作资料"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"切换到个人 <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>

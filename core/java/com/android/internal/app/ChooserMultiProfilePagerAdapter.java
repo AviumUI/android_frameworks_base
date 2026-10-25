@@ -110,6 +110,11 @@ public class ChooserMultiProfilePagerAdapter extends AbstractMultiProfilePagerAd
     }
 
     @Override
+    public ChooserListAdapter getListAdapterForIndex(int pageIndex) {
+        return getAdapterForIndex(pageIndex).getListAdapter();
+    }
+
+    @Override
     @Nullable
     ChooserListAdapter getListAdapterForUserHandle(UserHandle userHandle) {
         if (getPersonalListAdapter().getUserHandle().equals(userHandle)

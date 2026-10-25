@@ -24,7 +24,7 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:gravity="center_vertical"
-        android:layout_marginStart="2.5sp"
+        android:layout_marginStart="1sp"
     >
         <FrameLayout
                 android:id="@+id/inout_container"

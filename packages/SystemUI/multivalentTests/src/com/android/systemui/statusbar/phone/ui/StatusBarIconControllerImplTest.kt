@@ -441,6 +441,23 @@ class StatusBarIconControllerImplTest : SysuiTestCase() {
         assertThat(iconHolder?.icon?.preloadedIcon).isEqualTo(drawable)
     }
 
+    @Test
+    fun hideListChanged_rebindsBindableIconAndPreservesHolder() {
+        underTest.addBindableIcon(FakeBindableIcon("test_slot"))
+        val holder = iconList.getIconHolder("test_slot", 0)!!
+        org.mockito.Mockito.clearInvocations(iconGroup)
+
+        underTest.onTuningChanged(StatusBarIconController.ICON_HIDE_LIST, "test_slot")
+
+        verify(iconGroup).onRemoveIcon(0)
+        verify(iconGroup).onIconAdded(0, "test_slot", true, holder)
+        assertThat(iconList.getIconHolder("test_slot", 0)).isSameInstanceAs(holder)
+
+        org.mockito.Mockito.clearInvocations(iconGroup)
+        underTest.onTuningChanged(StatusBarIconController.ICON_HIDE_LIST, "")
+        verify(iconGroup).onIconAdded(0, "test_slot", false, holder)
+    }
+
     private fun createExternalIcon(): StatusBarIcon {
         return StatusBarIcon(
             "external.package",

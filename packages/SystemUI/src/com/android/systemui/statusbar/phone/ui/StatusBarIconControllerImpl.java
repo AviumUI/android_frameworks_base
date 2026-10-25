@@ -27,7 +27,6 @@ import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.text.TextUtils;
-import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.view.ViewGroup;
@@ -202,26 +201,20 @@ public class StatusBarIconControllerImpl implements Tunable,
         }
         mIconHideList.clear();
         mIconHideList.addAll(StatusBarIconController.getIconHideList(mContext, newValue));
-        List<Slot> currentSlots = mStatusBarIconList.getSlots();
-        ArrayMap<Slot, List<StatusBarIconHolder>> slotsToReAdd = new ArrayMap<>();
-
-        // This is a little hacky... Peel off all of the holders on all of the slots
-        // but keep them around so they can be re-added
-
-        // Remove all the icons.
-        for (int i = currentSlots.size() - 1; i >= 0; i--) {
-            Slot s = currentSlots.get(i);
-            slotsToReAdd.put(s, s.getHolderList());
-            removeAllIconsForSlot(s.getName(), /* fromNewPipeline */ false);
+        // Rebuild views, not holders: modern pipeline slots cannot be removed by the
+        // legacy path. Every group must receive the new block state, including bindable icons.
+        List<Slot> slots = mStatusBarIconList.getSlots();
+        for (int i = slots.size() - 1; i >= 0; i--) {
+            Slot slot = slots.get(i);
+            List<StatusBarIconHolder> holders = slot.getHolderListInViewOrder();
+            for (int j = holders.size() - 1; j >= 0; j--) {
+                int viewIndex = mStatusBarIconList.getViewIndex(slot.getName(), holders.get(j).getTag());
+                mIconGroups.forEach(group -> group.onRemoveIcon(viewIndex));
+            }
         }
-
-        // Add them all back
-        for (int i = 0; i < currentSlots.size(); i++) {
-            Slot item = currentSlots.get(i);
-            List<StatusBarIconHolder> iconsForSlot = slotsToReAdd.get(item);
-            if (iconsForSlot == null) continue;
-            for (StatusBarIconHolder holder : iconsForSlot) {
-                setIcon(item.getName(), holder);
+        for (Slot slot : slots) {
+            for (StatusBarIconHolder holder : slot.getHolderListInViewOrder()) {
+                addSystemIcon(slot.getName(), holder);
             }
         }
     }

@@ -32,6 +32,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import com.android.app.animation.Interpolators;
 import com.android.keyguard.AlphaOptimizedLinearLayout;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.StatusIconDisplayable;
@@ -60,6 +61,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
 
     private int mDotPadding;
     private int mIconSpacing;
+    private int mEffectiveIconSpacing;
     private int mStaticDotDiameter;
     private int mUnderflowWidth;
     private int mUnderflowStart = 0;
@@ -176,11 +178,30 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         // Measure all children so that they report the correct width
         int childWidthSpec = MeasureSpec.makeMeasureSpec(specWidth, MeasureSpec.UNSPECIFIED);
         mNeedsUnderflow = mShouldRestrictIcons && visibleCount > MAX_ICONS;
+        int contentWidth = 0;
+        int measuredIcons = mShouldRestrictIcons
+                ? Math.min(visibleCount, maxVisible) : visibleCount;
+        for (int i = 0; i < visibleCount; i++) {
+            View child = mMeasureViews.get(visibleCount - i - 1);
+            measureChild(child, childWidthSpec, heightMeasureSpec);
+            if (i < measuredIcons) contentWidth += getViewTotalMeasuredWidth(child);
+        }
+        if (mNeedsUnderflow) contentWidth += mUnderflowWidth;
+        int gaps = Math.max(0, measuredIcons - 1 + (mNeedsUnderflow ? 1 : 0));
+        // Tighten gaps as icons appear, even when wrap_content still has room.
+        // Position animations below interpolate changes to this measured spacing.
+        mEffectiveIconSpacing = Math.round(mIconSpacing * Math.min(1f,
+                3f / Math.max(1, visibleCount)));
+        if (widthMode != MeasureSpec.UNSPECIFIED && gaps > 0) {
+            // Compress only the gaps before resorting to the overflow dot. Use the same
+            // spacing during layout so a width change cannot shift icons outside the bounds.
+            int available = Math.max(0, specWidth - totalWidth - contentWidth);
+            mEffectiveIconSpacing = Math.min(mEffectiveIconSpacing, available / gaps);
+        }
         for (int i = 0; i < visibleCount; i++) {
             // Walking backwards
             View child = mMeasureViews.get(visibleCount - i - 1);
-            measureChild(child, childWidthSpec, heightMeasureSpec);
-            int spacing = i == visibleCount - 1 ? 0 : mIconSpacing;
+            int spacing = i == visibleCount - 1 ? 0 : mEffectiveIconSpacing;
             if (mShouldRestrictIcons) {
                 if (i < maxVisible && trackWidth) {
                     totalWidth += getViewTotalMeasuredWidth(child) + spacing;
@@ -327,8 +348,10 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         float contentStart = getPaddingStart();
         int childCount = getChildCount();
         // Underflow === don't show content until that index
-        if (DEBUG) Log.d(TAG, "calculateIconTranslations: start=" + translationX
-                + " width=" + width + " underflow=" + mNeedsUnderflow);
+        if (DEBUG) {
+            Log.d(TAG, "calculateIconTranslations: start=" + translationX
+                    + " width=" + width + " underflow=" + mNeedsUnderflow);
+        }
 
         // Collect all of the states which want to be visible
         for (int i = childCount - 1; i >= 0; i--) {
@@ -350,8 +373,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             childState.setXTranslation(translationX);
             mLayoutStates.add(0, childState);
 
-            // Shift translationX over by mIconSpacing for the next view.
-            translationX -= mIconSpacing;
+            // Leave the measured gap for the next visible view.
+            translationX -= mEffectiveIconSpacing;
         }
 
         // Show either 1-MAX_ICONS icons, or (MAX_ICONS - 1) icons + overflow
@@ -374,7 +397,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
                 break;
             }
             mUnderflowStart = (int) Math.max(
-                    contentStart, state.getXTranslation() - mUnderflowWidth - mIconSpacing);
+                    contentStart,
+                    state.getXTranslation() - mUnderflowWidth - mEffectiveIconSpacing);
             visible++;
         }
 
@@ -384,7 +408,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             int dotOffset = mUnderflowStart + mUnderflowWidth - mIconDotFrameWidth;
             for (int i = firstUnderflowIndex; i >= 0; i--) {
                 StatusIconState state = mLayoutStates.get(i);
-                if (totalDots < MAX_DOTS) {
+                if (totalDots < MAX_DOTS
+                        && width - getPaddingStart() - getPaddingEnd() >= mUnderflowWidth) {
                     state.setXTranslation(dotOffset);
                     state.visibleState = STATE_DOT;
                     dotOffset -= dotWidth;
@@ -410,8 +435,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             View child = getChildAt(i);
             StatusIconState vs = getViewStateFromChild(child);
             if (vs != null) {
-                vs.applyToView(child);
                 vs.qsExpansionTransitioning = mQsExpansionTransitioning;
+                vs.applyToView(child);
             }
         }
     }
@@ -434,12 +459,14 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         return (StatusIconState) child.getTag(R.id.status_bar_view_state_tag);
     }
 
+    // View width already includes padding. Counting it twice creates phantom gaps,
+    // particularly for connectivity icons, and makes overflow occur too early.
     private static int getViewTotalMeasuredWidth(View child) {
-        return child.getMeasuredWidth() + child.getPaddingStart() + child.getPaddingEnd();
+        return child.getMeasuredWidth();
     }
 
     private static int getViewTotalWidth(View child) {
-        return child.getWidth() + child.getPaddingStart() + child.getPaddingEnd();
+        return child.getWidth();
     }
 
     public static class StatusIconState extends ViewState {
@@ -454,7 +481,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         public boolean qsExpansionTransitioning = false;
 
         // How far we are from the end of the view actually is the most relevant for animation
-        float distanceToViewEnd = -1;
+        float mDistanceToViewEnd = -1;
 
         @Override
         public void applyToView(View view) {
@@ -473,8 +500,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
             boolean animateVisibility = true;
 
             // Figure out which properties of the state transition (if any) we need to animate
-            if (justAdded
-                    || icon.getVisibleState() == STATE_HIDDEN && visibleState == STATE_ICON) {
+            if (visibleState == STATE_ICON
+                    && (justAdded || icon.getVisibleState() == STATE_HIDDEN)) {
                 // Icon is appearing, fade it in by putting it where it will be and animating alpha
                 super.applyToView(view);
                 view.setAlpha(0.f);
@@ -488,7 +515,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
                     // all other transitions (to/from dot, etc)
                     animationProperties = ANIMATE_ALL_PROPERTIES;
                 }
-            } else if (visibleState != STATE_HIDDEN && distanceToViewEnd != currentDistanceToEnd) {
+            } else if (visibleState != STATE_HIDDEN && mDistanceToViewEnd != currentDistanceToEnd) {
                 // Visibility isn't changing, just animate position
                 animationProperties = X_ANIMATION_PROPERTIES;
             }
@@ -502,7 +529,7 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
 
             qsExpansionTransitioning = false;
             justAdded = false;
-            distanceToViewEnd = currentDistanceToEnd;
+            mDistanceToViewEnd = currentDistanceToEnd;
 
         }
     }
@@ -514,7 +541,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         public AnimationFilter getAnimationFilter() {
             return mAnimationFilter;
         }
-    }.setDuration(200).setDelay(50);
+    }.setDuration(160).setDelay(0)
+            .setCustomInterpolator(View.ALPHA, Interpolators.LINEAR_OUT_SLOW_IN);
 
     private static final AnimationProperties X_ANIMATION_PROPERTIES = new AnimationProperties() {
         private AnimationFilter mAnimationFilter = new AnimationFilter().animateX();
@@ -523,7 +551,8 @@ public class StatusIconContainer extends AlphaOptimizedLinearLayout {
         public AnimationFilter getAnimationFilter() {
             return mAnimationFilter;
         }
-    }.setDuration(200);
+    }.setDuration(180)
+            .setCustomInterpolator(View.TRANSLATION_X, Interpolators.FAST_OUT_SLOW_IN);
 
     private static final AnimationProperties ANIMATE_ALL_PROPERTIES = new AnimationProperties() {
         private AnimationFilter mAnimationFilter = new AnimationFilter().animateX().animateY()

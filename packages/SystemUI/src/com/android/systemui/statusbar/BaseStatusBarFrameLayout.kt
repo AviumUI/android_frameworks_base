@@ -34,4 +34,14 @@ constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttrs: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttrs), StatusIconDisplayable
+) : FrameLayout(context, attrs, defStyleAttrs), StatusIconDisplayable {
+    private var iconBlocked = false
+
+    override fun isIconBlocked(): Boolean = iconBlocked
+
+    fun setIconBlocked(blocked: Boolean) {
+        if (iconBlocked == blocked) return
+        iconBlocked = blocked
+        requestLayout()
+    }
+}

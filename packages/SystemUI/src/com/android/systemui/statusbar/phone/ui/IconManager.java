@@ -222,7 +222,7 @@ public class IconManager implements DemoModeCommandReceiver {
         if (mBlockList.contains(slot)) {
             blocked = true;
         }
-        return switch (holder.getType()) {
+        StatusIconDisplayable view = switch (holder.getType()) {
             case TYPE_ICON -> addIcon(index, slot, blocked, holder.getIcon());
             case TYPE_WIFI_NEW -> addNewWifiIcon(index, slot);
             case TYPE_MOBILE_NEW -> addNewMobileIcon(index, slot, holder.getTag());
@@ -231,6 +231,10 @@ public class IconManager implements DemoModeCommandReceiver {
                     addBindableIcon((BindableIconHolder) holder, index);
             default -> null;
         };
+        if (view instanceof BaseStatusBarFrameLayout modernView) {
+            modernView.setIconBlocked(blocked);
+        }
+        return view;
     }
 
     protected StatusBarIconView addIcon(int index, String slot, boolean blocked,

@@ -31,6 +31,8 @@ import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
+import com.android.systemui.statusbar.phone.StatusBarIconHolder.BindableIconHolder
+import com.android.systemui.statusbar.pipeline.shared.ui.view.ModernStatusBarView
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapter
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapterKairos
@@ -95,6 +97,31 @@ class IconManagerTest : SysuiTestCase() {
         assertThat(iconView.layoutParams.width).isNotEqualTo(ViewGroup.LayoutParams.WRAP_CONTENT)
         assertThat(iconView.layoutParams.width).isEqualTo(iconView.layoutParams.height)
         assertThat(iconView.scaleType).isEqualTo(ImageView.ScaleType.FIT_CENTER)
+    }
+
+    @Test
+    fun addBindableIcon_respectsUserHideList() {
+        val view = ModernStatusBarView(context, null)
+        val holder = BindableIconHolder(
+            { view }, "test_slot"
+        )
+
+        underTest.addHolder(0, "test_slot", true, holder)
+
+        assertThat(view.isIconBlocked()).isTrue()
+    }
+
+    @Test
+    fun addBindableIcon_respectsGroupBlockList() {
+        val view = ModernStatusBarView(context, null)
+        val holder = BindableIconHolder(
+            { view }, "test_slot"
+        )
+        underTest.setBlockList(listOf("test_slot"))
+
+        underTest.addHolder(0, "test_slot", false, holder)
+
+        assertThat(view.isIconBlocked()).isTrue()
     }
 
     private fun newStatusBarIcon(shape: StatusBarIcon.Shape) =

@@ -216,6 +216,8 @@ public class ResolverActivity extends Activity implements
 
     private PackageMonitor mPersonalPackageMonitor;
     private PackageMonitor mWorkPackageMonitor;
+    private PackageMonitor mPrivatePackageMonitor;
+    private PackageMonitor mClonePackageMonitor;
 
     @VisibleForTesting
     protected AbstractMultiProfilePagerAdapter mMultiProfilePagerAdapter;
@@ -253,6 +255,8 @@ public class ResolverActivity extends Activity implements
 
     protected static final int PROFILE_PERSONAL = AbstractMultiProfilePagerAdapter.PROFILE_PERSONAL;
     protected static final int PROFILE_WORK = AbstractMultiProfilePagerAdapter.PROFILE_WORK;
+    protected static final int PROFILE_PRIVATE = AbstractMultiProfilePagerAdapter.PROFILE_PRIVATE;
+    protected static final int PROFILE_CLONE = AbstractMultiProfilePagerAdapter.PROFILE_CLONE;
 
     private BroadcastReceiver mWorkProfileStateReceiver;
     private UserHandle mHeaderCreatorUser;
@@ -483,9 +487,26 @@ public class ResolverActivity extends Activity implements
         mPersonalPackageMonitor.register(
                 this, getMainLooper(), getPersonalProfileUserHandle(), false);
         if (shouldShowTabs()) {
-            mWorkPackageMonitor = createPackageMonitor(
-                    mMultiProfilePagerAdapter.getWorkListAdapter());
-            mWorkPackageMonitor.register(this, getMainLooper(), getWorkProfileUserHandle(), false);
+            if (getWorkProfileUserHandle() != null) {
+                mWorkPackageMonitor = createPackageMonitor(
+                        mMultiProfilePagerAdapter.getWorkListAdapter());
+                mWorkPackageMonitor.register(this, getMainLooper(),
+                        getWorkProfileUserHandle(), false);
+            }
+            if (mIsIntentPicker && getPrivateProfileUserHandle() != null) {
+                mPrivatePackageMonitor = createPackageMonitor(
+                        mMultiProfilePagerAdapter.getListAdapterForUserHandle(
+                                getPrivateProfileUserHandle()));
+                mPrivatePackageMonitor.register(this, getMainLooper(),
+                        getPrivateProfileUserHandle(), false);
+            }
+            if (mIsIntentPicker && getCloneProfileUserHandle() != null) {
+                mClonePackageMonitor = createPackageMonitor(
+                        mMultiProfilePagerAdapter.getListAdapterForUserHandle(
+                                getCloneProfileUserHandle()));
+                mClonePackageMonitor.register(this, getMainLooper(),
+                        getCloneProfileUserHandle(), false);
+            }
         }
 
         mRegistered = true;
@@ -547,13 +568,49 @@ public class ResolverActivity extends Activity implements
         AbstractMultiProfilePagerAdapter resolverMultiProfilePagerAdapter = null;
         if (shouldShowTabs()) {
             resolverMultiProfilePagerAdapter =
-                    createResolverMultiProfilePagerAdapterForTwoProfiles(
+                    createResolverMultiProfilePagerAdapterForProfiles(
                             initialIntents, rList, filterLastUsed);
         } else {
             resolverMultiProfilePagerAdapter = createResolverMultiProfilePagerAdapterForOneProfile(
                     initialIntents, rList, filterLastUsed);
         }
         return resolverMultiProfilePagerAdapter;
+    }
+
+    private ResolverMultiProfilePagerAdapter createResolverMultiProfilePagerAdapterForProfiles(
+            Intent[] initialIntents, List<ResolveInfo> rList, boolean filterLastUsed) {
+        final ArrayList<UserHandle> users = new ArrayList<>();
+        users.add(getPersonalProfileUserHandle());
+        if (getWorkProfileUserHandle() != null) users.add(getWorkProfileUserHandle());
+        if (getPrivateProfileUserHandle() != null) users.add(getPrivateProfileUserHandle());
+        if (getCloneProfileUserHandle() != null) users.add(getCloneProfileUserHandle());
+
+        int selectedProfile = users.indexOf(getTabOwnerUserHandleForLaunch());
+        if (selectedProfile < 0) selectedProfile = 0;
+        int selectedExtra = getSelectedProfileExtra();
+        if (selectedExtra == PROFILE_PERSONAL) {
+            selectedProfile = users.indexOf(getPersonalProfileUserHandle());
+        } else if (selectedExtra == PROFILE_WORK) {
+            selectedProfile = users.indexOf(getWorkProfileUserHandle());
+        } else if (selectedExtra == PROFILE_PRIVATE) {
+            selectedProfile = users.indexOf(getPrivateProfileUserHandle());
+        } else if (selectedExtra == PROFILE_CLONE) {
+            selectedProfile = users.indexOf(getCloneProfileUserHandle());
+        }
+        if (selectedProfile < 0) selectedProfile = 0;
+        final ArrayList<ResolverListAdapter> adapters = new ArrayList<>();
+        for (int i = 0; i < users.size(); i++) {
+            UserHandle user = users.get(i);
+            adapters.add(createResolverListAdapter(this, mIntents,
+                    i == selectedProfile ? initialIntents : null, rList,
+                    i == PROFILE_PERSONAL && filterLastUsed
+                            && UserHandle.myUserId() == user.getIdentifier(), user));
+        }
+        return new ResolverMultiProfilePagerAdapter(this,
+                adapters.toArray(new ResolverListAdapter[0]),
+                createEmptyStateProvider(getWorkProfileUserHandle()),
+                createQuietModeManager(), selectedProfile,
+                getWorkProfileUserHandle(), getCloneProfileUserHandle());
     }
 
     @VisibleForTesting
@@ -758,7 +815,8 @@ public class ResolverActivity extends Activity implements
         int selectedProfile = -1;
         if (getIntent().hasExtra(EXTRA_SELECTED_PROFILE)) {
             selectedProfile = getIntent().getIntExtra(EXTRA_SELECTED_PROFILE, /* defValue = */ -1);
-            if (selectedProfile != PROFILE_PERSONAL && selectedProfile != PROFILE_WORK) {
+            if (selectedProfile != PROFILE_PERSONAL && selectedProfile != PROFILE_WORK
+                    && selectedProfile != PROFILE_PRIVATE && selectedProfile != PROFILE_CLONE) {
                 throw new IllegalArgumentException(EXTRA_SELECTED_PROFILE + " has invalid value "
                         + selectedProfile + ". Must be either ResolverActivity.PROFILE_PERSONAL or "
                         + "ResolverActivity.PROFILE_WORK.");
@@ -768,8 +826,10 @@ public class ResolverActivity extends Activity implements
     }
 
     protected @Profile int getCurrentProfile() {
-        return (UserHandle.myUserId() == getPersonalProfileUserHandle().getIdentifier()
-                ? PROFILE_PERSONAL : PROFILE_WORK);
+        if (isLaunchedAsPrivateProfile()) return PROFILE_PRIVATE;
+        if (isLaunchedAsCloneProfile()) return PROFILE_CLONE;
+        return UserHandle.myUserId() == getPersonalProfileUserHandle().getIdentifier()
+                ? PROFILE_PERSONAL : PROFILE_WORK;
     }
 
     protected UserHandle getPersonalProfileUserHandle() {
@@ -886,7 +946,12 @@ public class ResolverActivity extends Activity implements
         if (privateSpaceEnabled() && isLaunchedInSingleUserMode()) {
             return false;
         }
-        return hasWorkProfile() && ENABLE_TABBED_VIEW;
+        // ChooserActivity (including the media projection selector) still has only
+        // personal/work pages. Extra resolver profiles must not create a work page
+        // when no work user exists.
+        return ENABLE_TABBED_VIEW && (hasWorkProfile()
+                || (mIsIntentPicker && (hasCloneProfile()
+                        || getPrivateProfileUserHandle() != null)));
     }
 
     protected void onProfileClick(View v) {
@@ -1136,16 +1201,39 @@ public class ResolverActivity extends Activity implements
             mPersonalPackageMonitor.register(this, getMainLooper(),
                     getPersonalProfileUserHandle(), false);
             if (shouldShowTabs()) {
-                if (mWorkPackageMonitor == null) {
+                if (mWorkPackageMonitor == null && getWorkProfileUserHandle() != null) {
                     mWorkPackageMonitor = createPackageMonitor(
                             mMultiProfilePagerAdapter.getWorkListAdapter());
                 }
-                mWorkPackageMonitor.register(this, getMainLooper(),
-                        getWorkProfileUserHandle(), false);
+                if (mWorkPackageMonitor != null) {
+                    mWorkPackageMonitor.register(this, getMainLooper(),
+                            getWorkProfileUserHandle(), false);
+                }
+                if (mIsIntentPicker && mPrivatePackageMonitor == null
+                        && getPrivateProfileUserHandle() != null) {
+                    mPrivatePackageMonitor = createPackageMonitor(
+                            mMultiProfilePagerAdapter.getListAdapterForUserHandle(
+                                    getPrivateProfileUserHandle()));
+                }
+                if (mPrivatePackageMonitor != null) {
+                    mPrivatePackageMonitor.register(this, getMainLooper(),
+                            getPrivateProfileUserHandle(), false);
+                }
+                if (mIsIntentPicker && mClonePackageMonitor == null
+                        && getCloneProfileUserHandle() != null) {
+                    mClonePackageMonitor = createPackageMonitor(
+                            mMultiProfilePagerAdapter.getListAdapterForUserHandle(
+                                    getCloneProfileUserHandle()));
+                }
+                if (mClonePackageMonitor != null) {
+                    mClonePackageMonitor.register(this, getMainLooper(),
+                            getCloneProfileUserHandle(), false);
+                }
             }
             mRegistered = true;
         }
-        if (shouldShowTabs() && mQuietModeManager.isWaitingToEnableWorkProfile()) {
+        if (shouldShowTabs() && getWorkProfileUserHandle() != null
+                && mQuietModeManager.isWaitingToEnableWorkProfile()) {
             if (mQuietModeManager.isQuietModeEnabled(getWorkProfileUserHandle())) {
                 mQuietModeManager.markWorkProfileEnabledBroadcastReceived();
             }
@@ -1159,7 +1247,7 @@ public class ResolverActivity extends Activity implements
         super.onStart();
 
         this.getWindow().addSystemFlags(SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS);
-        if (shouldShowTabs()) {
+        if (shouldShowTabs() && getWorkProfileUserHandle() != null) {
             mWorkProfileStateReceiver = createWorkProfileStateReceiver();
             registerWorkProfileStateReceiver();
 
@@ -1197,6 +1285,12 @@ public class ResolverActivity extends Activity implements
             if (mWorkPackageMonitor != null) {
                 mWorkPackageMonitor.unregister();
             }
+            if (mPrivatePackageMonitor != null) {
+                mPrivatePackageMonitor.unregister();
+            }
+            if (mClonePackageMonitor != null) {
+                mClonePackageMonitor.unregister();
+            }
             mRegistered = false;
         }
         final Intent intent = getIntent();
@@ -1213,8 +1307,11 @@ public class ResolverActivity extends Activity implements
                 finish();
             }
         }
-        if (mWorkPackageMonitor != null) {
+        if (mWorkProfileStateReceiver != null) {
             unregisterReceiver(mWorkProfileStateReceiver);
+            mWorkProfileStateReceiver = null;
+        }
+        if (mWorkPackageMonitor != null) {
             mWorkPackageMonitor = null;
         }
     }
@@ -1226,16 +1323,11 @@ public class ResolverActivity extends Activity implements
             mPickOptionRequest.cancel();
         }
         if (mMultiProfilePagerAdapter != null) {
-            ResolverListAdapter activeAdapter =
-                    mMultiProfilePagerAdapter.getActiveListAdapter();
-            if (activeAdapter != null) {
-                activeAdapter.onDestroy();
-            }
-            if (android.service.chooser.Flags.fixResolverMemoryLeak()) {
-                ResolverListAdapter inactiveAdapter =
-                        mMultiProfilePagerAdapter.getInactiveListAdapter();
-                if (inactiveAdapter != null) {
-                    inactiveAdapter.onDestroy();
+            for (int i = 0; i < mMultiProfilePagerAdapter.getCount(); i++) {
+                ResolverListAdapter adapter = mMultiProfilePagerAdapter.getListAdapterForIndex(i);
+                if (adapter != null && (i == mMultiProfilePagerAdapter.getCurrentPage()
+                        || android.service.chooser.Flags.fixResolverMemoryLeak())) {
+                    adapter.onDestroy();
                 }
             }
         }
@@ -1875,6 +1967,10 @@ public class ResolverActivity extends Activity implements
         if (!mIsIntentPicker) {
             return false;
         }
+        if (mMultiProfilePagerAdapter.getCount() != 2
+                || mMultiProfilePagerAdapter.getWorkListAdapter() == null) {
+            return false;
+        }
         if (mMultiProfilePagerAdapter.getActiveListAdapter() == null
                 || mMultiProfilePagerAdapter.getInactiveListAdapter() == null) {
             return false;
@@ -2010,6 +2106,10 @@ public class ResolverActivity extends Activity implements
      * - The target app has declared it supports cross-profile communication via manifest metadata
      */
     private boolean maybeAutolaunchIfCrossProfileSupported() {
+        if (mMultiProfilePagerAdapter.getCount() != 2
+                || mMultiProfilePagerAdapter.getWorkListAdapter() == null) {
+            return false;
+        }
         ResolverListAdapter activeListAdapter = mMultiProfilePagerAdapter.getActiveListAdapter();
         int count = activeListAdapter.getUnfilteredCount();
         if (count != 1) {
@@ -2101,25 +2201,15 @@ public class ResolverActivity extends Activity implements
         ViewPager viewPager = findViewById(R.id.profile_pager);
         viewPager.setSaveEnabled(false);
 
-        Button personalButton = (Button) getLayoutInflater().inflate(
-                R.layout.resolver_profile_tab_button, tabHost.getTabWidget(), false);
-        personalButton.setText(getPersonalTabLabel());
-        personalButton.setContentDescription(getPersonalTabAccessibilityLabel());
-
-        TabHost.TabSpec tabSpec = tabHost.newTabSpec(TAB_TAG_PERSONAL)
-                .setContent(R.id.profile_pager)
-                .setIndicator(personalButton);
-        tabHost.addTab(tabSpec);
-
-        Button workButton = (Button) getLayoutInflater().inflate(
-                R.layout.resolver_profile_tab_button, tabHost.getTabWidget(), false);
-        workButton.setText(getWorkTabLabel());
-        workButton.setContentDescription(getWorkTabAccessibilityLabel());
-
-        tabSpec = tabHost.newTabSpec(TAB_TAG_WORK)
-                .setContent(R.id.profile_pager)
-                .setIndicator(workButton);
-        tabHost.addTab(tabSpec);
+        for (int i = 0; i < mMultiProfilePagerAdapter.getCount(); i++) {
+            ResolverListAdapter adapter = mMultiProfilePagerAdapter.getListAdapterForIndex(i);
+            Button button = (Button) getLayoutInflater().inflate(
+                    R.layout.resolver_profile_tab_button, tabHost.getTabWidget(), false);
+            button.setText(getProfileTabLabel(adapter.getUserHandle()));
+            button.setContentDescription(getProfileTabAccessibilityLabel(adapter.getUserHandle()));
+            tabHost.addTab(tabHost.newTabSpec("profile" + i)
+                    .setContent(R.id.profile_pager).setIndicator(button));
+        }
 
         TabWidget tabWidget = tabHost.getTabWidget();
         tabWidget.setVisibility(View.VISIBLE);
@@ -2127,11 +2217,7 @@ public class ResolverActivity extends Activity implements
 
         tabHost.setOnTabChangedListener(tabId -> {
             updateActiveTabStyle(tabHost);
-            if (TAB_TAG_PERSONAL.equals(tabId)) {
-                viewPager.setCurrentItem(0);
-            } else {
-                viewPager.setCurrentItem(1);
-            }
+            viewPager.setCurrentItem(Integer.parseInt(tabId.substring("profile".length())));
             setupViewVisibilities();
             maybeLogProfileChange();
             onProfileTabSelected();
@@ -2159,11 +2245,36 @@ public class ResolverActivity extends Activity implements
                     }
                 });
         mOnSwitchOnWorkSelectedListener = () -> {
-            final View workTab = tabHost.getTabWidget().getChildAt(1);
-            workTab.setFocusable(true);
-            workTab.setFocusableInTouchMode(true);
-            workTab.requestFocus();
+            ResolverListAdapter workAdapter = mMultiProfilePagerAdapter.getWorkListAdapter();
+            if (workAdapter == null) return;
+            for (int i = 0; i < mMultiProfilePagerAdapter.getCount(); i++) {
+                if (mMultiProfilePagerAdapter.getListAdapterForIndex(i) == workAdapter) {
+                    View workTab = tabHost.getTabWidget().getChildAt(i);
+                    workTab.setFocusable(true);
+                    workTab.setFocusableInTouchMode(true);
+                    workTab.requestFocus();
+                    return;
+                }
+            }
         };
+    }
+
+    private String getProfileTabLabel(UserHandle user) {
+        if (user.equals(getWorkProfileUserHandle())) return getWorkTabLabel();
+        if (user.equals(getPrivateProfileUserHandle())) return getString(R.string.resolver_private_tab);
+        if (user.equals(getCloneProfileUserHandle())) return getString(R.string.resolver_clone_tab);
+        return getPersonalTabLabel();
+    }
+
+    private String getProfileTabAccessibilityLabel(UserHandle user) {
+        if (user.equals(getWorkProfileUserHandle())) return getWorkTabAccessibilityLabel();
+        if (user.equals(getPrivateProfileUserHandle())) {
+            return getString(R.string.resolver_private_tab_accessibility);
+        }
+        if (user.equals(getCloneProfileUserHandle())) {
+            return getString(R.string.resolver_clone_tab_accessibility);
+        }
+        return getPersonalTabAccessibilityLabel();
     }
 
     private String getPersonalTabLabel() {
@@ -2201,9 +2312,16 @@ public class ResolverActivity extends Activity implements
         }
         mLastSelected = ListView.INVALID_POSITION;
         mLastSelectedItemView = null;
-        ListView inactiveListView = (ListView) mMultiProfilePagerAdapter.getInactiveAdapterView();
-        if (inactiveListView.getCheckedItemCount() > 0) {
-            inactiveListView.setItemChecked(inactiveListView.getCheckedItemPosition(), false);
+        ResolverMultiProfilePagerAdapter pagerAdapter =
+                (ResolverMultiProfilePagerAdapter) mMultiProfilePagerAdapter;
+        for (int i = 0; i < pagerAdapter.getCount(); i++) {
+            if (i == pagerAdapter.getCurrentPage()) {
+                continue;
+            }
+            ListView inactiveListView = pagerAdapter.getListViewForIndex(i);
+            if (inactiveListView.getCheckedItemCount() > 0) {
+                inactiveListView.setItemChecked(inactiveListView.getCheckedItemPosition(), false);
+            }
         }
     }
 
@@ -2228,10 +2346,12 @@ public class ResolverActivity extends Activity implements
 
     private void updateActiveTabStyle(TabHost tabHost) {
         int currentTab = tabHost.getCurrentTab();
-        TextView selected = (TextView) tabHost.getTabWidget().getChildAt(currentTab);
-        TextView unselected = (TextView) tabHost.getTabWidget().getChildAt(1 - currentTab);
-        selected.setSelected(true);
-        unselected.setSelected(false);
+        TabWidget tabWidget = tabHost.getTabWidget();
+        // Private and clone profiles can add more than two tabs. Update every
+        // indicator rather than assuming there is exactly one unselected tab.
+        for (int i = 0; i < tabWidget.getChildCount(); i++) {
+            tabWidget.getChildAt(i).setSelected(i == currentTab);
+        }
     }
 
     private void setupViewVisibilities() {

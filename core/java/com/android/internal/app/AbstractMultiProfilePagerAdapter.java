@@ -50,8 +50,10 @@ public abstract class AbstractMultiProfilePagerAdapter extends PagerAdapter {
     private static final String TAG = "AbstractMultiProfilePagerAdapter";
     static final int PROFILE_PERSONAL = 0;
     static final int PROFILE_WORK = 1;
+    static final int PROFILE_PRIVATE = 2;
+    static final int PROFILE_CLONE = 3;
 
-    @IntDef({PROFILE_PERSONAL, PROFILE_WORK})
+    @IntDef({PROFILE_PERSONAL, PROFILE_WORK, PROFILE_PRIVATE, PROFILE_CLONE})
     @interface Profile {}
 
     private final Context mContext;
@@ -124,7 +126,7 @@ public abstract class AbstractMultiProfilePagerAdapter extends PagerAdapter {
         if (mLoadedPages.size() == 1) {
             return;
         }
-        mLoadedPages.remove(1 - mCurrentPage);
+        mLoadedPages.removeIf(page -> page != mCurrentPage);
     }
 
     @Override
@@ -167,6 +169,10 @@ public abstract class AbstractMultiProfilePagerAdapter extends PagerAdapter {
         return mCloneUserHandle;
     }
 
+    protected UserHandle getWorkProfileUserHandle() {
+        return mWorkProfileUserHandle;
+    }
+
     /**
      * Returns the {@link ProfileDescriptor} relevant to the given <code>pageIndex</code>.
      * <ul>
@@ -200,6 +206,12 @@ public abstract class AbstractMultiProfilePagerAdapter extends PagerAdapter {
      */
     @VisibleForTesting
     public abstract Object getAdapterForIndex(int pageIndex);
+
+    /**
+     * Returns the resolver list for a page, unwrapping any implementation-specific
+     * presentation adapter such as the chooser's grid adapter.
+     */
+    public abstract ResolverListAdapter getListAdapterForIndex(int pageIndex);
 
     /**
      * Returns the {@link ResolverListAdapter} instance of the profile that represents
@@ -268,12 +280,13 @@ public abstract class AbstractMultiProfilePagerAdapter extends PagerAdapter {
         return result;
     }
 
-    private int userHandleToPageIndex(UserHandle userHandle) {
-        if (userHandle.equals(getPersonalListAdapter().mResolverListController.getUserHandle())) {
-            return PROFILE_PERSONAL;
-        } else {
-            return PROFILE_WORK;
+    protected int userHandleToPageIndex(UserHandle userHandle) {
+        ResolverListAdapter adapter = getListAdapterForUserHandle(userHandle);
+        if (adapter == null) return PROFILE_PERSONAL;
+        for (int i = 0; i < getItemCount(); i++) {
+            if (getListAdapterForIndex(i) == adapter) return i;
         }
+        return PROFILE_PERSONAL;
     }
 
     private boolean rebuildTab(ResolverListAdapter activeListAdapter, boolean doPostProcessing) {

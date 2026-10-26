@@ -158,7 +158,13 @@ constructor(
             if (!deviceProvisionedController.isDeviceProvisioned) return@setOnClickListener
             // If the privacy chip is visible, it means there were some indicators
             uiEventLogger.log(PrivacyChipEvent.ONGOING_INDICATORS_CHIP_CLICK)
-            if (safetyCenterEnabled) {
+            if (privacyChip.privacyList.any {
+                    it.privacyType == com.android.systemui.privacy.PrivacyType.TYPE_LOCATION
+                }) {
+                // Safety Center variants may omit location. Use the SystemUI dialog that
+                // supports every privacy type shown by this chip, including mixed accesses.
+                privacyDialogControllerV2.showDialog(dialogContext, privacyChip)
+            } else if (safetyCenterEnabled) {
                 if (featureFlags.isEnabled(Flags.ENABLE_NEW_PRIVACY_DIALOG)) {
                     privacyDialogControllerV2.showDialog(dialogContext, privacyChip)
                 } else {

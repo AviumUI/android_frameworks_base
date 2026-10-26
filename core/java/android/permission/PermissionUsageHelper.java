@@ -28,6 +28,7 @@ import static android.app.AppOpsManager.AttributionFlags;
 import static android.app.AppOpsManager.OPSTR_CAMERA;
 import static android.app.AppOpsManager.OPSTR_COARSE_LOCATION;
 import static android.app.AppOpsManager.OPSTR_FINE_LOCATION;
+import static android.app.AppOpsManager.OPSTR_MONITOR_HIGH_POWER_LOCATION;
 import static android.app.AppOpsManager.OPSTR_PHONE_CALL_CAMERA;
 import static android.app.AppOpsManager.OPSTR_PHONE_CALL_MICROPHONE;
 import static android.app.AppOpsManager.OPSTR_RECEIVE_AMBIENT_TRIGGER_AUDIO;
@@ -65,6 +66,7 @@ import android.util.ArraySet;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.util.PrivacyIndicatorUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -109,9 +111,8 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
     private static final long DEFAULT_RECENT_TIME_MS = 15000L;
 
     private static boolean shouldShowIndicators() {
-        return DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_PRIVACY,
-                PROPERTY_CAMERA_MIC_ICONS_ENABLED, true)
-                || android.location.flags.Flags.locationIndicatorsEnabled();
+        // Avium exposes location indicators independently of camera/microphone settings.
+        return true;
     }
 
     private static long getRecentThreshold(Long now) {
@@ -125,7 +126,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
     }
 
     private static final List<String> LOCATION_OPS = List.of(
-            OPSTR_FINE_LOCATION
+            OPSTR_FINE_LOCATION, OPSTR_COARSE_LOCATION, OPSTR_MONITOR_HIGH_POWER_LOCATION
     );
 
     private static final List<String> MIC_OPS = List.of(
@@ -151,6 +152,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
                 return op;
             case OPSTR_COARSE_LOCATION:
             case OPSTR_FINE_LOCATION:
+            case OPSTR_MONITOR_HIGH_POWER_LOCATION:
                 return LOCATION;
             default:
                 throw new IllegalArgumentException("Unknown app op: " + op);
@@ -287,7 +289,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
      * Return Op usage for CAMERA, LOCATION AND MICROPHONE for all packages for a device.
      * The returned data is to power privacy indicator.
      *
-     * <p>The system apps and background apps are excluded for LOCATION Op usage.
+     * <p>Location includes coarse, fine and high-power monitoring accesses.
      */
     public @NonNull List<PermissionGroupUsage> getOpUsageDataForIndicatorsByDevice(
             boolean includeMicrophoneUsage, String deviceId) {
@@ -301,9 +303,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
         if (includeMicrophoneUsage) {
             ops.addAll(MIC_OPS);
         }
-        if (android.location.flags.Flags.locationIndicatorsEnabled()) {
-            ops.addAll(LOCATION_OPS);
-        }
+        ops.addAll(LOCATION_OPS);
 
         Map<String, List<OpUsage>> rawUsages = getOpUsagesByDevice(ops, deviceId);
 
@@ -539,7 +539,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
      * uses multiple permissions of the same group). Stores the package name, attribution tag, user,
      * running/recent info, if the usage is a phone call, per permission group.
      *
-     * <p>The system apps and background apps are excluded for location Op usage.
+     * <p>Location access is retained to match the SystemUI indicator.
      *
      * @param opNames a list of op names to get usage for
      * @param deviceId which device to get op usage for
@@ -602,9 +602,7 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
                     }
 
                     String permGroupName = getGroupForOp(op);
-                    boolean isLocationOp =
-                            android.location.flags.Flags.locationIndicatorsEnabled()
-                                    && LOCATION.equals(permGroupName);
+                    boolean isLocationOp = LOCATION.equals(permGroupName);
                     long currentRunningThreshold =
                             runningThreshold
                                     - (isLocationOp ? ADDITIONAL_RUNNING_TIME_LOCATION_ONLY_MS : 0);
@@ -618,17 +616,8 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
                                 op, proxy.getUid(), lastAccessTime, isRunning, null);
                     }
 
-                    if (isLocationOp) {
-                        // Only non-system, non-background apps should trigger location indicator.
-                        // But if the location indicator is already visible (e.g. an app
-                        // transitioned from foreground to background), we should not filter it out
-                        // if it's within the holding period.
-                        if (isSystemApp(op, packageName, user, uid)
-                                || (isBackgroundApp(uid) && !isRunning)) {
-                            // Remove the system & background apps for location op
-                            continue;
-                        }
-                    }
+                    // Match SystemUI: current-profile location indicators also include
+                    // system/background clients. The dialog must explain every visible access.
                     OpUsage usage = new OpUsage(packageName, attributionTag, op, uid,
                             lastAccessTime, isRunning, proxyUsage);
 
@@ -709,7 +698,8 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
             // for it's uid and package name, save it.
             int usageId = usage.getPackageIdHash();
             OpUsage lastMostRecent = mostRecentUsages.get(usageId);
-            if (shouldShowPackage(usage.packageName) && (lastMostRecent == null
+            if ((LOCATION.equals(permGroup) || shouldShowPackage(usage.packageName))
+                    && (lastMostRecent == null
                     || usage.lastAccessTime > lastMostRecent.lastAccessTime)) {
                 mostRecentUsages.put(usageId, usage);
             }
@@ -829,7 +819,8 @@ public class PermissionUsageHelper implements AppOpsManager.OnOpActiveChangedLis
     }
 
     private boolean shouldShowPackage(String packageName) {
-        return PermissionManager.shouldShowPackageForIndicatorCached(mContext, packageName);
+        return PrivacyIndicatorUtils.showSystemApps(mContext)
+                || PermissionManager.shouldShowPackageForIndicatorCached(mContext, packageName);
     }
 
     /**

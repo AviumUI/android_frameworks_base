@@ -858,15 +858,13 @@ public class PhoneStatusBarPolicy
     }
 
     @Override
-    public void onLocationActiveChanged(boolean active) {
-        if (!mPrivacyItemController.getLocationAvailable()) {
-            updateLocationFromController();
-        }
+    public void onPreciseLocationActiveChanged(boolean active) {
+        updateLocationFromController();
     }
 
-    // Updates the status view based on the current state of location requests.
+    // Coarse requests are represented by the privacy indicator, not this icon.
     private void updateLocationFromController() {
-        if (mLocationController.isLocationActive()) {
+        if (mLocationController.isPreciseLocationActive()) {
             mIconController.setIconVisibility(mSlotLocation, true);
         } else {
             mIconController.setIconVisibility(mSlotLocation, false);

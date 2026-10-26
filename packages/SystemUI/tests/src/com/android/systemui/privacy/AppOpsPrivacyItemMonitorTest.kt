@@ -535,7 +535,7 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
             .`when`(appOpsController)
             .getActiveAppOps(anyBoolean())
 
-        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 0)
+        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 1)
         // Expect logs for SYSTEM_APP and ALL_APP when location is first used by a system app.
         assertEquals(uiEventLogger.numLogs(), 2)
         Truth.assertThat(
@@ -593,7 +593,7 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
             .`when`(appOpsController)
             .getActiveAppOps(anyBoolean())
 
-        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 0)
+        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 1)
         // Expect logs for SYSTEM_APP and ALL_APP.
         assertEquals(uiEventLogger.numLogs(), 2)
         Truth.assertThat(
@@ -647,7 +647,7 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
             .`when`(appOpsController)
             .getActiveAppOps(anyBoolean())
 
-        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 0)
+        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 1)
         // Expect logs for BACKGROUND_APP and ALL_APP when location is first used by a background app.
         assertEquals(uiEventLogger.numLogs(), 2)
         Truth.assertThat(
@@ -725,7 +725,7 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
             .`when`(appOpsController)
             .getActiveAppOps(anyBoolean())
 
-        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 0)
+        assertEquals(appOpsPrivacyItemMonitor.getActivePrivacyItems().size, 1)
         // Expect logs for BACKGROUND_APP and ALL_APP.
         assertEquals(uiEventLogger.numLogs(), 2)
         Truth.assertThat(
@@ -745,6 +745,40 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
                 }
             )
             .isTrue()
+    }
+
+    @Test
+    fun coarseLocationProducesPrivacyIndicator() {
+        doReturn(PackageManager.FLAG_PERMISSION_USER_SENSITIVE_WHEN_GRANTED or
+            PackageManager.FLAG_PERMISSION_USER_SENSITIVE_WHEN_DENIED)
+            .`when`(packageManager).getPermissionFlags(
+                "android.permission.ACCESS_COARSE_LOCATION", TEST_PACKAGE_NAME,
+                UserHandle.getUserHandleForUid(TEST_UID),
+            )
+        val process = ActivityManager.RunningAppProcessInfo().apply { uid = TEST_UID }
+        doReturn(listOf(process)).`when`(activityManager).runningAppProcesses
+        doReturn(listOf(AppOpItem(AppOpsManager.OP_COARSE_LOCATION,
+            TEST_UID, TEST_PACKAGE_NAME, 0)))
+            .`when`(appOpsController).getActiveAppOps(anyBoolean())
+
+        val items = appOpsPrivacyItemMonitor.getActivePrivacyItems()
+
+        assertEquals(1, items.size)
+        assertEquals(PrivacyType.TYPE_LOCATION, items.single().privacyType)
+    }
+
+    @Test
+    fun highPowerLocationProducesPrivacyIndicator() {
+        doReturn(emptyList<ActivityManager.RunningAppProcessInfo>())
+            .`when`(activityManager).runningAppProcesses
+        doReturn(listOf(AppOpItem(AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION,
+            TEST_UID, TEST_PACKAGE_NAME, 0)))
+            .`when`(appOpsController).getActiveAppOps(anyBoolean())
+
+        val items = appOpsPrivacyItemMonitor.getActivePrivacyItems()
+
+        assertEquals(1, items.size)
+        assertEquals(PrivacyType.TYPE_LOCATION, items.single().privacyType)
     }
 
     @Test
@@ -791,6 +825,51 @@ class AppOpsPrivacyItemMonitorTest : SysuiTestCase() {
                 }
             )
             .isTrue()
+    }
+
+    @Test
+    fun highPowerLocationCallback_usesFinePermissionForStartAndStop() {
+        appOpsPrivacyItemMonitor.startListening(callback)
+        executor.runAllReady()
+        verify(appOpsController).addCallback(any(), capture(argCaptorCallback))
+
+        for (active in listOf(true, false)) {
+            reset(packageManager, callback)
+            argCaptorCallback.value.onActiveStateChanged(
+                AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION,
+                TEST_UID,
+                TEST_PACKAGE_NAME,
+                active,
+            )
+            executor.runAllReady()
+
+            verify(packageManager).getPermissionFlags(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                TEST_PACKAGE_NAME,
+                UserHandle.getUserHandleForUid(TEST_UID),
+            )
+            verify(callback).onPrivacyItemsChanged()
+        }
+    }
+
+    @Test
+    fun coarseLocationCallback_keepsCoarsePermission() {
+        appOpsPrivacyItemMonitor.startListening(callback)
+        executor.runAllReady()
+        verify(appOpsController).addCallback(any(), capture(argCaptorCallback))
+        reset(packageManager, callback)
+
+        argCaptorCallback.value.onActiveStateChanged(
+            AppOpsManager.OP_COARSE_LOCATION, TEST_UID, TEST_PACKAGE_NAME, true,
+        )
+        executor.runAllReady()
+
+        verify(packageManager).getPermissionFlags(
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+            TEST_PACKAGE_NAME,
+            UserHandle.getUserHandleForUid(TEST_UID),
+        )
+        verify(callback).onPrivacyItemsChanged()
     }
 
     @Test

@@ -102,6 +102,39 @@ public class LocationControllerImplTest extends SysuiTestCase {
     }
 
     @Test
+    public void preciseLocation_downgradingToCoarseNotifiesEvenWhileLocationStaysActive() {
+        LocationChangeCallback callback = mock(LocationChangeCallback.class);
+        mLocationController.addCallback(callback);
+        mTestableLooper.processAllMessages();
+        org.mockito.Mockito.clearInvocations(callback);
+        when(mAppOpsController.getActiveAppOps()).thenReturn(ImmutableList.of(
+                new AppOpItem(AppOpsManager.OP_FINE_LOCATION, 0, "test", 0)));
+        mLocationController.onActiveStateChanged(AppOpsManager.OP_FINE_LOCATION, 0, "test", true);
+        mTestableLooper.processAllMessages();
+        org.junit.Assert.assertTrue(mLocationController.isPreciseLocationActive());
+        verify(callback).onPreciseLocationActiveChanged(true);
+
+        when(mAppOpsController.getActiveAppOps()).thenReturn(ImmutableList.of(
+                new AppOpItem(AppOpsManager.OP_COARSE_LOCATION, 0, "test", 0)));
+        mLocationController.onActiveStateChanged(AppOpsManager.OP_FINE_LOCATION, 0, "test", false);
+        mTestableLooper.processAllMessages();
+        org.junit.Assert.assertFalse(mLocationController.isPreciseLocationActive());
+        verify(callback).onPreciseLocationActiveChanged(false);
+    }
+
+    @Test
+    public void preciseLocation_ignoresDisabledAndOtherUserRequests() {
+        AppOpItem disabled = new AppOpItem(AppOpsManager.OP_FINE_LOCATION, 0, "test", 0);
+        disabled.setDisabled(true);
+        when(mAppOpsController.getActiveAppOps()).thenReturn(ImmutableList.of(disabled,
+                new AppOpItem(AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION,
+                        UserHandle.PER_USER_RANGE, "other", 0)));
+        mLocationController.onActiveStateChanged(AppOpsManager.OP_FINE_LOCATION, 0, "test", true);
+        mTestableLooper.processAllMessages();
+        org.junit.Assert.assertFalse(mLocationController.isPreciseLocationActive());
+    }
+
+    @Test
     public void testRemoveSelfActive_DoesNotCrash() {
         LocationController.LocationChangeCallback callback = new LocationChangeCallback() {
             @Override

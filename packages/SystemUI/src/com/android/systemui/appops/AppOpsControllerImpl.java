@@ -26,7 +26,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.location.flags.Flags;
+import com.android.systemui.privacy.PrivacyConfig;
+import com.android.internal.util.PrivacyIndicatorUtils;
 import android.media.AudioManager;
 import android.media.AudioRecordingConfiguration;
 import android.os.Handler;
@@ -374,7 +375,7 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
         // We should keep this so we make sure it cannot time out.
         mBGHandler.removeCallbacksAndMessages(item);
         final long delay =
-                (Flags.locationIndicatorsEnabled() && isOpLocation(code))
+                (PrivacyConfig.locationIndicatorsEnabled() && isOpLocation(code))
                         ? NOTED_OP_TIME_LOCATION_ONLY_DELAY_MS
                         : NOTED_OP_TIME_DELAY_MS;
         mBGHandler.scheduleRemoval(item, delay);
@@ -382,7 +383,8 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
     }
 
     private boolean isUserVisible(String packageName) {
-        return PermissionManager.shouldShowPackageForIndicatorCached(mContext, packageName);
+        return PrivacyIndicatorUtils.showSystemApps(mContext)
+                || PermissionManager.shouldShowPackageForIndicatorCached(mContext, packageName);
     }
 
     @WorkerThread

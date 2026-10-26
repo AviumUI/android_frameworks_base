@@ -22,11 +22,14 @@ import android.content.Context
 import android.content.PermissionChecker
 import android.content.pm.PackageManager
 import android.content.pm.UserInfo
+import android.database.ContentObserver
 import android.os.UserHandle
+import android.provider.Settings
 import com.android.internal.annotations.GuardedBy
 import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.logging.UiEvent
 import com.android.internal.logging.UiEventLogger
+import com.android.internal.util.PrivacyIndicatorUtils
 import com.android.systemui.appops.AppOpItem
 import com.android.systemui.appops.AppOpsController
 import com.android.systemui.dagger.SysUISingleton
@@ -75,7 +78,11 @@ constructor(
                 AppOpsManager.OP_RECEIVE_EXPLICIT_USER_INTERACTION_AUDIO,
                 AppOpsManager.OP_RECEIVE_SANDBOX_TRIGGER_AUDIO,
             )
-        val OPS_LOCATION = intArrayOf(AppOpsManager.OP_FINE_LOCATION)
+        val OPS_LOCATION = intArrayOf(
+            AppOpsManager.OP_FINE_LOCATION,
+            AppOpsManager.OP_COARSE_LOCATION,
+            AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION,
+        )
         val OPS = OPS_MIC_CAMERA + OPS_LOCATION
         val USER_INDEPENDENT_OPS =
             intArrayOf(AppOpsManager.OP_PHONE_CALL_CAMERA, AppOpsManager.OP_PHONE_CALL_MICROPHONE)
@@ -132,11 +139,12 @@ constructor(
                     if (code in OPS_LOCATION && !locationAvailable) {
                         return
                     }
-                    // Hide incoming chip from sense caller package
-                if (packageName == "co.aospa.sense") {
-                    return
-                }
-                if (
+                    // Hide incoming chip from sense caller package unless explicitly enabled.
+                    if (packageName == "co.aospa.sense" && code !in OPS_LOCATION &&
+                        !PrivacyIndicatorUtils.showSystemApps(context)) {
+                        return
+                    }
+                    if (
                         userTracker.userProfiles.any { it.id == UserHandle.getUserId(uid) } ||
                             code in USER_INDEPENDENT_OPS
                     ) {
@@ -175,6 +183,12 @@ constructor(
                 onCurrentProfilesChanged()
             }
         }
+
+    private val systemAppsObserver = object : ContentObserver(null) {
+        override fun onChange(selfChange: Boolean) {
+            dispatchOnPrivacyItemsChanged()
+        }
+    }
 
     private val configCallback =
         object : PrivacyConfig.Callback {
@@ -232,13 +246,27 @@ constructor(
 
         listening = shouldListen
         if (shouldListen) {
+            context.contentResolver.registerContentObserver(
+                Settings.System.getUriFor(PrivacyIndicatorUtils.SHOW_SYSTEM_APPS),
+                false,
+                systemAppsObserver,
+                UserHandle.USER_ALL,
+            )
             appOpsController.addCallback(OPS, appOpsCallback)
             userTracker.addCallback(userTrackerCallback, bgExecutor)
             onCurrentProfilesChanged()
         } else {
+            context.contentResolver.unregisterContentObserver(systemAppsObserver)
             appOpsController.removeCallback(OPS, appOpsCallback)
             userTracker.removeCallback(userTrackerCallback)
         }
+    }
+
+    override fun isPrivacyItemExcluded(item: PrivacyItem): Boolean {
+        if (item.privacyType == PrivacyType.TYPE_MEDIA_PROJECTION) return false
+        return !PrivacyIndicatorUtils.shouldShowApplication(
+            context, item.application.packageName, item.application.uid
+        )
     }
 
     override fun getActivePrivacyItems(): List<PrivacyItem> {
@@ -273,12 +301,17 @@ constructor(
                     .filter {
                         currentUserProfiles.any { user -> user.id == UserHandle.getUserId(it.uid) }
                     }
-                    .filter { item -> item.code == AppOpsManager.OP_FINE_LOCATION }
+                    .filter { item ->
+                        item.code == AppOpsManager.OP_FINE_LOCATION ||
+                            item.code == AppOpsManager.OP_COARSE_LOCATION
+                    }
                     .distinct()
             val locationOpBySystem = locationOp.any { item -> isSystemApp(item) }
             val locationOpByBackground = locationOp.any { item -> isBackgroundApp(item.uid) }
             synchronized(lock) {
-                lastLocationIndicator = items.any { it.privacyType == PrivacyType.TYPE_LOCATION }
+                lastLocationIndicator = locationOp.any {
+                    !it.isDisabled && !isSystemApp(it) && !isBackgroundApp(it.uid)
+                }
                 lastLocationIndicatorWithSystem = lastLocationIndicator || locationOpBySystem
                 lastLocationIndicatorWithBackround = lastLocationIndicator || locationOpByBackground
                 lastLocationIndicatorWithSystemAndBackround =
@@ -376,11 +409,18 @@ constructor(
         if (!privacyItemForAppOpEnabledLocked(appOpItem.code)) {
             return null
         }
+        if (!PrivacyIndicatorUtils.shouldShowApplication(
+                context, appOpItem.packageName, appOpItem.uid
+            )) {
+            return null
+        }
         val type: PrivacyType =
             when (appOpItem.code) {
                 AppOpsManager.OP_PHONE_CALL_CAMERA,
                 AppOpsManager.OP_CAMERA -> PrivacyType.TYPE_CAMERA
-                AppOpsManager.OP_FINE_LOCATION -> PrivacyType.TYPE_LOCATION
+                AppOpsManager.OP_FINE_LOCATION,
+                AppOpsManager.OP_COARSE_LOCATION,
+                AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION -> PrivacyType.TYPE_LOCATION
                 AppOpsManager.OP_PHONE_CALL_MICROPHONE,
                 AppOpsManager.OP_RECEIVE_AMBIENT_TRIGGER_AUDIO,
                 AppOpsManager.OP_RECEIVE_EXPLICIT_USER_INTERACTION_AUDIO,
@@ -389,7 +429,8 @@ constructor(
                 else -> return null
             }
         // Hide incoming chip from sense caller package
-        if (appOpItem.packageName == "co.aospa.sense") {
+        if (appOpItem.packageName == "co.aospa.sense" && appOpItem.code !in OPS_LOCATION &&
+            !PrivacyIndicatorUtils.showSystemApps(context)) {
             return null
         }
         val app = PrivacyApplication(appOpItem.packageName, appOpItem.uid)
@@ -410,7 +451,7 @@ constructor(
     }
 
     /**
-     * Only display the location privacy item if a non-system, foreground client accessed location
+     * Track location access categories for logging without suppressing the privacy indicator
      *
      * This method has the side effects of updating [hasSystemLocationAccess],
      * [hasBackgroundLocationAccess], [hasNonSystemForegroundLocationAccess], and
@@ -425,7 +466,8 @@ constructor(
             return true
         }
 
-        if (item.code == AppOpsManager.OP_FINE_LOCATION) {
+        if (item.code == AppOpsManager.OP_FINE_LOCATION ||
+            item.code == AppOpsManager.OP_COARSE_LOCATION) {
             val isSystem = isSystemApp(item)
             val isBackground = isBackgroundApp(item.uid)
             if (isSystem) {
@@ -438,7 +480,9 @@ constructor(
             if (result) {
                 synchronized(lock) { hasNonSystemForegroundLocationAccess = true }
             }
-            return result
+            // Current-profile location access remains visible even for background/system
+            // clients. The status icon independently indicates precise/high-power use.
+            return true
         }
         if (item.code == AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION) {
             synchronized(lock) { hasHighPowerLocationAccess = true }
@@ -469,7 +513,14 @@ constructor(
             return true
         }
 
-        val permission = AppOpsManager.opToPermission(code)
+        // Monitor ops have no permission of their own. Normalize here so both the
+        // active-state callback and the AppOpItem snapshot path use the same mapping.
+        val permissionOp = if (code == AppOpsManager.OP_MONITOR_HIGH_POWER_LOCATION) {
+            AppOpsManager.OP_FINE_LOCATION
+        } else code
+        // Unknown permissionless ops must never reach PermissionChecker. Treat them
+        // as non-system for logging; this does not suppress the privacy indicator.
+        val permission = AppOpsManager.opToPermission(permissionOp) ?: return false
         val permissionFlags: Int =
             packageManager.getPermissionFlags(permission, packageName, user)
         val isSystem =
@@ -497,7 +548,7 @@ constructor(
      * make sure to update PermissionUsageHelper when changing this method.
      */
     private fun isBackgroundApp(uid: Int): Boolean {
-        for (processInfo in activityManager.runningAppProcesses) {
+        for (processInfo in activityManager.runningAppProcesses.orEmpty()) {
             if (processInfo.uid == uid) {
                 return (processInfo.importance >
                     ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE)

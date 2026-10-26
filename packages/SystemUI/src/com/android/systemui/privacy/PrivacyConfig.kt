@@ -16,7 +16,6 @@
 
 package com.android.systemui.privacy
 
-import android.location.flags.Flags.locationIndicatorsEnabled
 import android.provider.DeviceConfig
 import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.annotations.WeaklyReferencedCallback
@@ -46,6 +45,9 @@ constructor(
     @VisibleForTesting
     companion object {
         const val TAG = "PrivacyConfig"
+
+        // Keep chip rendering, animation and the usage dialog on the same product policy.
+        @JvmStatic fun locationIndicatorsEnabled(): Boolean = true
         private const val MIC_CAMERA = SystemUiDeviceConfigFlags.PROPERTY_MIC_CAMERA_ENABLED
         private const val MEDIA_PROJECTION =
             SystemUiDeviceConfigFlags.PROPERTY_MEDIA_PROJECTION_INDICATORS_ENABLED
@@ -70,6 +72,7 @@ constructor(
     var micCameraAvailable = isMicCameraEnabled()
         private set
 
+    // Both approximate and precise access must have a privacy indicator.
     var locationAvailable = locationIndicatorsEnabled()
         private set
 

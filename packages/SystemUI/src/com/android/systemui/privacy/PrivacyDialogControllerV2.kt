@@ -31,6 +31,7 @@ import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.core.view.isVisible
 import com.android.internal.logging.UiEventLogger
+import com.android.internal.util.PrivacyIndicatorUtils
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.appops.AppOpsController
 import com.android.systemui.dagger.SysUISingleton
@@ -235,7 +236,9 @@ class PrivacyDialogControllerV2(
                     val userInfo =
                         userInfos.firstOrNull { ui -> ui.id == UserHandle.getUserId(it.uid) }
                     if (
-                        isAvailable(it.permissionGroupName) && (userInfo != null || it.isPhoneCall)
+                        isAvailable(it.permissionGroupName) &&
+                            (userInfo != null || it.isPhoneCall) &&
+                            PrivacyIndicatorUtils.shouldShowApplication(context, it.packageName, it.uid)
                     ) {
                         // Only try to get the app name if we actually need it
                         val appName =

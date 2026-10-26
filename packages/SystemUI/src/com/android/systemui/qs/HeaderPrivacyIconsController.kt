@@ -1,38 +1,19 @@
 package com.android.systemui.qs
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.UserHandle
-import android.permission.PermissionGroupUsage
-import android.permission.PermissionManager
-import android.safetycenter.SafetyCenterManager
 import android.view.View
-import androidx.annotation.WorkerThread
 import com.android.internal.R
 import com.android.internal.logging.UiEventLogger
-import com.android.systemui.animation.ActivityTransitionAnimator
-import com.android.systemui.appops.AppOpsController
-import com.android.systemui.broadcast.BroadcastDispatcher
-import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.flags.FeatureFlags
-import com.android.systemui.flags.Flags
-import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.privacy.OngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyChipEvent
-import com.android.systemui.privacy.PrivacyDialogController
 import com.android.systemui.privacy.PrivacyDialogControllerV2
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.privacy.PrivacyItemController
 import com.android.systemui.privacy.logging.PrivacyLogger
-import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.ShadeViewProviderModule.Companion.SHADE_HEADER
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
 import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
-import java.util.concurrent.Executor
 import javax.inject.Inject
 import javax.inject.Named
 
@@ -56,21 +37,11 @@ constructor(
     private val privacyItemController: PrivacyItemController,
     private val uiEventLogger: UiEventLogger,
     @Named(SHADE_HEADER) private val privacyChip: OngoingPrivacyChip,
-    private val privacyDialogController: PrivacyDialogController,
     private val privacyDialogControllerV2: PrivacyDialogControllerV2,
     private val privacyLogger: PrivacyLogger,
     @Named(SHADE_HEADER) private val iconContainer: StatusIconContainer,
-    private val permissionManager: PermissionManager,
-    @Background private val backgroundExecutor: Executor,
-    @Main private val uiExecutor: Executor,
-    private val activityStarter: ActivityStarter,
-    private val appOpsController: AppOpsController,
-    private val broadcastDispatcher: BroadcastDispatcher,
-    private val safetyCenterManager: SafetyCenterManager,
     private val deviceProvisionedController: DeviceProvisionedController,
-    private val featureFlags: FeatureFlags,
     private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
-    private val userTracker: UserTracker,
 ) {
 
     var chipVisibilityListener: ChipVisibilityListener? = null
@@ -78,50 +49,11 @@ constructor(
     private var micCameraIndicatorsEnabled = false
     private var locationIndicatorsEnabled = false
     private var privacyChipLogged = false
-    private var safetyCenterEnabled = false
     private val cameraSlot = privacyChip.resources.getString(R.string.status_bar_camera)
     private val micSlot = privacyChip.resources.getString(R.string.status_bar_microphone)
     private val locationSlot = privacyChip.resources.getString(R.string.status_bar_location)
     private val dialogContext: Context
         get() = shadeDialogContextInteractor.context
-
-    private val safetyCenterReceiver =
-        object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                safetyCenterEnabled = safetyCenterManager.isSafetyCenterEnabled()
-            }
-        }
-
-    val attachStateChangeListener =
-        object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) {
-                broadcastDispatcher.registerReceiver(
-                    safetyCenterReceiver,
-                    IntentFilter(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
-                    executor = backgroundExecutor,
-                )
-            }
-
-            override fun onViewDetachedFromWindow(v: View) {
-                broadcastDispatcher.unregisterReceiver(safetyCenterReceiver)
-            }
-        }
-
-    init {
-        backgroundExecutor.execute {
-            safetyCenterEnabled = safetyCenterManager.isSafetyCenterEnabled()
-        }
-
-        if (privacyChip.isAttachedToWindow()) {
-            broadcastDispatcher.registerReceiver(
-                safetyCenterReceiver,
-                IntentFilter(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
-                executor = backgroundExecutor,
-            )
-        }
-
-        privacyChip.addOnAttachStateChangeListener(attachStateChangeListener)
-    }
 
     private val picCallback: PrivacyItemController.Callback =
         object : PrivacyItemController.Callback {
@@ -158,21 +90,9 @@ constructor(
             if (!deviceProvisionedController.isDeviceProvisioned) return@setOnClickListener
             // If the privacy chip is visible, it means there were some indicators
             uiEventLogger.log(PrivacyChipEvent.ONGOING_INDICATORS_CHIP_CLICK)
-            if (privacyChip.privacyList.any {
-                    it.privacyType == com.android.systemui.privacy.PrivacyType.TYPE_LOCATION
-                }) {
-                // Safety Center variants may omit location. Use the SystemUI dialog that
-                // supports every privacy type shown by this chip, including mixed accesses.
-                privacyDialogControllerV2.showDialog(dialogContext, privacyChip)
-            } else if (safetyCenterEnabled) {
-                if (featureFlags.isEnabled(Flags.ENABLE_NEW_PRIVACY_DIALOG)) {
-                    privacyDialogControllerV2.showDialog(dialogContext, privacyChip)
-                } else {
-                    showSafetyCenter()
-                }
-            } else {
-                privacyDialogController.showDialog(dialogContext)
-            }
+            // Every privacy type uses the same dismissible dialog and chip transition,
+            // including recent microphone usage when Safety Center is enabled.
+            privacyDialogControllerV2.showDialog(dialogContext, privacyChip)
         }
         setChipVisibility(privacyChip.visibility == View.VISIBLE)
         micCameraIndicatorsEnabled = privacyItemController.micCameraAvailable
@@ -180,43 +100,6 @@ constructor(
 
         // Ignore privacy icons because they show in the space above QQS
         updatePrivacyIconSlots()
-    }
-
-    private fun showSafetyCenter() {
-        backgroundExecutor.execute {
-            val usage = permGroupUsage()
-            privacyLogger.logUnfilteredPermGroupUsage(usage)
-            val startSafetyCenter = Intent(Intent.ACTION_VIEW_SAFETY_CENTER_QS)
-            startSafetyCenter.putParcelableArrayListExtra(
-                PermissionManager.EXTRA_PERMISSION_USAGES,
-                usage,
-            )
-            startSafetyCenter.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            uiExecutor.execute {
-                activityStarter.startActivity(
-                    startSafetyCenter,
-                    true,
-                    ActivityTransitionAnimator.Controller.fromView(privacyChip),
-                )
-            }
-        }
-    }
-
-    @WorkerThread
-    fun permGroupUsage(): ArrayList<PermissionGroupUsage> {
-        val usages =
-            ArrayList(permissionManager.getIndicatorAppOpUsageData(appOpsController.isMicMuted))
-        val invalidUserUsages = mutableListOf<PermissionGroupUsage>()
-        val userProfiles = userTracker.userProfiles
-        for (usage in usages) {
-            val userId = UserHandle.getUserId(usage.uid)
-            if (usage.isPhoneCall || userProfiles.any { it.id == userId }) {
-                continue
-            }
-            invalidUserUsages.add(usage)
-        }
-        usages.removeAll(invalidUserUsages)
-        return usages
     }
 
     fun onParentInvisible() {
@@ -264,11 +147,9 @@ constructor(
                 iconContainer.removeIgnoredSlot(cameraSlot)
                 iconContainer.removeIgnoredSlot(micSlot)
             }
-            if (locationIndicatorsEnabled) {
-                iconContainer.addIgnoredSlot(locationSlot)
-            } else {
-                iconContainer.removeIgnoredSlot(locationSlot)
-            }
+            // Precise location remains visible in the status row while QS is open.
+            // Its controller already applies the system-app privacy setting.
+            iconContainer.removeIgnoredSlot(locationSlot)
         } else {
             iconContainer.removeIgnoredSlot(cameraSlot)
             iconContainer.removeIgnoredSlot(micSlot)

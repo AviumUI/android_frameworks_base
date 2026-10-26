@@ -1,6 +1,6 @@
 package com.android.systemui.statusbar.events
 
-import android.location.flags.Flags.locationIndicatorsEnabled
+import com.android.systemui.privacy.PrivacyConfig.Companion.locationIndicatorsEnabled
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel

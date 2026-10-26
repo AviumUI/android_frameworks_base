@@ -23,6 +23,9 @@ interface PrivacyItemMonitor : Dumpable {
     fun stopListening()
     fun getActivePrivacyItems(): List<PrivacyItem>
 
+    /** Policy exclusions also apply to items retained for the minimum display duration. */
+    fun isPrivacyItemExcluded(item: PrivacyItem): Boolean = false
+
     interface Callback {
         fun onPrivacyItemsChanged()
     }

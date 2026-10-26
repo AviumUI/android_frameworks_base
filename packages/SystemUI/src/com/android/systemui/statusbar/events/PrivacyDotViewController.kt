@@ -20,7 +20,7 @@ import android.annotation.UiThread
 import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
-import android.location.flags.Flags.locationIndicatorsEnabled
+import com.android.systemui.privacy.PrivacyConfig.Companion.locationIndicatorsEnabled
 import android.util.Log
 import android.view.Display
 import android.view.View

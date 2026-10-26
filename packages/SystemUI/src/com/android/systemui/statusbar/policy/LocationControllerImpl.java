@@ -46,6 +46,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags;
 import com.android.internal.logging.UiEventLogger;
+import com.android.internal.util.PrivacyIndicatorUtils;
 import com.android.systemui.BootCompleteCache;
 import com.android.systemui.appops.AppOpItem;
 import com.android.systemui.appops.AppOpsController;
@@ -82,9 +83,22 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
     private final SecureSettings mSecureSettings;
 
     private boolean mAreActiveLocationRequests;
+    private volatile boolean mPreciseLocationActive;
     private boolean mShouldDisplayAllAccesses;
     private boolean mShowSystemAccessesFlag;
     private boolean mShowSystemAccessesSetting;
+
+    private final UserTracker.Callback mUserCallback = new UserTracker.Callback() {
+        @Override
+        public void onUserChanged(int newUser, Context userContext) {
+            updateActiveLocationRequests();
+        }
+
+        @Override
+        public void onProfilesChanged(List<UserInfo> profiles) {
+            updateActiveLocationRequests();
+        }
+    };
 
     @Inject
     public LocationControllerImpl(Context context, AppOpsController appOpsController,
@@ -110,12 +124,17 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
             @Override
             public void onChange(boolean selfChange) {
                 mShowSystemAccessesSetting = getShowSystemSetting();
+                updateActiveLocationRequests();
             }
         };
 
         // Register to listen for changes in Settings.Secure settings.
         mSecureSettings.registerContentObserverForUserSync(
                 Settings.Secure.LOCATION_SHOW_SYSTEM_OPS, mContentObserver, UserHandle.USER_ALL);
+
+        mContext.getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(PrivacyIndicatorUtils.SHOW_SYSTEM_APPS), false,
+                mContentObserver, UserHandle.USER_ALL);
 
         // Register to listen for changes in DeviceConfig settings.
         mDeviceConfigProxy.addOnPropertiesChangedListener(
@@ -136,6 +155,8 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
         mAppOpsController.addCallback(
                 new int[]{OP_COARSE_LOCATION, OP_FINE_LOCATION, OP_MONITOR_HIGH_POWER_LOCATION},
                 this);
+
+        mUserTracker.addCallback(mUserCallback, mHandler::post);
 
         // Examine the current location state and initialize the status view.
         backgroundHandler.post(this::updateActiveLocationRequests);
@@ -196,6 +217,37 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
     @Override
     public boolean isLocationActive() {
         return mAreActiveLocationRequests;
+    }
+
+    @Override
+    public boolean isPreciseLocationActive() {
+        return mPreciseLocationActive;
+    }
+
+    private void updatePreciseLocationRequests() {
+        boolean active = false;
+        final List<UserInfo> profiles = mUserTracker.getUserProfiles();
+        for (AppOpItem item : mAppOpsController.getActiveAppOps()) {
+            if (item.isDisabled() || (item.getCode() != OP_FINE_LOCATION
+                    && item.getCode() != OP_MONITOR_HIGH_POWER_LOCATION)) {
+                continue;
+            }
+            if (!PrivacyIndicatorUtils.shouldShowApplication(
+                    mContext, item.getPackageName(), item.getUid())) {
+                continue;
+            }
+            for (UserInfo profile : profiles) {
+                if (profile.id == UserHandle.getUserId(item.getUid())) {
+                    active = true;
+                    break;
+                }
+            }
+            if (active) break;
+        }
+        if (active != mPreciseLocationActive) {
+            mPreciseLocationActive = active;
+            mHandler.sendEmptyMessage(H.MSG_PRECISE_LOCATION_CHANGED);
+        }
     }
 
     /**
@@ -311,6 +363,7 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
     // Reads the active location requests from either OP_MONITOR_HIGH_POWER_LOCATION,
     // OP_FINE_LOCATION, or OP_COARSE_LOCATION and updates the status view if necessary.
     private void updateActiveLocationRequests() {
+        mBackgroundHandler.post(this::updatePreciseLocationRequests);
         if (mShouldDisplayAllAccesses) {
             mBackgroundHandler.post(this::areActiveLocationRequests);
         } else {
@@ -341,6 +394,7 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
         private static final int MSG_LOCATION_ACTIVE_CHANGED = 2;
         private static final int MSG_ADD_CALLBACK = 3;
         private static final int MSG_REMOVE_CALLBACK = 4;
+        private static final int MSG_PRECISE_LOCATION_CHANGED = 5;
 
         @GuardedBy("mSettingsChangeCallbacks")
         private final ArrayList<LocationChangeCallback> mSettingsChangeCallbacks =
@@ -359,9 +413,18 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
                 case MSG_LOCATION_ACTIVE_CHANGED:
                     locationActiveChanged();
                     break;
+                case MSG_PRECISE_LOCATION_CHANGED:
+                    synchronized (mSettingsChangeCallbacks) {
+                        for (LocationChangeCallback callback : mSettingsChangeCallbacks) {
+                            callback.onPreciseLocationActiveChanged(mPreciseLocationActive);
+                        }
+                    }
+                    break;
                 case MSG_ADD_CALLBACK:
                     synchronized (mSettingsChangeCallbacks) {
-                        mSettingsChangeCallbacks.add((LocationChangeCallback) msg.obj);
+                        LocationChangeCallback callback = (LocationChangeCallback) msg.obj;
+                        mSettingsChangeCallbacks.add(callback);
+                        callback.onPreciseLocationActiveChanged(mPreciseLocationActive);
                     }
                     break;
                 case MSG_REMOVE_CALLBACK:

@@ -18,7 +18,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
-import android.location.flags.Flags.locationIndicatorsEnabled
+import com.android.systemui.privacy.PrivacyConfig.Companion.locationIndicatorsEnabled
 import android.util.AttributeSet
 import android.view.Gravity.CENTER_VERTICAL
 import android.view.Gravity.END

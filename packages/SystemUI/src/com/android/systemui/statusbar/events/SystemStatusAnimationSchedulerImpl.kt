@@ -16,7 +16,7 @@
 
 package com.android.systemui.statusbar.events
 
-import android.location.flags.Flags.locationIndicatorsEnabled
+import com.android.systemui.privacy.PrivacyConfig.Companion.locationIndicatorsEnabled
 import android.os.Process
 import android.provider.DeviceConfig
 import androidx.core.animation.Animator

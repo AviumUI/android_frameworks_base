@@ -16,7 +16,7 @@
 
 package com.android.systemui.privacy
 
-import android.location.flags.Flags.locationIndicatorsEnabled
+import com.android.systemui.privacy.PrivacyConfig.Companion.locationIndicatorsEnabled
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.Dumpable
 import com.android.systemui.appops.AppOpsController
@@ -199,7 +199,8 @@ class PrivacyItemController @Inject constructor(
         // Anything earlier than this timestamp can be removed
         val removeBeforeTime = systemClock.elapsedRealtime() - timeToHold
         val mustKeep = privacyList.filter {
-            it.timeStampElapsed > removeBeforeTime && !(it isIn list)
+            it.timeStampElapsed > removeBeforeTime && !(it isIn list) &&
+                privacyItemMonitors.none { monitor -> monitor.isPrivacyItemExcluded(it) }
         }
 
         // There are items we must keep because they haven't been around for enough time.

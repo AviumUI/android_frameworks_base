@@ -359,6 +359,42 @@ class PhoneStatusBarPolicyTest : SysuiTestCase() {
             .setResourceIcon(eq(ZEN_SLOT), any(), any(), any(), any(), any())
     }
 
+    @Test
+    fun locationActive_privacyChipAvailable_stillShowsLocationIcon() {
+        whenever(privacyItemController.locationAvailable).thenReturn(true)
+        whenever(locationController.isPreciseLocationActive).thenReturn(true)
+
+        statusBarPolicy.onPreciseLocationActiveChanged(true)
+
+        verify(iconController).setIconVisibility(
+            context.getString(com.android.internal.R.string.status_bar_location), true
+        )
+    }
+
+    @Test
+    fun locationInactive_hidesLocationIcon() {
+        whenever(privacyItemController.locationAvailable).thenReturn(true)
+        whenever(locationController.isPreciseLocationActive).thenReturn(false)
+
+        statusBarPolicy.onPreciseLocationActiveChanged(false)
+
+        verify(iconController).setIconVisibility(
+            context.getString(com.android.internal.R.string.status_bar_location), false
+        )
+    }
+
+    @Test
+    fun coarseLocation_doesNotShowStatusIcon() {
+        whenever(locationController.isLocationActive).thenReturn(true)
+        whenever(locationController.isPreciseLocationActive).thenReturn(false)
+
+        statusBarPolicy.onPreciseLocationActiveChanged(false)
+
+        verify(iconController).setIconVisibility(
+            context.getString(com.android.internal.R.string.status_bar_location), false
+        )
+    }
+
     private fun createAlarmInfo(): AlarmManager.AlarmClockInfo {
         return AlarmManager.AlarmClockInfo(10L, null)
     }

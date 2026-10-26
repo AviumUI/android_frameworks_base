@@ -369,6 +369,29 @@ class PrivacyItemControllerTest : SysuiTestCase() {
     }
 
     @Test
+    fun testExcludedSystemAppRemovedBeforeHoldTime() {
+        val item = PrivacyItem(
+            PrivacyType.TYPE_LOCATION,
+            PrivacyApplication(TEST_PACKAGE_NAME, TEST_UID),
+            fakeClock.elapsedRealtime()
+        )
+        doReturn(listOf(item)).`when`(privacyItemMonitor).getActivePrivacyItems()
+        privacyItemController.addCallback(callback)
+        executor.runAllReady()
+        assertTrue(privacyItemController.privacyList.isNotEmpty())
+
+        // Disabling system-app visibility must also remove the held indicator immediately.
+        doReturn(emptyList<PrivacyItem>()).`when`(privacyItemMonitor).getActivePrivacyItems()
+        doReturn(true).`when`(privacyItemMonitor).isPrivacyItemExcluded(item)
+        verify(privacyItemMonitor).startListening(capture(argCaptorCallback))
+        argCaptorCallback.value.onPrivacyItemsChanged()
+        executor.runAllReady()
+
+        assertTrue(privacyItemController.privacyList.isEmpty())
+        verify(callback).onPrivacyItemsChanged(emptyList())
+    }
+
+    @Test
     fun testElementAutoRemovedAfterHoldTime() {
         // Start with some element at time 0
         doReturn(listOf(

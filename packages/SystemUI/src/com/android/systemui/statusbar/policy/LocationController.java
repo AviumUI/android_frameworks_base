@@ -20,6 +20,8 @@ import com.android.systemui.statusbar.policy.LocationController.LocationChangeCa
 
 public interface LocationController extends CallbackController<LocationChangeCallback> {
     boolean isLocationActive();
+    /** Active precise or high-power requests, independent of coarse privacy indicators. */
+    default boolean isPreciseLocationActive() { return false; }
     boolean isLocationEnabled();
     boolean setLocationEnabled(boolean enabled);
 
@@ -32,6 +34,8 @@ public interface LocationController extends CallbackController<LocationChangeCal
          * @param active
          */
         default void onLocationActiveChanged(boolean active) {}
+
+        default void onPreciseLocationActiveChanged(boolean active) {}
 
         /**
          * Called whenever location settings change.

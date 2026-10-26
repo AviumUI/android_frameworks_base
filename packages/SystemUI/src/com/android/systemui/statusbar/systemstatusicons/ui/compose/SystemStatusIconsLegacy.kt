@@ -72,7 +72,6 @@ fun SystemStatusIconsLegacy(
     val isSingleCarrier by rememberUpdatedState(isSingleCarrier)
     val isMicCameraIndicationEnabled by rememberUpdatedState(isMicCameraIndicationEnabled)
     val isPrivacyChipEnabled by rememberUpdatedState(isPrivacyChipEnabled)
-    val isLocationIndicationEnabled by rememberUpdatedState(isLocationIndicationEnabled)
 
     val update =
         remember(
@@ -100,11 +99,8 @@ fun SystemStatusIconsLegacy(
                         container.removeIgnoredSlot(cameraSlot)
                         container.removeIgnoredSlot(micSlot)
                     }
-                    if (isLocationIndicationEnabled) {
-                        container.addIgnoredSlot(locationSlot)
-                    } else {
-                        container.removeIgnoredSlot(locationSlot)
-                    }
+                    // Keep the precise-location status icon alongside the privacy chip.
+                    container.removeIgnoredSlot(locationSlot)
                 } else {
                     container.removeIgnoredSlot(cameraSlot)
                     container.removeIgnoredSlot(micSlot)

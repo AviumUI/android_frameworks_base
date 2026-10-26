@@ -96,6 +96,7 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
+        whenever(privacyChip.privacyList).thenReturn(emptyList())
         whenever(privacyChip.context).thenReturn(context)
         whenever(privacyChip.resources).thenReturn(context.resources)
         whenever(privacyChip.isAttachedToWindow).thenReturn(true)
@@ -127,6 +128,41 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         )
 
         backgroundExecutor.runAllReady()
+    }
+
+    @Test
+    fun locationOnlyClick_opensLocationCapableDialog() {
+        whenever(privacyChip.privacyList).thenReturn(listOf(
+            com.android.systemui.privacy.PrivacyItem(
+                com.android.systemui.privacy.PrivacyType.TYPE_LOCATION,
+                com.android.systemui.privacy.PrivacyApplication("test.location", 10001),
+            )
+        ))
+        controller.onParentVisible()
+        val captor = argumentCaptor<View.OnClickListener>()
+        verify(privacyChip).setOnClickListener(captor.capture())
+        captor.firstValue.onClick(privacyChip)
+        verify(privacyDialogControllerV2).showDialog(any(), eq(privacyChip))
+        verify(privacyDialogController, never()).showDialog(any())
+    }
+
+    @Test
+    fun mixedCameraLocationClick_keepsBothTypesInDialog() {
+        whenever(privacyChip.privacyList).thenReturn(listOf(
+            com.android.systemui.privacy.PrivacyItem(
+                com.android.systemui.privacy.PrivacyType.TYPE_LOCATION,
+                com.android.systemui.privacy.PrivacyApplication("test.location", 10001),
+            ),
+            com.android.systemui.privacy.PrivacyItem(
+                com.android.systemui.privacy.PrivacyType.TYPE_CAMERA,
+                com.android.systemui.privacy.PrivacyApplication("test.camera", 10002),
+            ),
+        ))
+        controller.onParentVisible()
+        val captor = argumentCaptor<View.OnClickListener>()
+        verify(privacyChip).setOnClickListener(captor.capture())
+        captor.firstValue.onClick(privacyChip)
+        verify(privacyDialogControllerV2).showDialog(any(), eq(privacyChip))
     }
 
     @Test

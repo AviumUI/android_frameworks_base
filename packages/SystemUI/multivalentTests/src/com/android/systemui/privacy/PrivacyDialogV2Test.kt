@@ -16,8 +16,11 @@
 
 package com.android.systemui.privacy
 
+import android.animation.ValueAnimator
 import android.content.Intent
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -309,6 +312,77 @@ class PrivacyDialogV2Test : SysuiTestCase() {
         dialog.show()
 
         assertThat(dialog.window?.attributes?.title).isEqualTo("Microphone, Camera & Location")
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_TILE_TRANSITION_INTERACTION_REFINEMENT)
+    fun outsideTouch_dismissesFullscreenDialog() {
+        dialog = PrivacyDialogV2(context, emptyList(), manageApp, closeApp, openPrivacyDashboard)
+        dialog.show()
+        val content = dialog.requireViewById<View>(R.id.privacy_dialog_items_container)
+        var background = content.parent as ViewGroup
+        while (background.parent != dialog.window!!.decorView) {
+            background = background.parent as ViewGroup
+        }
+        // Simulate a tap outside the dialog, including the transparent interceptor's bounds.
+        background.layout(0, 0, 1000, 1000)
+        for (i in 0 until background.childCount) {
+            val child = background.getChildAt(i)
+            if (child.background == null) child.layout(0, 0, 1000, 1000)
+            else child.layout(200, 200, 800, 800)
+        }
+        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+            val event = MotionEvent.obtain(0, 0, action, 20f, 20f, 0)
+            try {
+                background.dispatchTouchEvent(event)
+            } finally {
+                event.recycle()
+            }
+        }
+        assertThat(dialog.isShowing).isFalse()
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_EXPAND_COLLAPSE_PRIVACY_DIALOG)
+    fun recentMicrophoneCard_animatesHeightWhenExpandingAndCollapsing() {
+        dialog = PrivacyDialogV2(
+            context, listOf(createPrivacyElement()), manageApp, closeApp, openPrivacyDashboard
+        )
+        dialog.show()
+        val card = dialog.requireViewById<View>(R.id.privacy_dialog_item_card)
+        val expanded = dialog.requireViewById<View>(R.id.privacy_dialog_item_header_expanded_layout)
+        val decor = dialog.window!!.decorView
+        fun layoutDialog() {
+            decor.measure(
+                View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+            )
+            decor.layout(0, 0, 1000, 1000)
+        }
+        layoutDialog()
+        val collapsedHeight = card.height
+        assertThat(collapsedHeight).isGreaterThan(0)
+        assertThat(expanded.visibility).isEqualTo(View.GONE)
+
+        card.performClick()
+        layoutDialog()
+        val expandAnimator =
+            card.getTag(com.android.systemui.animation.R.id.tag_animator) as? ValueAnimator
+        assertThat(expandAnimator).isNotNull()
+        assertThat(expandAnimator!!.isRunning).isTrue()
+        expandAnimator.end()
+        assertThat(expanded.visibility).isEqualTo(View.VISIBLE)
+        assertThat(card.height).isGreaterThan(collapsedHeight)
+
+        card.performClick()
+        layoutDialog()
+        val collapseAnimator =
+            card.getTag(com.android.systemui.animation.R.id.tag_animator) as? ValueAnimator
+        assertThat(collapseAnimator).isNotNull()
+        assertThat(collapseAnimator!!.isRunning).isTrue()
+        collapseAnimator.end()
+        assertThat(expanded.visibility).isEqualTo(View.GONE)
+        assertThat(card.height).isEqualTo(collapsedHeight)
     }
 
     @Test

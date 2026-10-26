@@ -43,7 +43,6 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.Accessibilit
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_COLLAPSE
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND
 import androidx.core.view.accessibility.AccessibilityViewCommand
-import com.android.systemui.Flags
 import com.android.systemui.animation.ViewHierarchyAnimator
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog
@@ -73,7 +72,14 @@ class PrivacyDialogV2(
     private val dismissListeners = mutableListOf<WeakReference<OnDialogDismissed>>()
     private val dismissed = AtomicBoolean(false)
     // Note: this will call the dialog create method during init
-    private val decorViewLayoutListener = maybeForceFullscreen()?.component3()
+    private val decorViewLayoutListener =
+        maybeForceFullscreen()?.let { (_, touchInterceptor, layoutListener) ->
+            // This dialog is already fullscreen when DialogTransitionAnimator sees it, so
+            // the animator cannot position this helper's temporary touch interceptor.
+            // Let outside touches reach the helper's dismissible background instead.
+            touchInterceptor.isClickable = false
+            layoutListener
+        }
 
     /**
      * Add a listener that will be called when the dialog is dismissed.
@@ -105,6 +111,7 @@ class PrivacyDialogV2(
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setCanceledOnTouchOutside(true)
         window!!.setGravity(Gravity.CENTER)
         setTitle(R.string.privacy_dialog_title)
         setContentView(R.layout.privacy_dialog_v2)
@@ -294,50 +301,16 @@ class PrivacyDialogV2(
             // Stop clicks from propagating
         }
 
-        if (Flags.expandCollapsePrivacyDialog()) {
-            updateExpansion(ACTION_COLLAPSE, itemCard, expandedLayout, expandToggle)
+        updateExpansion(ACTION_COLLAPSE, itemCard, expandedLayout, expandToggle)
 
-            itemCard.setOnClickListener {
-                if (expandedLayout.visibility == View.VISIBLE) {
-                    updateExpansion(ACTION_COLLAPSE, it!!, expandedLayout, expandToggle)
-                } else {
-                    updateExpansion(ACTION_EXPAND, it!!, expandedLayout, expandToggle)
-                }
-            }
-        } else {
-            expandToggle.setImageResource(R.drawable.privacy_dialog_expand_toggle_down)
-            ViewCompat.replaceAccessibilityAction(
-                itemCard,
-                AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
-                context.getString(R.string.privacy_dialog_expand_action),
-                null,
+        itemCard.setOnClickListener {
+            ViewHierarchyAnimator.animateNextUpdate(
+                rootView = window!!.decorView,
+                excludedViews = setOf(expandedLayout),
             )
-
-            itemCard.setOnClickListener {
-                if (expandedLayout.visibility == View.VISIBLE) {
-                    expandedLayout.visibility = View.GONE
-                    expandToggle.setImageResource(R.drawable.privacy_dialog_expand_toggle_down)
-                    ViewCompat.replaceAccessibilityAction(
-                        it!!,
-                        AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
-                        context.getString(R.string.privacy_dialog_expand_action),
-                        null,
-                    )
-                } else {
-                    expandedLayout.visibility = View.VISIBLE
-                    expandToggle.setImageResource(R.drawable.privacy_dialog_expand_toggle_up)
-                    ViewCompat.replaceAccessibilityAction(
-                        it!!,
-                        AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
-                        context.getString(R.string.privacy_dialog_collapse_action),
-                        null,
-                    )
-                }
-                ViewHierarchyAnimator.animateNextUpdate(
-                    rootView = window!!.decorView,
-                    excludedViews = setOf(expandedLayout),
-                )
-            }
+            val action =
+                if (expandedLayout.visibility == View.VISIBLE) ACTION_COLLAPSE else ACTION_EXPAND
+            updateExpansion(action, itemCard, expandedLayout, expandToggle)
         }
     }
 

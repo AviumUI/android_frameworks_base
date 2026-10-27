@@ -286,6 +286,31 @@ public class DimmerAnimationHelper {
                     ? taskBounds : taskFragmentBounds);
             relativeBounds.set(dim.mDimBounds);
             relativeBounds.offset(-taskBounds.left, -taskBounds.top);
+        } else if ((relativeParent.mAttrs.flags
+                        & android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND) == 0
+                && relativeParent.mAttrs.getBlurBehindRadius() > 0) {
+            // Blur only request: keep the blur inside the window that asked for it instead of
+            // covering the whole task or display.
+            final Rect windowFrame = relativeParent.getFrame();
+            dim.mDimBounds.set(windowFrame != null ? windowFrame : relativeParent.getBounds());
+            relativeBounds.set(dim.mDimBounds);
+            relativeBounds.offsetTo(0, 0);
+            t.setWindowCrop(dim.mDimSurface, relativeBounds.width(), relativeBounds.height());
+            t.setPosition(dim.mDimSurface, dim.mDimBounds.left, dim.mDimBounds.top);
+            // Rounded corners so that the blur follows the shape of the panel instead of showing
+            // a square patch behind it.
+            final float density = relativeParent.getDisplayContent() != null
+                    ? relativeParent.getDisplayContent().getDisplayMetrics().density : 1f;
+            final int cornerDp = android.os.SystemProperties.getInt(
+                    "persist.avium.sidebar_corner_dp", 20);
+            final float cornerPx = cornerDp * density;
+            t.setCornerRadius(dim.mDimSurface, cornerPx);
+            final int blurRadius = relativeParent.mAttrs.getBlurBehindRadius();
+            t.setBlurRegions(dim.mDimSurface, new float[][] { new float[] {
+                    blurRadius, 1f,
+                    0f, 0f, relativeBounds.width(), relativeBounds.height(),
+                    cornerPx, cornerPx, cornerPx, cornerPx } });
+            return;
         } else {
             dim.mDimBounds.set(hostBounds);
             relativeBounds.set(dim.mDimBounds);

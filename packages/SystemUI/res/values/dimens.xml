@@ -190,7 +190,7 @@
     <dimen name="status_bar_left_clock_end_padding">2sp</dimen>
 
     <!-- Margins before/after the new wifi icon -->
-    <dimen name="status_bar_wifi_signal_horizontal_margin">1sp</dimen>
+    <dimen name="status_bar_wifi_signal_horizontal_margin">3sp</dimen>
 
     <!-- Spacing after the wifi signals that is present if there are any icons following it. -->
     <dimen name="status_bar_wifi_signal_spacer_width">2.5sp</dimen>

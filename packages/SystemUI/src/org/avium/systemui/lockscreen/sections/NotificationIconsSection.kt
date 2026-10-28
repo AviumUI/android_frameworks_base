@@ -47,7 +47,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardSection
 import com.android.systemui.keyguard.ui.view.layout.sections.AodBurnInLayer
 import com.android.systemui.lifecycle.repeatWhenAttached
-import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
+import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.remedia.data.repository.MediaPipelineRepository
 import com.android.systemui.plugins.statusbar.StatusBarStateController
@@ -67,6 +67,7 @@ import java.util.function.Consumer
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import org.avium.systemui.lockscreen.util.CustomLockscreenSettings
 import org.avium.systemui.lockscreen.util.NotificationTileTransition
@@ -92,7 +93,7 @@ constructor(
     private val batteryController: BatteryController,
     private val mediaPipelineRepository: MediaPipelineRepository,
     private val notifPipeline: NotifPipeline,
-    private val mediaCarouselInteractor: MediaCarouselInteractor,
+    private val mediaDataManager: MediaDataManager,
     private val notificationStackController: NotificationStackScrollLayoutController,
     private val visibilityProvider: KeyguardNotificationVisibilityProvider,
     private val statusBarStateController: StatusBarStateController,
@@ -127,6 +128,26 @@ constructor(
     private var iconsRefreshPending = false
     private var listening = false
     private var mediaBinding: DisposableHandle? = null
+    private val mediaRevision = MutableStateFlow(0L)
+    private val mediaEntries = mutableMapOf<String, MediaData>()
+    private val mediaListener =
+        object : MediaDataManager.Listener {
+            override fun onMediaDataLoaded(
+                key: String,
+                oldKey: String?,
+                data: MediaData,
+                immediately: Boolean,
+            ) {
+                if (oldKey != null && oldKey != key) mediaEntries.remove(oldKey)
+                mediaEntries[key] = data
+                mediaRevision.value += 1L
+            }
+
+            override fun onMediaDataRemoved(key: String, userInitiated: Boolean) {
+                mediaEntries.remove(key)
+                mediaRevision.value += 1L
+            }
+        }
     private var hasMedia = false
     private var mediaPlayer: MediaData? = null
     private var shadeProgress = 0f
@@ -246,6 +267,8 @@ constructor(
     override fun removeViews(parent: ConstraintLayout) {
         mediaBinding?.dispose()
         mediaBinding = null
+        mediaDataManager.removeListener(mediaListener)
+        mediaEntries.clear()
         if (listening) {
             batteryController.removeCallback(batteryListener)
             configurationController.removeCallback(configurationListener)
@@ -280,26 +303,31 @@ constructor(
 
     override fun bindData(parent: ConstraintLayout) {
         mediaBinding?.dispose()
+        mediaDataManager.removeListener(mediaListener)
+        mediaDataManager.addListener(mediaListener)
         mediaBinding =
             capsuleContainer?.repeatWhenAttached {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
                     combine(
                             mediaPipelineRepository.currentUserEntries,
-                            mediaCarouselInteractor.allowMediaOnLockscreen,
-                        ) { entries, allowed ->
-                            if (allowed)
-                                entries.values
-                                    .sortedWith(
-                                        compareByDescending<MediaData> { it.isPlaying == true }
-                                            .thenByDescending { it.active }
-                                            .thenByDescending { it.lastActive }
-                                    )
-                                    .firstOrNull()
-                            else null
+                            mediaPipelineRepository.allowMediaPlayerOnLockscreen,
+                            mediaRevision,
+                        ) { entries, allowed, _ ->
+                            val player =
+                                if (allowed)
+                                    (entries.values + mediaEntries.values)
+                                        .sortedWith(
+                                            compareByDescending<MediaData> { it.isPlaying == true }
+                                                .thenByDescending { it.active }
+                                                .thenByDescending { it.lastActive }
+                                        )
+                                        .firstOrNull()
+                                else null
+                            Pair(player, allowed && mediaDataManager.hasAnyMedia())
                         }
-                        .collect {
-                            mediaPlayer = it
-                            hasMedia = it != null
+                        .collect { (player, available) ->
+                            mediaPlayer = player
+                            hasMedia = available
                             refreshIcons()
                         }
                 }

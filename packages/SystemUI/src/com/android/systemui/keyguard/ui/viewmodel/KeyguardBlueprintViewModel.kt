@@ -47,6 +47,8 @@ constructor(
 ) {
     private val logger = Logger(blueprintLog, "KeyguardBlueprintViewModel")
     val blueprint = keyguardBlueprintInteractor.blueprint
+    val customLockscreenSettingsVersion =
+        keyguardBlueprintInteractor.customLockscreenSettingsVersion
     val blueprintId = keyguardBlueprintInteractor.blueprintId
     val refreshTransition = keyguardBlueprintInteractor.refreshTransition
 

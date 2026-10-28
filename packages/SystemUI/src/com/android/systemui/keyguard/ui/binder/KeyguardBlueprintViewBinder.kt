@@ -36,6 +36,7 @@ import com.android.systemui.log.core.Logger
 import com.android.systemui.log.dagger.KeyguardBlueprintLog
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.shared.R as sharedR
+import kotlinx.coroutines.flow.combine
 import org.avium.systemui.lockscreen.sections.CustomClockSection
 
 object KeyguardBlueprintViewBinder {
@@ -59,48 +60,57 @@ object KeyguardBlueprintViewBinder {
         constraintLayout.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 launch("$TAG#viewModel.blueprint") {
-                    viewModel.blueprint.collect { currentBlueprint ->
-                        val blueprint = snapshot(currentBlueprint)
-                        val config = Config.DEFAULT.copy(
-                            rebuildSections = blueprint.sections.filterIsInstance<CustomClockSection>()
-                        )
-                        val transition =
-                            IntraBlueprintTransition(
-                                config,
-                                clockViewModel,
-                                smartspaceViewModel,
-                                log,
-                            )
-
-                        viewModel.runTransition(constraintLayout, transition, config) {
-                            // Replace sections from the previous blueprint with the new ones
-                            blueprint.replaceViews(
-                                constraintLayout,
-                                installedBlueprint,
-                                config.rebuildSections,
-                            )
-                            installedBlueprint = blueprint
-
-                            val cs =
-                                ConstraintSet().apply {
-                                    clone(constraintLayout)
-                                    val emptyLayout = ConstraintSet.Layout()
-                                    knownIds.forEach {
-                                        getConstraint(it).layout.copyFrom(emptyLayout)
-                                    }
-                                    blueprint.applyConstraints(this)
-                                }
-
-                            logger.logConstraintSet(cs, clockViewModel)
-                            cs.applyTo(constraintLayout)
-                            if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                                manuallySetDateWeatherConstraintsOnConstraintLayout(
-                                    cs,
-                                    constraintLayout,
+                    combine(viewModel.blueprint, viewModel.customLockscreenSettingsVersion) {
+                            currentBlueprint,
+                            _ ->
+                            snapshot(currentBlueprint)
+                        }
+                        .collect { blueprint ->
+                            val config =
+                                Config.DEFAULT.copy(
+                                    rebuildSections =
+                                        blueprint.sections.filterIsInstance<CustomClockSection>()
                                 )
+                            val transition =
+                                IntraBlueprintTransition(
+                                    config,
+                                    clockViewModel,
+                                    smartspaceViewModel,
+                                    log,
+                                )
+
+                            viewModel.runTransition(constraintLayout, transition, config) {
+                                // Replace sections from the previous blueprint with the new ones
+                                blueprint.replaceViews(
+                                    constraintLayout,
+                                    installedBlueprint,
+                                    config.rebuildSections,
+                                )
+                                installedBlueprint = blueprint
+
+                                val cs =
+                                    ConstraintSet().apply {
+                                        clone(constraintLayout)
+                                        val emptyLayout = ConstraintSet.Layout()
+                                        knownIds.forEach {
+                                            getConstraint(it).layout.copyFrom(emptyLayout)
+                                        }
+                                        blueprint.applyConstraints(this)
+                                    }
+
+                                logger.logConstraintSet(cs, clockViewModel)
+                                cs.applyTo(constraintLayout)
+                                if (
+                                    com.android.systemui.shared.Flags
+                                        .clockReactiveSmartspaceLayout()
+                                ) {
+                                    manuallySetDateWeatherConstraintsOnConstraintLayout(
+                                        cs,
+                                        constraintLayout,
+                                    )
+                                }
                             }
                         }
-                    }
                 }
 
                 launch("$TAG#viewModel.refreshTransition") {

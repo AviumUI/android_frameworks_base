@@ -40,10 +40,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import org.avium.systemui.lockscreen.CustomLockscreenRepository
-import android.util.Log
-import kotlinx.coroutines.flow.first
-import org.avium.systemui.lockscreen.CustomLockscreenClockManager
-import org.avium.systemui.lockscreen.sections.CustomClockSection
 
 @SysUISingleton
 class KeyguardBlueprintInteractor
@@ -56,7 +52,6 @@ constructor(
     private val fingerprintPropertyInteractor: FingerprintPropertyInteractor,
     private val smartspaceSection: SmartspaceSection,
     private val customLockscreenRepository: CustomLockscreenRepository,
-    private val customLockscreenClockManager: CustomLockscreenClockManager,
 ) : CoreStartable {
     /** The current blueprint for the lockscreen. */
     val blueprint: StateFlow<KeyguardBlueprint> = keyguardBlueprintRepository.blueprint
@@ -66,6 +61,10 @@ constructor(
      * optionally a transition should be fired to move to the rebuilt ConstraintSet.
      */
     val refreshTransition = keyguardBlueprintRepository.refreshTransition
+
+    // Keep configuration invalidation as state: refreshTransition is an event and
+    // may have no view collector while keyguard is detached.
+    val customLockscreenSettingsVersion = customLockscreenRepository.settingsVersion
 
     /** Current BlueprintId */
     val blueprintId =
@@ -89,22 +88,6 @@ constructor(
                 Config(Type.NoTransition, rebuildSections = listOf(smartspaceSection))
             configurationInteractor.onAnyConfigurationChange.collect {
                 refreshBlueprint(refreshConfig)
-            }
-        }
-        applicationScope.launch("AviumLockscreenWatcher") {
-            var isInitialState = true
-            customLockscreenRepository.settingsVersion.collect {
-                if (isInitialState) {
-                    isInitialState = false
-                    return@collect
-                }
-                customLockscreenClockManager.reload()
-                refreshBlueprint(
-                    Config(
-                        Type.NoTransition,
-                        rebuildSections = blueprint.value.sections.filterIsInstance<CustomClockSection>(),
-                    )
-                )
             }
         }
     }

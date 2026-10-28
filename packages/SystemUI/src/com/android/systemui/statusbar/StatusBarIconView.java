@@ -31,8 +31,6 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.ContentObserver;
-import android.net.Uri;
-import android.os.Handler;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorMatrixColorFilter;
@@ -41,6 +39,8 @@ import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
+import android.net.Uri;
+import android.os.Handler;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -519,7 +519,12 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
         if (!levelEquals || force) {
             setImageLevel(icon.iconLevel);
         }
-        if (icon.shape == Shape.FIXED_SPACE) {
+        if (!isShownWithNotifications()) {
+            setScaleType(icon.shape == Shape.FIXED_SPACE ? ScaleType.FIT_CENTER : ScaleType.CENTER);
+            // Wrap-content icons are measured at their painted size. Do not clip
+            // their intrinsic drawable before the outer canvas scale is applied.
+            setCropToPadding(icon.shape == Shape.FIXED_SPACE);
+        } else if (icon.shape == Shape.FIXED_SPACE) {
             setScaleType(ScaleType.FIT_CENTER);
         }
         if (!numberEquals || force) {
@@ -688,12 +693,20 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
         if (!isShownWithNotifications()) {
-            // for system icons, calculated measured width from super is for image drawable real
-            // width (17dp). We may scale the image with font scale, so we also need to scale the
-            // measured width so that scaled measured width and image width would be fit.
             int measuredWidth = getMeasuredWidth();
             int measuredHeight = getMeasuredHeight();
-            setMeasuredDimension((int) (measuredWidth * mScaleToFitNewIconSize), measuredHeight);
+            if (mIcon != null && mIcon.shape == Shape.WRAP_CONTENT && getDrawable() != null) {
+                // System assets are scaled in onDraw, but ImageView measures their
+                // unscaled intrinsic width. Reserve the painted width so narrow
+                // icons (such as location) do not leave an invisible frame around them.
+                int paintedWidth = Math.round(getDrawable().getIntrinsicWidth() * mIconScale);
+                setMeasuredDimension(resolveSizeAndState(
+                        paintedWidth + getPaddingLeft() + getPaddingRight(),
+                        widthMeasureSpec, 0), measuredHeight);
+            } else {
+                setMeasuredDimension((int) (measuredWidth * mScaleToFitNewIconSize),
+                        measuredHeight);
+            }
         }
     }
 

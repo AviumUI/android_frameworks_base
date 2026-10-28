@@ -20,10 +20,9 @@ import android.content.Context
 import android.view.View
 import android.view.ViewTreeObserver.OnPreDrawListener
 import androidx.constraintlayout.helper.widget.Layer
+import androidx.constraintlayout.widget.ConstraintLayout
 
-class AodBurnInLayer(
-    context: Context,
-) : Layer(context) {
+class AodBurnInLayer(context: Context) : Layer(context) {
     // For setScale in Layer class, it stores it in mScaleX/Y and directly apply scale to
     // referenceViews instead of keeping the value in fields of View class
     // when we try to clone ConstraintSet, it will call getScaleX from View class and return 1.0
@@ -36,17 +35,77 @@ class AodBurnInLayer(
     private var _translationX = 0F
     private var _translationY = 0F
 
-    private val _predrawListener = OnPreDrawListener {
+    // Layer caches referenced views only in updatePostLayout. ConstraintSet can
+    // call transform setters after references change but before that cache is
+    // rebuilt, otherwise indexing the old array with the new count can crash.
+    private var referencesDirty = true
+    private var groupRotation = 0f
+    private var groupPivotX = Float.NaN
+    private var groupPivotY = Float.NaN
+
+    private fun applyTransforms() {
+        if (referencesDirty) return
+        super.setPivotX(groupPivotX)
+        super.setPivotY(groupPivotY)
+        super.setRotation(groupRotation)
         super.setScaleX(_scaleX)
         super.setScaleY(_scaleY)
         super.setTranslationX(_translationX)
         super.setTranslationY(_translationY)
+    }
+
+    private val _predrawListener = OnPreDrawListener {
+        if (!referencesDirty) {
+            super.setScaleX(_scaleX)
+            super.setScaleY(_scaleY)
+            super.setTranslationX(_translationX)
+            super.setTranslationY(_translationY)
+        }
         true
     }
 
     // avoid adding views with same ids
     override fun addView(view: View?) {
-        view?.let { if (it.id !in referencedIds) super.addView(view) }
+        view?.let {
+            if (it.id !in referencedIds) {
+                referencesDirty = true
+                super.addView(view)
+            }
+        }
+    }
+
+    override fun removeView(view: View): Int {
+        referencesDirty = true
+        return super.removeView(view)
+    }
+
+    override fun setReferencedIds(ids: IntArray) {
+        referencesDirty = true
+        super.setReferencedIds(ids)
+        requestLayout()
+    }
+
+    override fun updatePostLayout(container: ConstraintLayout) {
+        // This is Layer's cache rebuild entry point. No transform setter may
+        // access the cache between reference mutation and this call.
+        super.updatePostLayout(container)
+        referencesDirty = false
+        applyTransforms()
+    }
+
+    override fun setRotation(rotation: Float) {
+        groupRotation = rotation
+        if (!referencesDirty) super.setRotation(rotation)
+    }
+
+    override fun setPivotX(pivotX: Float) {
+        groupPivotX = pivotX
+        if (!referencesDirty) super.setPivotX(pivotX)
+    }
+
+    override fun setPivotY(pivotY: Float) {
+        groupPivotY = pivotY
+        if (!referencesDirty) super.setPivotY(pivotY)
     }
 
     fun registerListener(rootView: View) {
@@ -59,7 +118,7 @@ class AodBurnInLayer(
 
     override fun setScaleX(scaleX: Float) {
         _scaleX = scaleX
-        super.setScaleX(scaleX)
+        if (!referencesDirty) super.setScaleX(scaleX)
     }
 
     override fun getScaleX(): Float {
@@ -68,7 +127,7 @@ class AodBurnInLayer(
 
     override fun setScaleY(scaleY: Float) {
         _scaleY = scaleY
-        super.setScaleY(scaleY)
+        if (!referencesDirty) super.setScaleY(scaleY)
     }
 
     override fun getScaleY(): Float {
@@ -77,7 +136,7 @@ class AodBurnInLayer(
 
     override fun setTranslationX(dx: Float) {
         _translationX = dx
-        super.setTranslationX(dx)
+        if (!referencesDirty) super.setTranslationX(dx)
     }
 
     override fun getTranslationX(): Float {
@@ -86,7 +145,7 @@ class AodBurnInLayer(
 
     override fun setTranslationY(dy: Float) {
         _translationY = dy
-        super.setTranslationY(dy)
+        if (!referencesDirty) super.setTranslationY(dy)
     }
 
     override fun getTranslationY(): Float {

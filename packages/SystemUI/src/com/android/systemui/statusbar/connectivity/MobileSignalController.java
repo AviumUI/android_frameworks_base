@@ -413,6 +413,24 @@ public class MobileSignalController extends SignalController<MobileState, Mobile
                     + " spn=" + spn + " dataSpn=" + dataSpn
                     + " showPlmn=" + showPlmn + " plmn=" + plmn);
         }
+
+        // Map English PLMN names to Chinese
+        if (plmn != null) {
+            switch (plmn) {
+                case "CHINA MOBILE":
+                case "CMCC":
+                    plmn = "中国移动";
+                    break;
+                case "CHN-CT":
+                case "CT":
+                    plmn = "中国电信";
+                    break;
+                case "CHN-UNICOM":
+                case "UNICOM":
+                    plmn = "中国联通";
+                    break;
+            }
+        }
         StringBuilder str = new StringBuilder();
         StringBuilder strData = new StringBuilder();
         if (showPlmn && plmn != null) {

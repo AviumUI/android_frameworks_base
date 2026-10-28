@@ -11305,7 +11305,7 @@ public class CarrierConfigManager {
         sDefaults.putStringArray(KEY_OPL_OVERRIDE_STRING_ARRAY, null);
         sDefaults.putStringArray(KEY_EHPLMN_OVERRIDE_STRING_ARRAY, null);
         sDefaults.putBoolean(KEY_ALLOW_ERI_BOOL, false);
-        sDefaults.putBoolean(KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        sDefaults.putBoolean(KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, true);
         sDefaults.putString(KEY_SIM_COUNTRY_ISO_OVERRIDE_STRING, "");
         sDefaults.putString(KEY_CARRIER_CALL_SCREENING_APP_STRING, "");
         sDefaults.putString(KEY_CALL_REDIRECTION_SERVICE_COMPONENT_NAME_STRING, null);

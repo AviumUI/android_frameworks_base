@@ -1751,15 +1751,12 @@ public class ActivityTaskSupervisor implements RecentTasks.Callbacks {
     boolean canUseActivityOptionsLaunchBounds(ActivityOptions options) {
         // We use the launch bounds in the activity options is the device supports freeform
         // window management or is launching into the root pinned task.
-        if (options == null) {
+        if (options == null || options.getLaunchBounds() == null) {
             return false;
         }
         final int windowingMode = options.getLaunchWindowingMode();
         if (WindowConfiguration.isPopUpWindowMode(windowingMode)) {
             return true;
-        }
-        if (options.getLaunchBounds() == null) {
-            return false;
         }
         return (mService.mSupportsPictureInPicture
                 && windowingMode == WINDOWING_MODE_PINNED)

@@ -90,6 +90,20 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
     private static final int DEFAULT_CALLING_PID = -1;
     private static final int DEFAULT_CALLING_UID = -1;
 
+    @Test
+    public void testPopupLaunchBoundsRequireExplicitBounds() {
+        assertFalse(mSupervisor.canUseActivityOptionsLaunchBounds(null));
+        for (int windowingMode : new int[] {
+                WindowConfiguration.WINDOWING_MODE_MINI_WINDOW_EXT,
+                WindowConfiguration.WINDOWING_MODE_PINNED_WINDOW_EXT}) {
+            final ActivityOptions options = ActivityOptions.makeBasic();
+            options.setLaunchWindowingMode(windowingMode);
+            assertFalse(mSupervisor.canUseActivityOptionsLaunchBounds(options));
+            options.setLaunchBounds(new Rect(0, 0, 900, 1600));
+            assertTrue(mSupervisor.canUseActivityOptionsLaunchBounds(options));
+        }
+    }
+
     /**
      * Ensures that an activity is removed from the stopping activities list once it is resumed.
      */
